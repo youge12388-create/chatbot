@@ -19,19 +19,26 @@ else
   echo ">>> Docker 已安装"
 fi
 
-# 3. 安装 Docker Compose（如果未安装）
-if ! command -v docker-compose &> /dev/null; then
+# 3. 检测 Docker Compose 命令（支持 v2 插件和 v1 独立命令）
+if docker compose version &> /dev/null; then
+  DOCKER_COMPOSE="docker compose"
+  echo ">>> 使用 Docker Compose 插件 (docker compose)"
+elif command -v docker-compose &> /dev/null; then
+  DOCKER_COMPOSE="docker-compose"
+  echo ">>> 使用 Docker Compose (docker-compose)"
+else
   echo ">>> 安装 Docker Compose..."
+  # 使用国内镜像加速下载
+  curl -L "https://mirror.ghproxy.com/https://github.com/docker/compose/releases/download/v2.27.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose || \
   curl -L "https://github.com/docker/compose/releases/download/v2.27.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
   chmod +x /usr/local/bin/docker-compose
-else
-  echo ">>> Docker Compose 已安装"
+  DOCKER_COMPOSE="docker-compose"
 fi
 
 # 4. 进入项目目录
 PROJECT_DIR="/root/chatbot"
 cd "$PROJECT_DIR" || {
-  echo ">>> 未找到项目目录 $PROJECT_DIR，请先用 WinSCP 上传代码"
+  echo ">>> 未找到项目目录 $PROJECT_DIR，请先用 git clone 或 WinSCP 上传代码"
   exit 1
 }
 
@@ -52,14 +59,14 @@ fi
 
 # 6. 启动服务
 echo ">>> 启动 PostgreSQL、Server、n8n..."
-docker-compose down 2>/dev/null || true
-docker-compose up -d
+$DOCKER_COMPOSE down 2>/dev/null || true
+$DOCKER_COMPOSE up -d
 
 # 7. 等待 PostgreSQL 就绪
 echo ">>> 等待 PostgreSQL 启动..."
 sleep 10
 for i in {1..30}; do
-  if docker-compose exec -T postgres pg_isready -U postgres >/dev/null 2>&1; then
+  if $DOCKER_COMPOSE exec -T postgres pg_isready -U postgres >/dev/null 2>&1; then
     echo ">>> PostgreSQL 已就绪"
     break
   fi
@@ -68,11 +75,11 @@ done
 
 # 8. 初始化数据库表
 echo ">>> 推送数据库表结构..."
-docker-compose exec -T server npx prisma db push --schema=packages/server/prisma/schema.prisma --accept-data-loss
+$DOCKER_COMPOSE exec -T server npx prisma db push --schema=packages/server/prisma/schema.prisma --accept-data-loss
 
 # 9. 初始化站点数据
 echo ">>> 初始化默认站点数据..."
-docker-compose exec -T server node packages/server/prisma/seed.js
+$DOCKER_COMPOSE exec -T server node packages/server/prisma/seed.js
 
 # 10. 输出访问信息
 PUBLIC_IP=$(curl -s ifconfig.me || echo "你的服务器IP")
