@@ -1,4 +1,4 @@
-FROM node:20-alpine AS builder
+FROM node:20-bookworm-slim AS builder
 
 WORKDIR /app
 
@@ -13,9 +13,7 @@ COPY packages/server/src ./packages/server/src
 RUN npm run db:generate -w packages/server
 RUN npm run build -w packages/server
 
-FROM node:20-alpine AS runner
-
-RUN apk add --no-cache openssl1.1-compat
+FROM node:20-bookworm-slim AS runner
 
 WORKDIR /app
 
