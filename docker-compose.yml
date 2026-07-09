@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: chatbot
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Chat API 后端
+  server:
+    build:
+      context: .
+      dockerfile: packages/server/Dockerfile
+    ports:
+      - '3001:3001'
+    environment:
+      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/chatbot"
+      DIFY_API_URL: "${DIFY_API_URL}"
+      DIFY_API_KEY: "${DIFY_API_KEY}"
+      WECOM_WEBHOOK_URL: "${WECOM_WEBHOOK_URL}"
+      N8N_WEBHOOK_URL: "http://n8n:5678/webhook/lead-notify"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # n8n 自动化平台
+  n8n:
+    image: n8nio/n8n:latest
+    ports:
+      - '5678:5678'
+    environment:
+      N8N_BASIC_AUTH_ACTIVE: 'true'
+      N8N_BASIC_AUTH_USER: "${N8N_USER:-admin}"
+      N8N_BASIC_AUTH_PASSWORD: "${N8N_PASSWORD:-admin}"
+      N8N_HOST: localhost
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      WEBHOOK_URL: "http://n8n:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n/workflow.json:/backup/workflow.json:ro
+    depends_on:
+      - server
+
+volumes:
+  pgdata:
+  n8n_data:

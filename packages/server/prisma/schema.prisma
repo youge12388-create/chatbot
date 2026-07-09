@@ -1,0 +1,116 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ========================
+// 站点配置
+// ========================
+model Site {
+  id        String   @id @default(cuid())
+  name      String                           // 站点名称
+  domain    String   @unique                 // 绑定的域名
+  apiKey    String   @unique                 // 接入密钥
+  settings  Json     @default("{}")          // 自定义配置（颜色、欢迎语等）
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  conversations Conversation[]
+  faqs          Faq[]
+
+  @@index([domain])
+}
+
+// ========================
+// 预设高频问题
+// ========================
+model Faq {
+  id       String @id @default(cuid())
+  siteId   String
+  question String
+  answer   String   // 预设答案，为空则走 AI
+  priority Int      @default(0)
+  site     Site     @relation(fields: [siteId], references: [id])
+
+  @@index([siteId])
+}
+
+// ========================
+// 会话
+// ========================
+model Conversation {
+  id             String    @id @default(cuid())
+  siteId         String
+  visitorId      String                           // 匿名访客标识
+  status         String    @default("active")     // active | transferred | closed
+  interestLevel  String    @default("unknown")    // unknown | low | normal | medium | high | strong
+  metadata       Json      @default("{}")         // 浏览器信息、来源等
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  closedAt       DateTime?
+
+  site     Site      @relation(fields: [siteId], references: [id])
+  messages Message[]
+  leads    Lead[]
+
+  @@index([siteId, visitorId])
+  @@index([status])
+}
+
+// ========================
+// 聊天消息
+// ========================
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  role           String                       // user | assistant | system
+  content        String
+  source         String   @default("ai")      // ai | preset | human
+  metadata       Json     @default("{}")      // 扩展信息
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+
+  @@index([conversationId])
+}
+
+// ========================
+// 用户线索
+// ========================
+model Lead {
+  id             String   @id @default(cuid())
+  conversationId String
+  name           String?                       // 姓名
+  phone          String?                       // 电话
+  email          String?                       // 邮箱
+  wechat         String?                       // 微信号
+  education      String?                       // 当前学历
+  targetMajor    String?                       // 意向专业
+  budget         String?                       // 预算
+  enrollmentDate String?                       // 预计入学时间
+  extra          Json     @default("{}")       // 扩展字段
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+
+  @@index([conversationId])
+}
+
+// ========================
+// 知识库问题（缓存）
+// ========================
+model KnowledgeCache {
+  id       String   @id @default(cuid())
+  question String
+  answer   String
+  source   String   @default("dify")   // dify | manual
+  hitCount Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([question])
+}

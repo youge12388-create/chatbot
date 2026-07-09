@@ -1,0 +1,13 @@
+{
+  "name": "chatbot",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "dev:server": "npm run dev -w packages/server",
+    "dev:widget": "npm run dev -w packages/widget",
+    "build:server": "npm run build -w packages/server",
+    "build:widget": "npm run build -w packages/widget",
+    "db:generate": "npm run db:generate -w packages/server",
+    "db:push": "npm run db:push -w packages/server"
+  }
+}

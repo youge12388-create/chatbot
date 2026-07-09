@@ -1,0 +1,124 @@
+{
+  "name": "Chatbot - 新线索通知",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-notify",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-receive",
+      "name": "接收线索 Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 格式化线索信息，生成通知文案\nconst lead = $input.first().json;\n\nconst interestLabel = {\n  unknown: '未知', low: '低', normal: '一般',\n  medium: '中等', high: '高', strong: '极高'\n};\n\nconst chatHistory = (lead.data.messages || [])\n  .slice(-6)\n  .map(m => `${m.role === 'user' ? '用户' : 'AI'}：${m.content}`)\n  .join('\\n');\n\nreturn {\n  title: '新线索通知',\n  content: [\n    `姓名：${lead.data.name || '未填写'}`,\n    `电话：${lead.data.phone || '未填写'}`,\n    `邮箱：${lead.data.email || '未填写'}`,\n    `兴趣等级：${interestLabel[lead.data.interestLevel] || '未知'}`,\n    '',\n    '--- 最近对话 ---',\n    chatHistory\n  ].join('\\n'),\n  phone: lead.data.phone,\n  name: lead.data.name\n};"
+      },
+      "id": "format-msg",
+      "name": "格式化通知内容",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=f19def8c-0a7c-4bcf-80b1-c7c56acbeca9",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "msgtype",
+              "value": "text"
+            },
+            {
+              "name": "text.content",
+              "value": "={{ $json.title }}\n{{ $json.content }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "notify-wecom",
+      "name": "企微通知",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [650, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=YOUR_LARK_WEBHOOK_URL",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "msg_type",
+              "value": "text"
+            },
+            {
+              "name": "content.text",
+              "value": "={{ $json.title }}\n{{ $json.content }}"
+            }
+          ]
+        }
+      },
+      "id": "notify-lark",
+      "name": "飞书通知",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"code\": 0, \"message\": \"ok\" }"
+      },
+      "id": "response",
+      "name": "返回响应",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 300]
+    }
+  ],
+  "connections": {
+    "接收线索 Webhook": {
+      "main": [[ { "node": "格式化通知内容", "type": "main", "index": 0 } ]]
+    },
+    "格式化通知内容": {
+      "main": [
+        [
+          { "node": "企微通知", "type": "main", "index": 0 },
+          { "node": "飞书通知", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "企微通知": {
+      "main": [[ { "node": "返回响应", "type": "main", "index": 0 } ]]
+    },
+    "飞书通知": {
+      "main": [[ { "node": "返回响应", "type": "main", "index": 0 } ]]
+    }
+  },
+  "settings": {
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "1.0.0",
+  "active": true
+}
