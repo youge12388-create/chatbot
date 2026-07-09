@@ -15,12 +15,15 @@ RUN npm run build -w packages/server
 
 FROM node:20-alpine AS runner
 
+RUN apk add --no-cache openssl1.1-compat
+
 WORKDIR /app
 
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages/server/dist ./packages/server/dist
 COPY --from=builder /app/packages/server/prisma ./packages/server/prisma
 COPY --from=builder /app/packages/server/package.json ./packages/server/package.json
+COPY --from=builder /app/packages/server/tsconfig.json ./packages/server/tsconfig.json
 
 ENV NODE_ENV=production
 EXPOSE 3001
