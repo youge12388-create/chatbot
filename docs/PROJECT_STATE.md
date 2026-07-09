@@ -71,9 +71,11 @@ chatbot/
 - 2026-07-09: 新增 `scripts/deploy.sh` 云服务器一键部署脚本
 - 2026-07-09: 新增 `packages/server/prisma/seed.js` 默认站点与 FAQ 初始化
 - 2026-07-09: 调整 `prisma` 为运行时依赖，支持容器内执行 `prisma db push`
+- 2026-07-09: 修复 Zeabur 构建失败 — `build` 脚本改为 `prisma generate && tsc`，消除 npm workspace 中 `@prisma/client` 生成路径与解析路径不一致的问题
 
 ## 验证结果
 - server tsc build: 通过，0 错误
+- `build` 脚本内联 `prisma generate`: 通过，一次命令完成 generate + compile
 - widget vite build: 通过，12.81 kB (gzip 4.62 kB）
 - 4 个接口空参数校验: 均返回 400 + 明确错误信息
 - 健康检查: 正常返回 `{"status":"ok"}`
