@@ -17,17 +17,17 @@ RUN npm run build -w packages/server
 
 FROM node:20-bookworm-slim AS runner
 
-WORKDIR /app
+WORKDIR /app/packages/server
 
 RUN apt-get update && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/packages/server/dist ./packages/server/dist
-COPY --from=builder /app/packages/server/prisma ./packages/server/prisma
-COPY --from=builder /app/packages/server/package.json ./packages/server/package.json
-COPY --from=builder /app/packages/server/tsconfig.json ./packages/server/tsconfig.json
+COPY --from=builder /app/node_modules /app/node_modules
+COPY --from=builder /app/packages/server/dist ./dist
+COPY --from=builder /app/packages/server/prisma ./prisma
+COPY --from=builder /app/packages/server/package.json ./
+COPY --from=builder /app/packages/server/tsconfig.json ./
 
 ENV NODE_ENV=production
 EXPOSE 3001
 
-CMD ["node", "packages/server/dist/index.js"]
+CMD ["npm", "start"]
