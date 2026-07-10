@@ -72,10 +72,19 @@ router.post('/message', wrap(async (req, res) => {
   let needForm: boolean = false
 
   switch (category.type) {
-    case 'faq':
-      reply = category.answer!
-      source = 'preset'
+    case 'faq': {
+      const siteId = await chatService.getConversationSiteId(conversationId)
+      const faqAnswer = await chatService.findFaqAnswer(siteId, content)
+      if (faqAnswer) {
+        reply = faqAnswer
+        source = 'preset'
+      } else {
+        // FAQ 关键词匹配但无对应预设答案，降级走 Dify
+        reply = await chatService.askDify(conversationId, content)
+        source = 'ai'
+      }
       break
+    }
 
     case 'knowledge':
       reply = await chatService.askDify(conversationId, content)

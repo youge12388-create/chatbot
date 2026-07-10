@@ -179,6 +179,32 @@ async function getFaqs(siteId: string) {
   })
 }
 
+/** 获取会话所属站点 ID */
+async function getConversationSiteId(conversationId: string): Promise<string> {
+  const conv = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+    select: { siteId: true },
+  })
+  return conv?.siteId || ''
+}
+
+/** 根据用户消息匹配 FAQ 预设答案，无匹配返回 null */
+async function findFaqAnswer(siteId: string, content: string): Promise<string | null> {
+  const faqs = await prisma.faq.findMany({
+    where: { siteId },
+    orderBy: { priority: 'asc' },
+  })
+
+  for (const faq of faqs) {
+    // 双向匹配：用户问题包含 FAQ 问题，或 FAQ 问题包含用户问题
+    if (content.includes(faq.question) || faq.question.includes(content)) {
+      return faq.answer
+    }
+  }
+
+  return null
+}
+
 export const chatService = {
   createSession,
   saveMessage,
@@ -188,4 +214,6 @@ export const chatService = {
   getTransferReply,
   transferToHuman,
   getFaqs,
+  findFaqAnswer,
+  getConversationSiteId,
 }
