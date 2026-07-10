@@ -1,0 +1,164 @@
+app:
+  description: 网站AI客服 - 基础知识库问答版（导入后需手动添加知识库检索节点）
+  icon: "\U0001F916"
+  icon_background: '#E0F2FE'
+  mode: advanced-chat
+  name: 网站AI客服-基础版
+  use_icon_as_answer_icon: false
+dependencies: []
+kind: app
+version: 0.1.2
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .JPG
+      - .JPEG
+      - .PNG
+      - .GIF
+      - .WEBP
+      - .SVG
+      allowed_file_types:
+      - image
+      allowed_file_upload_methods:
+      - local_file
+      - remote_url
+      enabled: false
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: "您好！我是留学顾问助手，可以帮您解答院校申请、专业选择、学费奖学金等问题。有什么可以帮您的？"
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions:
+    - 申请条件是什么？
+    - 学费多少钱？
+    - 有哪些奖学金？
+    - 热门专业推荐？
+    suggested_questions_after_answer:
+      enabled: true
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        sourceType: start
+        targetType: llm
+      id: 1720505581000-source-1720505583000-target
+      selected: false
+      source: '1720505581000'
+      sourceHandle: source
+      target: '1720505583000'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        sourceType: llm
+        targetType: answer
+      id: 1720505583000-source-answer-target
+      selected: false
+      source: '1720505583000'
+      sourceHandle: source
+      target: answer
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        desc: ''
+        selected: false
+        title: 开始
+        type: start
+        variables: []
+      height: 52
+      id: '1720505581000'
+      position:
+        x: 80
+        y: 282
+      positionAbsolute:
+        x: 80
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: AI 回答（导入后请在此节点前添加知识库检索节点）
+        memory:
+          query_prompt_template: '{{#sys.query#}}'
+          role_prefix:
+            assistant: ''
+            user: ''
+          window:
+            enabled: true
+            size: 10
+        model:
+          completion_params:
+            temperature: 0.3
+          mode: chat
+          name: gpt-4o-mini
+          provider: langgenius/openai/openai
+        prompt_template:
+        - role: system
+          text: "你是一个专业的教育留学顾问 AI，负责回答用户关于院校、专业、申请、费用、奖学金等问题。\n\n## 核心原则\n1. 回答简洁清晰，不超过 200 字，除非用户要求详细说明\n2. 使用友好、专业的语气\n3. 涉及费用、条件、时间等敏感信息，务必提供准确数据\n\n## 回答格式\n- 先直接回答问题\n- 再补充关键信息（如有）\n- 如果用户问题涉及个性化咨询（如\"我的情况\"、\"我的背景\"），在回答末尾加上引导：\n\u3000「方便的话可以告诉我您的学历背景和专业方向，我可以给您更精准的建议。」\n\n## 当无法回答时\n- 诚实告知目前无法提供该问题的详细信息\n- 建议用户换一种方式提问，或提供更具体的需求\n- 如果问题明显超出留学咨询范围，礼貌引导回正题\n- 如果用户表达强烈需求（要求联系、报名、签约），回复：\n\u3000「好的，我帮您记录一下需求，稍后会有专业顾问联系您。您方便的话可以先告诉我您的姓名和联系方式。」\n\n## 禁止行为\n- 不做任何承诺（如\"保证录取\"）\n- 不提供法律建议\n- 不主动询问用户联系方式\n- 不回答与留学咨询无关的问题，礼貌引导回正题"
+        selected: false
+        title: AI 回答
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 88
+      id: '1720505583000'
+      position:
+        x: 380
+        y: 282
+      positionAbsolute:
+        x: 380
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        answer: '{{#1720505583000.text#}}'
+        desc: ''
+        selected: false
+        title: 直接回复
+        type: answer
+        variables: []
+      height: 103
+      id: answer
+      position:
+        x: 680
+        y: 282
+      positionAbsolute:
+        x: 680
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 0
+      y: 0
+      zoom: 1
