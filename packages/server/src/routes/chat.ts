@@ -142,6 +142,21 @@ router.post('/lead', wrap(async (req, res) => {
 // 预设问题
 // ========================
 
+/** GET /api/chat/site?siteKey=xxx - 根据 apiKey 获取站点 ID */
+router.get('/site', wrap(async (req, res) => {
+  const { siteKey } = req.query
+  if (!siteKey) {
+    res.status(400).json({ code: 1, message: '缺少必填参数: siteKey' })
+    return
+  }
+  const site = await chatService.findSiteByApiKey(siteKey as string)
+  if (!site) {
+    res.status(404).json({ code: 1, message: '站点不存在' })
+    return
+  }
+  res.json({ code: 0, data: { id: site.id, name: site.name, settings: site.settings } })
+}))
+
 /** GET /api/chat/faqs?siteId=xxx - 获取站点预设问题 */
 router.get('/faqs', wrap(async (req, res) => {
   const { siteId } = req.query

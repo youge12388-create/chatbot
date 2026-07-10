@@ -188,6 +188,11 @@ async function getConversationSiteId(conversationId: string): Promise<string> {
   return conv?.siteId || ''
 }
 
+/** 根据 apiKey 查找站点 */
+async function findSiteByApiKey(apiKey: string) {
+  return prisma.site.findUnique({ where: { apiKey } })
+}
+
 /** 根据用户消息匹配 FAQ 预设答案，无匹配返回 null */
 async function findFaqAnswer(siteId: string, content: string): Promise<string | null> {
   const faqs = await prisma.faq.findMany({
@@ -215,5 +220,6 @@ export const chatService = {
   transferToHuman,
   getFaqs,
   findFaqAnswer,
+  findSiteByApiKey,
   getConversationSiteId,
 }
