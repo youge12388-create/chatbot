@@ -15,6 +15,11 @@ COPY packages/server/src ./packages/server/src
 RUN npm run db:generate -w packages/server
 RUN npm run build -w packages/server
 
+# Build widget
+COPY packages/widget/package.json packages/widget/vite.config.ts packages/widget/tsconfig.json ./packages/widget/
+COPY packages/widget/src ./packages/widget/src
+RUN npm run build -w packages/widget
+
 FROM node:20-bookworm-slim AS runner
 
 WORKDIR /app/packages/server
@@ -26,7 +31,7 @@ COPY --from=builder /app/packages/server/dist ./dist
 COPY --from=builder /app/packages/server/prisma ./prisma
 COPY --from=builder /app/packages/server/package.json ./
 COPY --from=builder /app/packages/server/tsconfig.json ./
-
+COPY --from=builder /app/packages/widget/dist ./public
 ENV NODE_ENV=production
 EXPOSE 3001
 
