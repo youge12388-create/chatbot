@@ -28,7 +28,7 @@ COPY --from=builder /app/packages/server/dist ./dist
 COPY --from=builder /app/packages/server/prisma ./prisma
 COPY --from=builder /app/packages/server/package.json ./
 COPY --from=builder /app/packages/server/tsconfig.json ./
-COPY --from=builder /app/packages/server/public ./public
+COPY packages/server/public ./public
 ENV NODE_ENV=production
 EXPOSE 3001
 
