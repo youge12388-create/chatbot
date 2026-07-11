@@ -9,14 +9,6 @@
  */
 
 import { prisma } from '../db/client'
-import { v5 as uuidv5 } from 'uuid'
-
-// 用于把内部 conversationId（cuid）映射为 Dify 所需的确定性格式 UUID
-const DIFY_CONV_NAMESPACE = 'a3bb6a2e-4e5d-4d8c-9f6e-1a2b3c4d5e6f'
-
-function getDifyConversationId(conversationId: string): string {
-  return uuidv5(conversationId, DIFY_CONV_NAMESPACE)
-}
 
 // ---- 类型 ----
 
@@ -109,6 +101,21 @@ async function saveMessage(
 
 const DIFY_TIMEOUT_MS = 15_000
 
+export function buildDifyRequestBody(
+  query: string,
+  difyConversationId: string | null,
+  user: string,
+) {
+  return {
+    inputs: {},
+    query,
+    // Dify 首次请求必须为空，后续使用它返回的 conversation_id
+    conversation_id: difyConversationId || '',
+    user,
+    response_mode: 'blocking',
+  }
+}
+
 async function askDify(conversationId: string, query: string): Promise<string> {
   const url = process.env.DIFY_API_URL
   const key = process.env.DIFY_API_KEY
@@ -118,7 +125,17 @@ async function askDify(conversationId: string, query: string): Promise<string> {
     return '抱歉，AI 服务暂未配置，请联系管理员。'
   }
 
-  console.log(`[chat-api] Dify 请求 URL: ${url}, key 前缀: ${key.slice(0, 8)}...`)
+  const conversation = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+    select: { metadata: true },
+  })
+  const metadata = (
+    conversation?.metadata &&
+    typeof conversation.metadata === 'object' &&
+    !Array.isArray(conversation.metadata)
+  ) ? conversation.metadata as Record<string, any> : {}
+  const difyConversationId = typeof metadata.difyConversationId === 'string'
+    ? metadata.difyConversationId : null
 
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), DIFY_TIMEOUT_MS)
@@ -130,13 +147,11 @@ async function askDify(conversationId: string, query: string): Promise<string> {
         Authorization: `Bearer ${key}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        inputs: {},
+      body: JSON.stringify(buildDifyRequestBody(
         query,
-        conversation_id: getDifyConversationId(conversationId),
-        user: conversationId,
-        response_mode: 'blocking',
-      }),
+        difyConversationId,
+        conversationId,
+      )),
       signal: controller.signal,
     })
 
@@ -147,6 +162,14 @@ async function askDify(conversationId: string, query: string): Promise<string> {
     }
 
     const data = await response.json() as any
+    if (!difyConversationId && data.conversation_id) {
+      await prisma.conversation.update({
+        where: { id: conversationId },
+        data: {
+          metadata: { ...metadata, difyConversationId: data.conversation_id },
+        },
+      })
+    }
     return data.answer || '抱歉，我暂时无法回答这个问题，请稍后重试。'
   } catch (err: any) {
     if (err.name === 'AbortError') {

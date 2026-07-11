@@ -169,20 +169,27 @@ function formatWecomText(data: any): string {
 
 /** POST JSON，吞异常，返回是否成功 */
 async function postJson(url: string, body: any): Promise<boolean> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 10_000)
+
   try {
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 10_000)
-    await fetch(url, {
+    const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
       signal: controller.signal,
     })
-    clearTimeout(timer)
+
+    if (!response.ok) {
+      console.error(`[chat-api] 通知返回 ${response.status}: ${response.statusText}`)
+      return false
+    }
     return true
   } catch (err: any) {
     console.error('[chat-api] 通知发送失败:', err.message)
     return false
+  } finally {
+    clearTimeout(timer)
   }
 }
 

@@ -48,6 +48,7 @@ services:
       N8N_PORT: 5678
       N8N_PROTOCOL: http
       WEBHOOK_URL: "http://n8n:5678"
+      WECOM_WEBHOOK_URL: "${WECOM_WEBHOOK_URL}"
     volumes:
       - n8n_data:/home/node/.n8n
       - ./n8n/workflow.json:/backup/workflow.json:ro
