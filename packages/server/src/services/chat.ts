@@ -9,6 +9,7 @@
  */
 
 import { prisma } from '../db/client'
+import { v4 as uuidv4 } from 'uuid'
 
 // ---- 类型 ----
 
@@ -123,7 +124,7 @@ async function askDify(conversationId: string, query: string): Promise<string> {
       body: JSON.stringify({
         inputs: {},
         query,
-        conversation_id: conversationId,
+        conversation_id: uuidv4(),
         user: conversationId,
         response_mode: 'blocking',
       }),
