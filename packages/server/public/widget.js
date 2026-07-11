@@ -27,8 +27,9 @@
   `,o.querySelector(".chat-form-submit").addEventListener("click",()=>{const i=o.querySelectorAll("input"),c={};i.forEach(h=>{c[h.name]=h.value}),t(c)}),o.querySelector(".chat-form-cancel").addEventListener("click",n)}const q=`
 .chat-widget-container {
   position: fixed;
-  bottom: 20px;
+  top: 50%;
   right: 20px;
+  transform: translateY(-50%);
   z-index: 999999;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   font-size: 14px;
@@ -259,7 +260,7 @@
 @media (max-width: 480px) {
   .chat-widget-window {
     width: calc(100vw - 40px);
-    height: 70vh);
+    height: 70vh;
     right: 0;
   }
 }
