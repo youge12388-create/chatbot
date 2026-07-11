@@ -265,7 +265,17 @@ export function createWidget(config: WidgetConfig) {
 
   // Shadow DOM 隔离样式
   const container = document.createElement('div')
-  container.className = 'chat-widget-container'
+  // 容器在 Shadow DOM 外部，必须用 inline style 才不会被宿主页面覆盖
+  container.style.cssText = [
+    'position: fixed',
+    'top: 50%',
+    'right: 20px',
+    'transform: translateY(-50%)',
+    'z-index: 999999',
+    'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+    'font-size: 14px',
+    'line-height: 1.5',
+  ].join(';')
   const shadow = container.attachShadow({ mode: 'open' })
 
   // HTML 结构
