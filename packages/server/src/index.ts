@@ -1,5 +1,6 @@
 import express, { Request, Response, NextFunction } from 'express'
 import cors from 'cors'
+import path from 'path'
 import chatRoutes from './routes/chat'
 
 const app = express()
@@ -8,6 +9,9 @@ const PORT = process.env.PORT || 3001
 // 中间件
 app.use(cors())
 app.use(express.json())
+
+// 提供 widget.js 静态文件
+app.use(express.static(path.join(__dirname, '../public')))
 
 // 路由
 app.use('/api/chat', chatRoutes)
