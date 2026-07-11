@@ -2,5 +2,4 @@
 .env
 node_modules
 packages/*/dist
-packages/server/public/widget.js
 npm-debug.log
