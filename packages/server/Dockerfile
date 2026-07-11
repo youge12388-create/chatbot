@@ -25,10 +25,10 @@ RUN apt-get update && apt-get install -y openssl ca-certificates && rm -rf /var/
 
 COPY --from=builder /app/node_modules /app/node_modules
 COPY --from=builder /app/packages/server/dist ./dist
-COPY --from=builder /app/packages/server/prisma ./prisma
 COPY --from=builder /app/packages/server/package.json ./
 COPY --from=builder /app/packages/server/tsconfig.json ./
 COPY packages/server/public ./public
+COPY --from=builder /app/packages/server/prisma ./prisma
 ENV NODE_ENV=production
 EXPOSE 3001
 
