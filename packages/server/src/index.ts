@@ -32,6 +32,6 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   })
 })
 
-app.listen(PORT, () => {
-  console.log(`[chat-api] running on http://localhost:${PORT}`)
+app.listen(Number(PORT), '0.0.0.0', () => {
+  console.log(`[chat-api] running on http://0.0.0.0:${PORT}`)
 })
