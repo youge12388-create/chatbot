@@ -3,6 +3,9 @@
   "private": true,
   "workspaces": ["packages/*"],
   "scripts": {
+    "build": "npm run build:widget && node scripts/sync-widget.mjs && npm run build:server",
+    "start": "npm run start -w packages/server",
+    "test": "npm run test -w packages/server",
     "dev:server": "npm run dev -w packages/server",
     "dev:widget": "npm run dev -w packages/widget",
     "build:server": "npm run build -w packages/server",

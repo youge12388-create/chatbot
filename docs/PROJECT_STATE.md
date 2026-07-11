@@ -9,8 +9,9 @@
 - [x] Widget 聊天窗口（Vanilla TS + Vite + Shadow DOM）
 - [x] 数据库 Schema（6 表）
 - [x] n8n 集成（workflow 文件 + Docker 编排）
-- [ ] 联合测试（需要 Docker 或 PostgreSQL 环境）
-- [ ] 线上部署
+- [x] Zeabur GitHub 自动部署链路
+- [x] Widget 构建产物自动同步到 Server
+- [ ] 线上端到端验收（Widget → API → Dify → n8n）
 
 ## 目录结构
 ```
@@ -72,29 +73,28 @@ chatbot/
 - 2026-07-09: 新增 `packages/server/prisma/seed.js` 默认站点与 FAQ 初始化
 - 2026-07-09: 调整 `prisma` 为运行时依赖，支持容器内执行 `prisma db push`
 - 2026-07-09: 修复 Zeabur 构建失败 — `build` 脚本改为 `prisma generate && tsc`，消除 npm workspace 中 `@prisma/client` 生成路径与解析路径不一致的问题
+- 2026-07-11: 修复 Dify 会话协议：首次请求传空 ID，持久化并复用 Dify 返回的 `conversation_id`
+- 2026-07-11: 根目录 `build` 自动构建 Widget、同步到 Server 并构建后端，兼容 Zeabur 自动部署
+- 2026-07-11: 移除 n8n workflow 中提交的企微 webhook，改为 `WECOM_WEBHOOK_URL` 环境变量
+- 2026-07-11: 新增 Dify 会话请求测试，并修复通知接口不检查 HTTP 状态的问题
 
 ## 验证结果
-- server tsc build: 通过，0 错误
-- `build` 脚本内联 `prisma generate`: 通过，一次命令完成 generate + compile
-- widget vite build: 通过，12.81 kB (gzip 4.62 kB）
-- 4 个接口空参数校验: 均返回 400 + 明确错误信息
-- 健康检查: 正常返回 `{"status":"ok"}`
+- 2026-07-11 `npm test`: 2 个 Dify 会话测试通过
+- 2026-07-11 `npm run build`: Widget 构建、静态文件同步、Prisma generate、server tsc 全部通过
+- Widget 构建产物与 Server 对外静态文件 SHA256 一致
+- 当前工作树敏感信息扫描未发现企微 webhook key 或 Dify app key
 - Docker 镜像构建: 未在云服务器验证（待执行）
 
 ## 已知问题
-- 本地无法安装 Docker，所有运行验证需转移到云服务器 122.51.62.116
-- Dify API Key 未配置，AI 对话走兜底回复
-- 企微/飞书 webhook URL 未配置，n8n workflow 中为占位符
-- FAQ 关键词路由返回 `category.answer!` 存在返回 `undefined` 风险
+- 已泄露的企微 webhook 仍存在于 Git 历史，必须在企微后台作废并轮换
+- Zeabur 环境变量需配置 `DATABASE_URL`、`DIFY_API_URL`、`DIFY_API_KEY`；通知另需 `N8N_WEBHOOK_URL` 或 `WECOM_WEBHOOK_URL`
+- 尚未完成线上 Dify 与 n8n 端到端验收
+- `/api/health` 只验证进程存活，不代表数据库、Dify、n8n 都可用
 
 ## 下一步
-1. 将代码上传到云服务器 122.51.62.116
-2. 在云服务器执行 `scripts/deploy.sh` 完成一键部署
-3. 配置云平台安全组，放行 3001、5678、5432 端口
-4. 用 pgAdmin 连接云数据库验证表结构和初始数据
-5. 配置 Dify API Key，接入知识库
-6. 配置企微/飞书 webhook URL
-7. 端到端测试：widget 发消息 → API → Dify → n8n → 通知
-8. 修复 FAQ 路由返回 undefined 的问题
-9. 编写单元测试
-10. 生产环境部署准备（HTTPS、环境变量、密钥管理）
+1. 在企微后台轮换已经进入 Git 历史的 webhook key，并更新 Zeabur 环境变量
+2. 审查改动后推送 GitHub，由 Zeabur 自动部署；无需手工拉取代码
+3. 检查 Zeabur 构建日志中 Widget build、静态文件同步、Prisma generate 和 tsc 均成功
+4. 线上验证 `/widget.js`、创建会话、连续发送两条 Dify 消息
+5. 提交测试线索，验证 n8n 或企微通知
+6. 后续增加数据库 readiness 检查和完整 API 集成测试

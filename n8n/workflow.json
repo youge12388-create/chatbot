@@ -27,7 +27,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=f19def8c-0a7c-4bcf-80b1-c7c56acbeca9",
+        "url": "={{ $env.WECOM_WEBHOOK_URL }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
