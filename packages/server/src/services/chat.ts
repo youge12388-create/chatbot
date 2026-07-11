@@ -9,7 +9,14 @@
  */
 
 import { prisma } from '../db/client'
-import { v4 as uuidv4 } from 'uuid'
+import { v5 as uuidv5 } from 'uuid'
+
+// 用于把内部 conversationId（cuid）映射为 Dify 所需的确定性格式 UUID
+const DIFY_CONV_NAMESPACE = 'a3bb6a2e-4e5d-4d8c-9f6e-1a2b3c4d5e6f'
+
+function getDifyConversationId(conversationId: string): string {
+  return uuidv5(conversationId, DIFY_CONV_NAMESPACE)
+}
 
 // ---- 类型 ----
 
@@ -111,6 +118,8 @@ async function askDify(conversationId: string, query: string): Promise<string> {
     return '抱歉，AI 服务暂未配置，请联系管理员。'
   }
 
+  console.log(`[chat-api] Dify 请求 URL: ${url}, key 前缀: ${key.slice(0, 8)}...`)
+
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), DIFY_TIMEOUT_MS)
 
@@ -124,7 +133,7 @@ async function askDify(conversationId: string, query: string): Promise<string> {
       body: JSON.stringify({
         inputs: {},
         query,
-        conversation_id: uuidv4(),
+        conversation_id: getDifyConversationId(conversationId),
         user: conversationId,
         response_mode: 'blocking',
       }),
@@ -132,7 +141,8 @@ async function askDify(conversationId: string, query: string): Promise<string> {
     })
 
     if (!response.ok) {
-      console.error(`[chat-api] Dify 返回 ${response.status}: ${response.statusText}`)
+      const errorBody = await response.text().catch(() => '')
+      console.error(`[chat-api] Dify 返回 ${response.status}: ${response.statusText}`, errorBody)
       return '抱歉，AI 服务暂时不可用，请稍后重试。'
     }
 
