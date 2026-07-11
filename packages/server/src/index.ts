@@ -16,8 +16,8 @@ app.use(express.static(path.join(__dirname, '../public')))
 // 路由
 app.use('/api/chat', chatRoutes)
 
-// 健康检查
-app.get('/api/health', (_req, res) => {
+// 健康检查（同时兼容根路径，避免部分网关默认探针 404）
+app.get(['/', '/api/health'], (_req, res) => {
   res.json({ status: 'ok', timestamp: Date.now() })
 })
 
