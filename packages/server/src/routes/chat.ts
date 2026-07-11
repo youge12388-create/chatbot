@@ -231,4 +231,45 @@ router.get('/leads/html', wrap(async (_req, res) => {
   `)
 }))
 
+/** GET /api/chat/leads/test-notify - 测试企微通知（方便排查） */
+router.get('/leads/test-notify', wrap(async (_req, res) => {
+  const url = process.env.WECOM_WEBHOOK_URL
+  const n8nUrl = process.env.N8N_WEBHOOK_URL
+
+  if (!url && !n8nUrl) {
+    res.json({ code: 1, message: 'WECOM_WEBHOOK_URL 和 N8N_WEBHOOK_URL 都未配置' })
+    return
+  }
+
+  const targets: string[] = []
+  if (n8nUrl) targets.push('n8n')
+  if (url) targets.push('企微')
+
+  // 尝试直连企微
+  if (url) {
+    try {
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          msgtype: 'text',
+          text: { content: '✅ chatbot 通知测试：如果你收到这条消息，说明企微推送配置正确。' },
+        }),
+      })
+      const body = await resp.text()
+      res.json({
+        code: 0,
+        message: `已向 ${targets.join(' 和 ')} 发送测试消息`,
+        wecom: { status: resp.status, body },
+      })
+      return
+    } catch (err: any) {
+      res.json({ code: 1, message: `企微通知失败: ${err.message}`, url_prefix: url.substring(0, 30) })
+      return
+    }
+  }
+
+  res.json({ code: 0, message: '仅配置了 n8n，跳过企微测试' })
+}))
+
 export default router
