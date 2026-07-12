@@ -47,12 +47,13 @@ model Conversation {
   id             String    @id @default(cuid())
   siteId         String
   visitorId      String                           // 匿名访客标识
-  status         String    @default("active")     // active | transferred | closed
+  status         String    @default("active")     // active | taken_over | transferred | closed
   interestLevel  String    @default("unknown")    // unknown | low | normal | medium | high | strong
   metadata       Json      @default("{}")         // 浏览器信息、来源等
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   closedAt       DateTime?
+  lastMessageAt  DateTime?                        // 最后消息时间,列表排序用
 
   site     Site      @relation(fields: [siteId], references: [id])
   messages Message[]
@@ -60,6 +61,7 @@ model Conversation {
 
   @@index([siteId, visitorId])
   @@index([status])
+  @@index([lastMessageAt])
 }
 
 // ========================
@@ -93,6 +95,9 @@ model Lead {
   targetMajor    String?                       // 意向专业
   budget         String?                       // 预算
   enrollmentDate String?                       // 预计入学时间
+  status         String   @default("new")      // new | following | contacted | converted | discarded
+  note           String?                       // 客服备注
+  assignedTo     String?                       // 负责人 AdminUser.id
   extra          Json     @default("{}")       // 扩展字段
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -100,6 +105,20 @@ model Lead {
   conversation Conversation @relation(fields: [conversationId], references: [id])
 
   @@index([conversationId])
+  @@index([status])
+}
+
+// ========================
+// 管理员账号
+// ========================
+model AdminUser {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String                           // bcrypt 哈希
+  role      String   @default("staff")       // admin | staff
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ========================

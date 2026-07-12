@@ -116,4 +116,50 @@ export class ChatApi {
     const data = await res.json()
     return data.data || []
   }
+
+  /** 当前会话 ID（未创建会话时为 null） */
+  getConversationId(): string | null {
+    return this.conversationId
+  }
+
+  /**
+   * 建立 SSE 长连接，监听后台人工回复
+   * 返回一个 close 函数，调用即断开
+   */
+  startStream(onMessage: (payload: any) => void): () => void {
+    if (!this.conversationId) return () => {}
+
+    const url = `${this.apiHost}/api/chat/stream?conversationId=${encodeURIComponent(this.conversationId)}`
+    const es = new EventSource(url)
+
+    es.onmessage = (ev) => {
+      try {
+        const payload = JSON.parse(ev.data)
+        onMessage(payload)
+      } catch (e) {
+        // 忽略心跳等非 JSON 数据
+      }
+    }
+
+    es.onerror = () => {
+      // EventSource 会自动重连，无需手动处理
+    }
+
+    return () => es.close()
+  }
+
+  /**
+   * 拉取某个时间点之后的消息（重连时拉未读）
+   */
+  async fetchMessagesAfter(afterISO: string): Promise<any[]> {
+    if (!this.conversationId) return []
+    try {
+      const url = `${this.apiHost}/api/chat/messages?conversationId=${encodeURIComponent(this.conversationId)}&after=${encodeURIComponent(afterISO)}`
+      const res = await fetch(url)
+      const data = await res.json()
+      return data.data || []
+    } catch {
+      return []
+    }
+  }
 }

@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: oklch(1 0 0);
+  --surface: oklch(0.975 0.003 354);
+  --ink: oklch(0.22 0.012 354);
+  --primary: oklch(0.42 0.14 354);
+  --primary-hover: oklch(0.36 0.14 354);
+  --accent: oklch(0.62 0.14 55);
+  --muted: oklch(0.55 0.008 354);
+  --success: oklch(0.55 0.13 145);
+  --warning: oklch(0.72 0.15 75);
+  --danger: oklch(0.52 0.16 25);
+  --info: oklch(0.55 0.12 250);
+  --border: oklch(0.9 0.003 354);
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button {
+  font-family: inherit;
+}
+
+input,
+textarea,
+select {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}

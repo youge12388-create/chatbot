@@ -3,13 +3,15 @@
   "private": true,
   "workspaces": ["packages/*"],
   "scripts": {
-    "build": "npm run build:widget && node scripts/sync-widget.mjs && npm run build:server",
+    "build": "npm run build:widget && node scripts/sync-widget.mjs && npm run build:admin && node scripts/sync-admin.mjs && npm run build:server",
     "start": "npm run start -w packages/server",
     "test": "npm run test -w packages/server",
     "dev:server": "npm run dev -w packages/server",
     "dev:widget": "npm run dev -w packages/widget",
+    "dev:admin": "npm run dev -w packages/admin",
     "build:server": "npm run build -w packages/server",
     "build:widget": "npm run build -w packages/widget",
+    "build:admin": "npm run build -w packages/admin",
     "db:generate": "npm run db:generate -w packages/server",
     "db:push": "npm run db:push -w packages/server"
   }

@@ -521,6 +521,36 @@ export function createWidget(config: WidgetConfig) {
       setTimeout(() => addMessage({ role: 'assistant', content: guide }, true), 1500)
     }
     loadFaqs()
+    // 启动 SSE 监听后台人工回复
+    startAgentStream()
+    // 重连时拉取未读消息
+    fetchUnreadMessages()
+  }
+
+  // SSE 监听后台消息
+  let closeStream: (() => void) | null = null
+  let lastMessageTime: string | null = null
+  function startAgentStream() {
+    if (closeStream) closeStream()
+    closeStream = api.startStream((payload: any) => {
+      if (payload.event === 'agent_reply' && payload.data) {
+        const d = payload.data
+        addMessage({ role: 'assistant', content: d.content }, true)
+        lastMessageTime = d.createdAt || new Date().toISOString()
+      }
+    })
+  }
+
+  // 重连时拉取未读消息（对比本地最后消息时间）
+  async function fetchUnreadMessages() {
+    if (!lastMessageTime) return
+    const msgs = await api.fetchMessagesAfter(lastMessageTime)
+    for (const m of msgs) {
+      if (m.role === 'assistant' && m.source === 'human') {
+        addMessage({ role: 'assistant', content: m.content }, true)
+        lastMessageTime = m.createdAt
+      }
+    }
   }
 
   // 加载高频问题

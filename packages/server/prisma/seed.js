@@ -1,4 +1,5 @@
 const { PrismaClient } = require('@prisma/client')
+const bcrypt = require('bcryptjs')
 
 const prisma = new PrismaClient()
 
@@ -39,6 +40,20 @@ async function main() {
         priority: faq.priority,
       },
     })
+  }
+
+  // 创建默认管理员账号
+  const adminUsername = process.env.ADMIN_USERNAME || 'admin'
+  const adminPassword = process.env.ADMIN_PASSWORD || 'admin123'
+  const existing = await prisma.adminUser.findUnique({ where: { username: adminUsername } })
+  if (!existing) {
+    const hashed = await bcrypt.hash(adminPassword, 10)
+    await prisma.adminUser.create({
+      data: { username: adminUsername, password: hashed, role: 'admin', name: '管理员' },
+    })
+    console.log(`[seed] 默认管理员创建成功: ${adminUsername} (请尽快修改密码)`)
+  } else {
+    console.log(`[seed] 管理员已存在: ${adminUsername}`)
   }
 
   console.log(`[seed] 站点创建成功: ${site.id}, apiKey: ${site.apiKey}`)

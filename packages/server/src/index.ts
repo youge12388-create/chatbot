@@ -2,6 +2,7 @@ import express, { Request, Response, NextFunction } from 'express'
 import cors from 'cors'
 import path from 'path'
 import chatRoutes from './routes/chat'
+import adminRoutes from './routes/admin'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -15,6 +16,14 @@ app.use(express.static(path.join(__dirname, '../public')))
 
 // 路由
 app.use('/api/chat', chatRoutes)
+app.use('/api/admin', adminRoutes)
+
+// 后台 SPA：/admin 及其子路径返回 admin/index.html
+const adminDir = path.join(__dirname, '../public/admin')
+app.use('/admin', express.static(adminDir, { index: false }))
+app.get(['/admin', '/admin/*'], (_req, res) => {
+  res.sendFile(path.join(adminDir, 'index.html'))
+})
 
 // 健康检查（同时兼容根路径，避免部分网关默认探针 404）
 app.get(['/', '/api/health'], (_req, res) => {
