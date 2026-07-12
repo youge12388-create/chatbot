@@ -1,30 +1,30 @@
-(function(){"use strict";class S{constructor(e,t,n){this.conversationId=null,this.apiHost=e,this.siteId=t,this.lang=n,this.visitorId=this.getOrCreateVisitorId()}getOrCreateVisitorId(){const e="chatbot_visitor_id";let t=localStorage.getItem(e);return t||(t=crypto.randomUUID?crypto.randomUUID():`${Date.now()}-${Math.random().toString(36).slice(2)}`,localStorage.setItem(e,t)),t}async createSession(){const t=await(await fetch(`${this.apiHost}/api/chat/session`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({siteId:this.siteId,visitorId:this.visitorId,metadata:{url:location.href,userAgent:navigator.userAgent}})})).json();return this.conversationId=t.data.id,this.conversationId}async sendMessage(e){return this.conversationId||await this.createSession(),(await(await fetch(`${this.apiHost}/api/chat/message`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({conversationId:this.conversationId,content:e,lang:this.lang})})).json()).data}async submitLead(e){await fetch(`${this.apiHost}/api/chat/lead`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({conversationId:this.conversationId,...e})})}async getFaqs(){return(await(await fetch(`${this.apiHost}/api/chat/faqs?siteId=${this.siteId}`)).json()).data||[]}}const w={"zh-CN":{"header.title":"在线咨询","input.placeholder":"输入问题...",loading:"正在思考...",networkError:"网络异常，请稍后重试。","form.title":"请留下联系方式，方便我们为您服务","form.name":"姓名","form.namePlaceholder":"您的称呼","form.phone":"手机号","form.phonePlaceholder":"您的手机号码","form.wechat":"微信号（选填）","form.wechatPlaceholder":"微信号","form.education":"当前学历","form.educationPlaceholder":"如：本科、大专、高中","form.major":"意向专业（选填）","form.majorPlaceholder":"您想申请的专业","form.submit":"提交","form.cancel":"稍后再说","form.success":"信息已收到，我们会尽快联系您。","transfer.reply":"已将您的需求转给专业顾问，稍后会联系您。"},en:{"header.title":"Online Support","input.placeholder":"Type your question...",loading:"Thinking...",networkError:"Network error, please try again.","form.title":"Please leave your contact info","form.name":"Name","form.namePlaceholder":"Your name","form.phone":"Phone","form.phonePlaceholder":"Your phone number","form.wechat":"WeChat (optional)","form.wechatPlaceholder":"WeChat ID","form.education":"Education","form.educationPlaceholder":"e.g. Bachelor, Diploma, High School","form.major":"Intended Major (optional)","form.majorPlaceholder":"Your intended major","form.submit":"Submit","form.cancel":"Later","form.success":"We've received your info, we'll contact you soon.","transfer.reply":"Your request has been forwarded to a consultant."},ru:{"header.title":"Онлайн консультация","input.placeholder":"Введите вопрос...",loading:"Думаю...",networkError:"Ошибка сети, попробуйте позже.","form.title":"Оставьте контактные данные","form.name":"Имя","form.namePlaceholder":"Ваше имя","form.phone":"Телефон","form.phonePlaceholder":"Ваш номер телефона","form.wechat":"WeChat (необязательно)","form.wechatPlaceholder":"WeChat ID","form.education":"Образование","form.educationPlaceholder":"например: Бакалавр, Диплом, Школа","form.major":"Специальность (необязательно)","form.majorPlaceholder":"Ваша специальность","form.submit":"Отправить","form.cancel":"Позже","form.success":"Мы получили ваши данные, скоро свяжемся.","transfer.reply":"Ваш запрос передан консультанту."}};function I(){var i;const o=document.querySelector("script[data-site-id]"),e=o==null?void 0:o.getAttribute("data-lang");if(e==="zh-CN"||e==="en"||e==="ru")return e;const t=(i=document.documentElement.lang)==null?void 0:i.toLowerCase();if(t){if(t.startsWith("zh"))return"zh-CN";if(t.startsWith("ru"))return"ru";if(t.startsWith("en"))return"en"}const n=navigator.language;return n.startsWith("zh")?"zh-CN":n.startsWith("ru")?"ru":n.startsWith("en")?"en":"zh-CN"}function r(o,e){var t;return((t=w[o])==null?void 0:t[e])||w["zh-CN"][e]||e}function C(o,e,t,n){o.innerHTML=`
-    <h4>${r(e,"form.title")}</h4>
+(function(){"use strict";class N{constructor(e,o,s){this.conversationId=null,this.siteKey=null,this.apiHost=e,this.siteId=o,this.lang=s,this.visitorId=this.getOrCreateVisitorId()}setSiteKey(e){this.siteKey=e}getOrCreateVisitorId(){const e="chatbot_visitor_id";let o=localStorage.getItem(e);return o||(o=crypto.randomUUID?crypto.randomUUID():`${Date.now()}-${Math.random().toString(36).slice(2)}`,localStorage.setItem(e,o)),o}async getSiteSettings(){var e;if(!this.siteKey)return null;try{return((e=(await(await fetch(`${this.apiHost}/api/chat/site?siteKey=${this.siteKey}`)).json()).data)==null?void 0:e.settings)||null}catch{return null}}async createSession(){const o=await(await fetch(`${this.apiHost}/api/chat/session`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({siteId:this.siteId,visitorId:this.visitorId,metadata:{url:location.href,userAgent:navigator.userAgent}})})).json();return this.conversationId=o.data.id,{conversationId:this.conversationId,siteSettings:o.data.siteSettings}}async sendMessage(e){return this.conversationId||await this.createSession(),(await(await fetch(`${this.apiHost}/api/chat/message`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({conversationId:this.conversationId,content:e,lang:this.lang})})).json()).data}async submitLead(e){await fetch(`${this.apiHost}/api/chat/lead`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({conversationId:this.conversationId,...e})})}async getFaqs(){return(await(await fetch(`${this.apiHost}/api/chat/faqs?siteId=${this.siteId}`)).json()).data||[]}}const $={"zh-CN":{"header.title":"在线咨询","header.welcome":"您好！有什么可以帮您的？","input.placeholder":"输入问题...",loading:"正在思考...",networkError:"网络异常，请稍后重试。","form.title":"请留下联系方式，方便我们为您服务","form.name":"姓名","form.namePlaceholder":"您的称呼","form.phone":"手机号","form.phonePlaceholder":"您的手机号码","form.wechat":"微信号（选填）","form.wechatPlaceholder":"微信号","form.education":"当前学历","form.educationPlaceholder":"如：本科、大专、高中","form.major":"意向专业（选填）","form.majorPlaceholder":"您想申请的专业","form.submit":"提交","form.cancel":"稍后再说","form.success":"信息已收到，我们会尽快联系您。","transfer.reply":"已将您的需求转给专业顾问，稍后会联系您。"},en:{"header.title":"Online Support","header.welcome":"Hello! How can I help you?","input.placeholder":"Type your question...",loading:"Thinking...",networkError:"Network error, please try again.","form.title":"Please leave your contact info","form.name":"Name","form.namePlaceholder":"Your name","form.phone":"Phone","form.phonePlaceholder":"Your phone number","form.wechat":"WeChat (optional)","form.wechatPlaceholder":"WeChat ID","form.education":"Education","form.educationPlaceholder":"e.g. Bachelor, Diploma, High School","form.major":"Intended Major (optional)","form.majorPlaceholder":"Your intended major","form.submit":"Submit","form.cancel":"Later","form.success":"We've received your info, we'll contact you soon.","transfer.reply":"Your request has been forwarded to a consultant."},ru:{"header.title":"Онлайн консультация","header.welcome":"Здравствуйте! Чем я могу помочь?","input.placeholder":"Введите вопрос...",loading:"Думаю...",networkError:"Ошибка сети, попробуйте позже.","form.title":"Оставьте контактные данные","form.name":"Имя","form.namePlaceholder":"Ваше имя","form.phone":"Телефон","form.phonePlaceholder":"Ваш номер телефона","form.wechat":"WeChat (необязательно)","form.wechatPlaceholder":"WeChat ID","form.education":"Образование","form.educationPlaceholder":"например: Бакалавр, Диплом, Школа","form.major":"Специальность (необязательно)","form.majorPlaceholder":"Ваша специальность","form.submit":"Отправить","form.cancel":"Позже","form.success":"Мы получили ваши данные, скоро свяжемся.","transfer.reply":"Ваш запрос передан консультанту."}};function M(){var n;const r=document.querySelector("script[data-site-id]"),e=r==null?void 0:r.getAttribute("data-lang");if(e==="zh-CN"||e==="en"||e==="ru")return e;const o=(n=document.documentElement.lang)==null?void 0:n.toLowerCase();if(o){if(o.startsWith("zh"))return"zh-CN";if(o.startsWith("ru"))return"ru";if(o.startsWith("en"))return"en"}const s=navigator.language;return s.startsWith("zh")?"zh-CN":s.startsWith("ru")?"ru":s.startsWith("en")?"en":"zh-CN"}function i(r,e){var o;return((o=$[r])==null?void 0:o[e])||$["zh-CN"][e]||e}function D(r){const e=r.trim();return!!(/^1[3-9]\d{9}$/.test(e)||/^\+\d{6,15}$/.test(e))}function k(r,e){r.style.borderColor="#ff4d4f";let o=r.parentElement.querySelector(".chat-form-error");o||(o=document.createElement("div"),o.className="chat-form-error",o.style.cssText="color: #ff4d4f; font-size: 12px; margin-top: 4px;",r.parentElement.appendChild(o)),o.textContent=e}function L(r){r.style.borderColor="#ddd";const e=r.parentElement.querySelector(".chat-form-error");e&&e.remove()}function W(r,e,o,s){r.innerHTML=`
+    <h4>${i(e,"form.title")}</h4>
     <div class="chat-form-row">
-      <label>${r(e,"form.name")}</label>
-      <input type="text" name="name" placeholder="${r(e,"form.namePlaceholder")}" />
+      <label>${i(e,"form.name")} <span style="color:#ff4d4f">*</span></label>
+      <input type="text" name="name" placeholder="${i(e,"form.namePlaceholder")}" />
     </div>
     <div class="chat-form-row">
-      <label>${r(e,"form.phone")}</label>
-      <input type="tel" name="phone" placeholder="${r(e,"form.phonePlaceholder")}" />
+      <label>${i(e,"form.phone")} <span style="color:#ff4d4f">*</span></label>
+      <input type="tel" name="phone" placeholder="${i(e,"form.phonePlaceholder")}" />
     </div>
     <div class="chat-form-row">
-      <label>${r(e,"form.wechat")}</label>
-      <input type="text" name="wechat" placeholder="${r(e,"form.wechatPlaceholder")}" />
+      <label>${i(e,"form.wechat")}</label>
+      <input type="text" name="wechat" placeholder="${i(e,"form.wechatPlaceholder")}" />
     </div>
     <div class="chat-form-row">
-      <label>${r(e,"form.education")}</label>
-      <input type="text" name="education" placeholder="${r(e,"form.educationPlaceholder")}" />
+      <label>${i(e,"form.education")}</label>
+      <input type="text" name="education" placeholder="${i(e,"form.educationPlaceholder")}" />
     </div>
     <div class="chat-form-row">
-      <label>${r(e,"form.major")}</label>
-      <input type="text" name="targetMajor" placeholder="${r(e,"form.majorPlaceholder")}" />
+      <label>${i(e,"form.major")}</label>
+      <input type="text" name="targetMajor" placeholder="${i(e,"form.majorPlaceholder")}" />
     </div>
     <div class="chat-form-actions">
-      <button class="chat-form-submit">${r(e,"form.submit")}</button>
-      <button class="chat-form-cancel">${r(e,"form.cancel")}</button>
+      <button class="chat-form-submit">${i(e,"form.submit")}</button>
+      <button class="chat-form-cancel">${i(e,"form.cancel")}</button>
     </div>
-  `,o.querySelector(".chat-form-submit").addEventListener("click",()=>{const i=o.querySelectorAll("input"),c={};i.forEach(h=>{c[h.name]=h.value}),t(c)}),o.querySelector(".chat-form-cancel").addEventListener("click",n)}const q=`
+  `;const n=r.querySelector('input[name="name"]'),c=r.querySelector('input[name="phone"]');n.addEventListener("input",()=>L(n)),c.addEventListener("input",()=>L(c)),r.querySelector(".chat-form-submit").addEventListener("click",()=>{let h=!1;if(n.value.trim()||(k(n,e==="zh-CN"?"请填写姓名":e==="en"?"Name is required":"Введите имя"),h=!0),c.value.trim()?D(c.value)||(k(c,e==="zh-CN"?"手机号格式不正确":e==="en"?"Invalid phone format":"Неверный формат телефона"),h=!0):(k(c,e==="zh-CN"?"请填写手机号":e==="en"?"Phone is required":"Введите телефон"),h=!0),h)return;const C=r.querySelectorAll("input"),d={};C.forEach(w=>{d[w.name]=w.value.trim()}),o(d)}),r.querySelector(".chat-form-cancel").addEventListener("click",s)}const A=`
 .chat-widget-container {
   position: fixed;
   top: 50%;
@@ -47,6 +47,7 @@
   justify-content: center;
   cursor: pointer;
   transition: transform 0.2s;
+  position: relative;
 }
 .chat-widget-button:hover {
   transform: scale(1.05);
@@ -55,6 +56,37 @@
   width: 28px;
   height: 28px;
   fill: white;
+}
+
+.chat-widget-bubble {
+  position: absolute;
+  right: 70px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: white;
+  color: #333;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-size: 13px;
+  white-space: nowrap;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+.chat-widget-bubble.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+.chat-widget-bubble::after {
+  content: '';
+  position: absolute;
+  right: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 6px solid transparent;
+  border-left-color: white;
 }
 
 .chat-widget-window {
@@ -264,11 +296,11 @@
     right: 0;
   }
 }
-`;function F(o){const e=new S(o.apiHost,o.siteId,o.lang),t=o.lang,n=document.createElement("div");n.style.cssText=["position: fixed","top: 50%","right: 20px","transform: translateY(-50%)","z-index: 999999",'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',"font-size: 14px","line-height: 1.5"].join(";");const i=n.attachShadow({mode:"open"});i.innerHTML=`
-    <style>${q}</style>
+`;function B(r){const e=new N(r.apiHost,r.siteId,r.lang);r.siteKey&&e.setSiteKey(r.siteKey);const o=r.lang,s=document.createElement("div");s.style.cssText=["position: fixed","top: 50%","right: 20px","transform: translateY(-50%)","z-index: 999999",'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',"font-size: 14px","line-height: 1.5"].join(";");const n=s.attachShadow({mode:"open"});n.innerHTML=`
+    <style>${A}</style>
     <div class="chat-widget-window">
       <div class="chat-widget-header">
-        <h3>${r(t,"header.title")}</h3>
+        <h3>${i(o,"header.title")}</h3>
         <div class="chat-widget-close">
           <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
         </div>
@@ -276,7 +308,7 @@
       <div class="chat-widget-messages"></div>
       <div class="chat-widget-faqs"></div>
       <div class="chat-widget-input">
-        <input type="text" placeholder="${r(t,"input.placeholder")}" />
+        <input type="text" placeholder="${i(o,"input.placeholder")}" />
         <button class="chat-widget-send" disabled>
           <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
         </button>
@@ -285,6 +317,15 @@
     </div>
     <div class="chat-widget-button">
       <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+      <div class="chat-widget-bubble"></div>
     </div>
-  `,document.body.appendChild(n);const c=i.querySelector(".chat-widget-button"),h=i.querySelector(".chat-widget-window"),L=i.querySelector(".chat-widget-close"),l=i.querySelector(".chat-widget-messages"),P=i.querySelector(".chat-widget-faqs"),d=i.querySelector(".chat-widget-input input"),p=i.querySelector(".chat-widget-send"),u=i.querySelector(".chat-widget-form-overlay");let m=!1,x=[],b=!1;function v(){m=!m,m?(h.classList.add("open"),c.style.display="none",b||E()):(h.classList.remove("open"),c.style.display="block")}c.addEventListener("click",v),L.addEventListener("click",v);async function E(){b=!0,await e.createSession(),$()}async function $(){x=await e.getFaqs(),x.forEach(a=>{const s=document.createElement("button");s.className="chat-faq-btn",s.textContent=a.question,s.addEventListener("click",()=>g(a.question)),P.appendChild(s)})}function f(a){const s=document.createElement("div");s.className=`chat-message ${a.role}`,s.textContent=a.content,l.appendChild(s),l.scrollTop=l.scrollHeight}function j(){const a=document.createElement("div");a.className="chat-widget-loading",a.textContent=r(t,"loading"),a.id="loading-msg",l.appendChild(a),l.scrollTop=l.scrollHeight}function y(){const a=i.getElementById("loading-msg");a&&a.remove()}async function g(a){if(a.trim()){d.value="",p.disabled=!0,f({role:"user",content:a}),j();try{const s=await e.sendMessage(a);y(),f({role:"assistant",content:s.reply}),s.needForm&&N()}catch{y(),f({role:"assistant",content:r(t,"networkError")})}finally{p.disabled=!1,d.focus()}}}p.addEventListener("click",()=>g(d.value)),d.addEventListener("keydown",a=>{a.key==="Enter"&&g(d.value)});function N(){C(u,t,async a=>{await e.submitLead(a),k(),f({role:"assistant",content:r(t,"form.success")})},k),u.classList.add("open")}function k(){u.classList.remove("open")}d.addEventListener("input",()=>{p.disabled=!d.value.trim()})}function z(){const o=document.querySelector("script[data-site-id]");return o?{siteId:o.getAttribute("data-site-id")||"",apiHost:o.getAttribute("data-api-host")||"http://localhost:3001",lang:I()}:(console.error("[ChatWidget] 缺少 data-site-id 属性"),{siteId:"",apiHost:"",lang:"zh-CN"})}(function(){const e=z();e.siteId&&F(e)})()})();
+  `,document.body.appendChild(s);const c=n.querySelector(".chat-widget-button"),h=n.querySelector(".chat-widget-window"),C=n.querySelector(".chat-widget-close"),d=n.querySelector(".chat-widget-messages"),w=n.querySelector(".chat-widget-faqs"),p=n.querySelector(".chat-widget-input input"),x=n.querySelector(".chat-widget-send"),y=n.querySelector(".chat-widget-form-overlay"),v=n.querySelector(".chat-widget-bubble");let f=!1,z=[],P=!1,m=null,F=!1;r.siteKey&&e.getSiteSettings().then(t=>{t&&(m=t,T(t.primaryColor))}),setTimeout(()=>{if(!f&&!F){const t=(m==null?void 0:m.bubbleMessage)||i(o,"header.welcome");O(t)}},3e3);function T(t){if(!t)return;const a=n.querySelector("style");a.textContent+=`
+      .chat-widget-button { background: ${t} !important; }
+      .chat-widget-header { background: ${t} !important; }
+      .chat-message.user { background: ${t} !important; }
+      .chat-widget-send { background: ${t} !important; }
+      .chat-faq-btn { border-color: ${t} !important; color: ${t} !important; }
+      .chat-faq-btn:hover { background: ${t} !important; }
+      .chat-form-submit { background: ${t} !important; }
+    `}let S=null;function O(t){!t||f||(v.textContent=t,v.classList.add("show"),F=!0,S=setTimeout(()=>I(),3e3))}function I(){v.classList.remove("show"),S&&(clearTimeout(S),S=null)}v.addEventListener("click",t=>{t.stopPropagation(),I(),f||q()});function q(){f=!f,f?(h.classList.add("open"),c.style.display="none",I(),P||Y()):(h.classList.remove("open"),c.style.display="flex")}c.addEventListener("click",q),C.addEventListener("click",q);async function Y(){P=!0;const a=(await e.createSession()).siteSettings||m;a&&(m=a,T(a.primaryColor));const l=(a==null?void 0:a.welcomeMessage)||i(o,"header.welcome");g({role:"assistant",content:l},!0);const b=a==null?void 0:a.guideMessage;b&&setTimeout(()=>g({role:"assistant",content:b},!0),1500),U()}async function U(){z=await e.getFaqs(),z.forEach(t=>{const a=document.createElement("button");a.className="chat-faq-btn",a.textContent=t.question,a.addEventListener("click",()=>E(t.question)),w.appendChild(a)})}function g(t,a=!1){const l=document.createElement("div");l.className=`chat-message ${t.role}`,d.appendChild(l),a&&t.role==="assistant"?V(l,t.content):(l.textContent=t.content,d.scrollTop=d.scrollHeight)}function V(t,a,l=25){let b=0,u=null;t.style.cursor="pointer",t.addEventListener("click",()=>{u&&(clearInterval(u),u=null),t.textContent=a,t.style.cursor="",d.scrollTop=d.scrollHeight}),u=setInterval(()=>{b<a.length?(t.textContent=a.slice(0,b+1),b++,d.scrollTop=d.scrollHeight):(u&&(clearInterval(u),u=null),t.style.cursor="")},l)}function J(){const t=document.createElement("div");t.className="chat-widget-loading",t.textContent=i(o,"loading"),t.id="loading-msg",d.appendChild(t),d.scrollTop=d.scrollHeight}function j(){const t=n.getElementById("loading-msg");t&&t.remove()}async function E(t){if(t.trim()){p.value="",x.disabled=!0,g({role:"user",content:t}),J();try{const a=await e.sendMessage(t);j(),g({role:"assistant",content:a.reply},!0),a.needForm&&R()}catch{j(),g({role:"assistant",content:i(o,"networkError")},!0)}finally{x.disabled=!1,p.focus()}}}x.addEventListener("click",()=>E(p.value)),p.addEventListener("keydown",t=>{t.key==="Enter"&&E(p.value)});function R(){W(y,o,async t=>{await e.submitLead(t),H(),g({role:"assistant",content:i(o,"form.success")})},H),y.classList.add("open")}function H(){y.classList.remove("open"),y.innerHTML=""}p.addEventListener("input",()=>{x.disabled=!p.value.trim()})}function K(){const r=document.querySelector("script[data-site-id]");return r?{siteId:r.getAttribute("data-site-id")||"",siteKey:r.getAttribute("data-site-key")||void 0,apiHost:r.getAttribute("data-api-host")||"http://localhost:3001",lang:M()}:(console.error("[ChatWidget] 缺少 data-site-id 属性"),{siteId:"",apiHost:"",lang:"zh-CN"})}(function(){const e=K();e.siteId&&B(e)})()})();
 //# sourceMappingURL=widget.js.map
