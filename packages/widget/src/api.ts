@@ -16,18 +16,31 @@ export interface FaqItem {
   answer: string
 }
 
+export interface SiteSettings {
+  welcomeMessage: string
+  guideMessage: string
+  bubbleMessage: string
+  primaryColor: string
+}
+
 export class ChatApi {
   private apiHost: string
   private siteId: string
   private lang: Lang
   private conversationId: string | null = null
   private visitorId: string
+  private siteKey: string | null = null
 
   constructor(apiHost: string, siteId: string, lang: Lang) {
     this.apiHost = apiHost
     this.siteId = siteId
     this.lang = lang
     this.visitorId = this.getOrCreateVisitorId()
+  }
+
+  /** 设置 siteKey，用于提前获取站点配置 */
+  setSiteKey(key: string) {
+    this.siteKey = key
   }
 
   private getOrCreateVisitorId(): string {
@@ -40,7 +53,19 @@ export class ChatApi {
     return id
   }
 
-  async createSession(): Promise<string> {
+  /** 提前获取站点配置（无需创建会话） */
+  async getSiteSettings(): Promise<SiteSettings | null> {
+    if (!this.siteKey) return null
+    try {
+      const res = await fetch(`${this.apiHost}/api/chat/site?siteKey=${this.siteKey}`)
+      const data = await res.json()
+      return data.data?.settings || null
+    } catch {
+      return null
+    }
+  }
+
+  async createSession(): Promise<{ conversationId: string; siteSettings?: SiteSettings }> {
     const res = await fetch(`${this.apiHost}/api/chat/session`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -55,7 +80,7 @@ export class ChatApi {
     })
     const data = await res.json()
     this.conversationId = data.data.id
-    return this.conversationId
+    return { conversationId: this.conversationId, siteSettings: data.data.siteSettings }
   }
 
   async sendMessage(content: string): Promise<ChatResponse> {

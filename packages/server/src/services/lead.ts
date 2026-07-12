@@ -36,8 +36,23 @@ const TYPE_WEIGHTS: Record<string, number> = {
   faq: 0,            // 预设问题 = 不增加权重
 }
 
+// 高意向关键词（出现即加分）
+const HIGH_INTENT_KEYWORDS = [
+  '报名', '签约', '缴费', '付款', '马上', '急需', '尽快',
+  '多少钱', '费用', '预算', '学费',
+  '联系方式', '电话', '微信', '老师',
+]
+
+// 中意向关键词
+const MEDIUM_INTENT_KEYWORDS = [
+  '申请', '条件', '要求', '截止', 'deadline',
+  '雅思', '托福', 'GPA', '成绩',
+  '奖学金', '专业', '推荐',
+]
+
 /**
  * 根据用户消息内容与问题类型更新兴趣评分
+ * 评分 = 问题类型权重 + 关键词加权 + 消息长度加分
  */
 async function updateInterestScore(
   conversationId: string,
@@ -53,10 +68,27 @@ async function updateInterestScore(
   const currentScore = INTEREST_SCORES[conv.interestLevel] || 0
   const typeWeight = TYPE_WEIGHTS[questionType] || 0
 
+  // 关键词加权
+  let keywordBonus = 0
+  for (const kw of HIGH_INTENT_KEYWORDS) {
+    if (content.includes(kw)) {
+      keywordBonus += 2
+      break // 每类最多加一次
+    }
+  }
+  if (keywordBonus === 0) {
+    for (const kw of MEDIUM_INTENT_KEYWORDS) {
+      if (content.includes(kw)) {
+        keywordBonus += 1
+        break
+      }
+    }
+  }
+
   // 消息长度加分（越长越认真）
   const lengthBonus = content.length > 20 ? 1 : 0
 
-  const newScore = Math.min(currentScore + typeWeight + lengthBonus, 5)
+  const newScore = Math.min(currentScore + typeWeight + keywordBonus + lengthBonus, 5)
   const newLevel = calcLevel(newScore)
 
   await prisma.conversation.update({
@@ -193,8 +225,73 @@ async function postJson(url: string, body: any): Promise<boolean> {
   }
 }
 
+/**
+ * 转人工通知：即使用户未留资，也推送一条通知
+ */
+async function notifyTransfer(conversationId: string) {
+  const conv = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+    include: {
+      messages: { orderBy: { createdAt: 'asc' }, take: 20 },
+      leads: true,
+    },
+  })
+  if (!conv) return
+
+  const lead = conv.leads[0]
+  const interestLabel: Record<string, string> = {
+    unknown: '未知', low: '低', normal: '一般',
+    medium: '中等', high: '高', strong: '极高',
+  }
+
+  const payload = {
+    event: 'transfer_request',
+    data: {
+      conversationId,
+      name: lead?.name || '未填写',
+      phone: lead?.phone || '未填写',
+      interestLevel: conv.interestLevel,
+      messages: conv.messages.map((m: { role: string; content: string }) => ({
+        role: m.role,
+        content: m.content,
+      })),
+    },
+  }
+
+  // 优先走 n8n
+  if (process.env.N8N_WEBHOOK_URL) {
+    const ok = await postJson(process.env.N8N_WEBHOOK_URL, payload)
+    if (ok) return
+  }
+
+  // 降级：直连企微机器人
+  if (process.env.WECOM_WEBHOOK_URL) {
+    const chatHistory = (payload.data.messages || [])
+      .slice(-6)
+      .map((m: any) => `${m.role === 'user' ? '用户' : 'AI'}：${m.content}`)
+      .join('\n')
+
+    const text = [
+      '🔴 转人工请求',
+      '',
+      `姓名：${payload.data.name}`,
+      `电话：${payload.data.phone}`,
+      `兴趣等级：${interestLabel[payload.data.interestLevel] || '未知'}`,
+      '',
+      '--- 最近对话 ---',
+      chatHistory || '（无对话记录）',
+    ].join('\n')
+
+    await postJson(process.env.WECOM_WEBHOOK_URL, {
+      msgtype: 'text',
+      text: { content: text },
+    })
+  }
+}
+
 export const leadService = {
   updateInterestScore,
   upsertLead,
   notifyNewLead,
+  notifyTransfer,
 }

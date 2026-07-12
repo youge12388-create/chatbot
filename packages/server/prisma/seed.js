@@ -12,8 +12,10 @@ async function main() {
       domain: 'localhost',
       apiKey: 'demo-api-key-001',
       settings: {
-        welcomeMessage: '你好，有什么可以帮您？',
-        primaryColor: '#1677ff',
+        welcomeMessage: '您好！我是留学顾问助手，可以帮您解答院校申请、专业选择、学费奖学金等问题。有什么可以帮您的？',
+        guideMessage: '您可以直接输入问题，或点击下方常见问题快速咨询。',
+        bubbleMessage: '有问题？点击这里随时咨询 👋',
+        primaryColor: '#165DFF',
       },
     },
   })

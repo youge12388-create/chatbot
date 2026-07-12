@@ -75,7 +75,21 @@ async function shouldShowForm(conversationId: string): Promise<boolean> {
 
 // ---- 会话管理 ----
 
+/** 默认站点配置（数据库未配置时兜底） */
+const DEFAULT_SITE_SETTINGS = {
+  welcomeMessage: '您好！我是留学顾问助手，可以帮您解答院校申请、专业选择、学费奖学金等问题。有什么可以帮您的？',
+  guideMessage: '您可以直接输入问题，或点击下方常见问题快速咨询。',
+  bubbleMessage: '有问题？点击这里随时咨询 👋',
+  primaryColor: '#165DFF',
+}
+
 async function createSession(siteId: string, visitorId: string, metadata?: any) {
+  const site = await prisma.site.findUnique({
+    where: { id: siteId },
+    select: { settings: true },
+  })
+
+  const settings = mergeSettings(site?.settings)
   const session = await prisma.conversation.create({
     data: {
       siteId,
@@ -83,7 +97,23 @@ async function createSession(siteId: string, visitorId: string, metadata?: any) 
       metadata: metadata || {},
     },
   })
-  return session
+  return { ...session, siteSettings: settings }
+}
+
+/** 合并站点配置与默认值 */
+function mergeSettings(raw: any): Record<string, any> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return DEFAULT_SITE_SETTINGS
+  return { ...DEFAULT_SITE_SETTINGS, ...raw }
+}
+
+/** 获取站点配置（供 widget 初始化使用） */
+async function getSiteSettings(siteId: string) {
+  const site = await prisma.site.findUnique({
+    where: { id: siteId },
+    select: { settings: true, name: true },
+  })
+  if (!site) return null
+  return { name: site.name, settings: mergeSettings(site.settings) }
 }
 
 async function saveMessage(
@@ -105,9 +135,10 @@ export function buildDifyRequestBody(
   query: string,
   difyConversationId: string | null,
   user: string,
+  inputs?: Record<string, any>,
 ) {
   return {
-    inputs: {},
+    inputs: inputs || {},
     query,
     // Dify 首次请求必须为空，后续使用它返回的 conversation_id
     conversation_id: difyConversationId || '',
@@ -116,7 +147,22 @@ export function buildDifyRequestBody(
   }
 }
 
-async function askDify(conversationId: string, query: string): Promise<string> {
+/** 获取最近 N 条对话历史（用于传给 Dify 作为上下文） */
+async function getRecentHistory(conversationId: string, limit = 6): Promise<string> {
+  const messages = await prisma.message.findMany({
+    where: { conversationId, role: { in: ['user', 'assistant'] } },
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+  })
+  if (messages.length === 0) return ''
+  // 按时间正序排列
+  messages.reverse()
+  return messages
+    .map(m => `${m.role === 'user' ? '用户' : '客服'}：${m.content}`)
+    .join('\n')
+}
+
+async function askDify(conversationId: string, query: string, questionType?: string): Promise<string> {
   const url = process.env.DIFY_API_URL
   const key = process.env.DIFY_API_KEY
 
@@ -137,6 +183,9 @@ async function askDify(conversationId: string, query: string): Promise<string> {
   const difyConversationId = typeof metadata.difyConversationId === 'string'
     ? metadata.difyConversationId : null
 
+  // 获取最近对话历史作为上下文
+  const history = await getRecentHistory(conversationId)
+
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), DIFY_TIMEOUT_MS)
 
@@ -151,6 +200,10 @@ async function askDify(conversationId: string, query: string): Promise<string> {
         query,
         difyConversationId,
         conversationId,
+        {
+          conversation_history: history || '',
+          question_type: questionType || 'knowledge',
+        },
       )),
       signal: controller.signal,
     })
@@ -256,4 +309,5 @@ export const chatService = {
   findFaqAnswer,
   findSiteByApiKey,
   getConversationSiteId,
+  getSiteSettings,
 }

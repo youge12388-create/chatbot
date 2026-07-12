@@ -80,20 +80,20 @@ router.post('/message', wrap(async (req, res) => {
         source = 'preset'
       } else {
         // FAQ 关键词匹配但无对应预设答案，降级走 Dify
-        reply = await chatService.askDify(conversationId, content)
+        reply = await chatService.askDify(conversationId, content, 'faq')
         source = 'ai'
       }
       break
     }
 
     case 'knowledge':
-      reply = await chatService.askDify(conversationId, content)
+      reply = await chatService.askDify(conversationId, content, 'knowledge')
       source = 'ai'
       needForm = await chatService.shouldShowForm(conversationId)
       break
 
     case 'personalized':
-      reply = await chatService.askDify(conversationId, content)
+      reply = await chatService.askDify(conversationId, content, 'personalized')
       source = 'ai'
       needForm = true
       break
@@ -103,6 +103,8 @@ router.post('/message', wrap(async (req, res) => {
       source = 'human'
       needForm = true
       await chatService.transferToHuman(conversationId)
+      // 转人工自动推通知（不阻塞响应）
+      leadService.notifyTransfer(conversationId).catch(() => {})
       break
 
     default:
@@ -142,7 +144,7 @@ router.post('/lead', wrap(async (req, res) => {
 // 预设问题
 // ========================
 
-/** GET /api/chat/site?siteKey=xxx - 根据 apiKey 获取站点 ID */
+/** GET /api/chat/site?siteKey=xxx - 根据 apiKey 获取站点配置 */
 router.get('/site', wrap(async (req, res) => {
   const { siteKey } = req.query
   if (!siteKey) {
@@ -154,7 +156,8 @@ router.get('/site', wrap(async (req, res) => {
     res.status(404).json({ code: 1, message: '站点不存在' })
     return
   }
-  res.json({ code: 0, data: { id: site.id, name: site.name, settings: site.settings } })
+  const settings = await chatService.getSiteSettings(site.id)
+  res.json({ code: 0, data: settings })
 }))
 
 /** GET /api/chat/faqs?siteId=xxx - 获取站点预设问题 */
