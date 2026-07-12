@@ -84,10 +84,25 @@ const DEFAULT_SITE_SETTINGS = {
 }
 
 async function createSession(siteId: string, visitorId: string, metadata?: any) {
-  const site = await prisma.site.findUnique({
+  // 确保站点存在（不存在则自动创建，避免外键报错）
+  let site = await prisma.site.findUnique({
     where: { id: siteId },
     select: { settings: true },
   })
+
+  if (!site) {
+    site = await prisma.site.create({
+      data: {
+        id: siteId,
+        name: '站点 ' + siteId.slice(-6),
+        domain: siteId,
+        apiKey: 'auto-' + siteId,
+        settings: DEFAULT_SITE_SETTINGS,
+      },
+      select: { settings: true },
+    })
+    console.log(`[chat-api] 自动创建站点: ${siteId}`)
+  }
 
   const settings = mergeSettings(site?.settings)
   const session = await prisma.conversation.create({
