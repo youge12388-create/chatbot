@@ -238,7 +238,10 @@ async function askDify(conversationId: string, query: string, questionType?: str
         },
       })
     }
-    return data.answer || '抱歉，我暂时无法回答这个问题，请稍后重试。'
+    let answer = data.answer || '抱歉，我暂时无法回答这个问题，请稍后重试。'
+    // 过滤推理模型的 <think>...</think> 标签
+    answer = answer.replace(/<think>[\s\S]*?<\/think>/gi, '').trim()
+    return answer
   } catch (err: any) {
     if (err.name === 'AbortError') {
       console.error('[chat-api] Dify 请求超时')
