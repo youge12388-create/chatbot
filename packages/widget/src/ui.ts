@@ -366,15 +366,17 @@ export function createWidget(config: WidgetConfig) {
         siteSettings = settings
         // 应用主题色
         applyThemeColor(settings.primaryColor)
-        // 延迟 5 秒显示气泡（如果窗口还没打开）
-        if (!isOpen && !bubbleShown) {
-          setTimeout(() => {
-            if (!isOpen) showBubble(settings.bubbleMessage)
-          }, 5000)
-        }
       }
     })
   }
+
+  // 延迟 3 秒显示气泡（无论是否配置 siteKey）
+  setTimeout(() => {
+    if (!isOpen && !bubbleShown) {
+      const bubbleText = siteSettings?.bubbleMessage || t(lang, 'header.welcome')
+      showBubble(bubbleText)
+    }
+  }, 3000)
 
   // 应用主题色
   function applyThemeColor(color: string) {
@@ -398,8 +400,8 @@ export function createWidget(config: WidgetConfig) {
     bubble.textContent = text
     bubble.classList.add('show')
     bubbleShown = true
-    // 8秒后自动隐藏
-    bubbleTimer = setTimeout(() => hideBubble(), 8000)
+    // 3秒后自动隐藏
+    bubbleTimer = setTimeout(() => hideBubble(), 3000)
   }
 
   function hideBubble() {
@@ -576,6 +578,8 @@ export function createWidget(config: WidgetConfig) {
 
   function closeForm() {
     formOverlay.classList.remove('open')
+    // 清空内容，避免白色残留
+    formOverlay.innerHTML = ''
   }
 
   // enable send button when input has content
