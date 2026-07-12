@@ -271,6 +271,24 @@ const CSS = `
   font-size: 13px;
 }
 
+.chat-message.assistant strong {
+  font-weight: 600;
+}
+.chat-message.assistant ol,
+.chat-message.assistant ul {
+  margin: 4px 0;
+  padding-left: 20px;
+}
+.chat-message.assistant li {
+  margin-bottom: 2px;
+}
+.chat-message.assistant p {
+  margin: 0 0 4px 0;
+}
+.chat-message.assistant p:last-child {
+  margin: 0;
+}
+
 @media (max-width: 480px) {
   .chat-widget-window {
     width: calc(100vw - 40px);
@@ -290,6 +308,52 @@ export interface WidgetConfig {
 interface Message {
   role: 'user' | 'assistant'
   content: string
+}
+
+/** 轻量 Markdown 渲染：粗体、有序/无序列表、段落 */
+function renderMarkdown(text: string): string {
+  // 先转义 HTML
+  let html = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+
+  // **粗体**
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+
+  // 按行分割处理列表和段落
+  const lines = html.split('\n')
+  const result: string[] = []
+  let inOl = false
+  let inUl = false
+
+  for (const line of lines) {
+    const trimmed = line.trim()
+    // 有序列表项: 1. xxx
+    const olMatch = trimmed.match(/^(\d+)\.\s+(.+)/)
+    // 无序列表项: - xxx 或 * xxx
+    const ulMatch = trimmed.match(/^[-*]\s+(.+)/)
+
+    if (olMatch) {
+      if (inUl) { result.push('</ul>'); inUl = false }
+      if (!inOl) { result.push('<ol>'); inOl = true }
+      result.push(`<li>${olMatch[2]}</li>`)
+    } else if (ulMatch) {
+      if (inOl) { result.push('</ol>'); inOl = false }
+      if (!inUl) { result.push('<ul>'); inUl = true }
+      result.push(`<li>${ulMatch[1]}</li>`)
+    } else {
+      if (inOl) { result.push('</ol>'); inOl = false }
+      if (inUl) { result.push('</ul>'); inUl = false }
+      if (trimmed) {
+        result.push(`<p>${trimmed}</p>`)
+      }
+    }
+  }
+  if (inOl) result.push('</ol>')
+  if (inUl) result.push('</ul>')
+
+  return result.join('')
 }
 
 export function createWidget(config: WidgetConfig) {
@@ -480,6 +544,9 @@ export function createWidget(config: WidgetConfig) {
 
     if (useTypewriter && message.role === 'assistant') {
       typewriter(el, message.content)
+    } else if (message.role === 'assistant') {
+      el.innerHTML = renderMarkdown(message.content)
+      messagesEl.scrollTop = messagesEl.scrollHeight
     } else {
       el.textContent = message.content
       messagesEl.scrollTop = messagesEl.scrollHeight
@@ -498,14 +565,14 @@ export function createWidget(config: WidgetConfig) {
         clearInterval(timer)
         timer = null
       }
-      el.textContent = text
+      el.innerHTML = renderMarkdown(text)
       el.style.cursor = ''
       messagesEl.scrollTop = messagesEl.scrollHeight
     })
 
     timer = setInterval(() => {
       if (index < text.length) {
-        el.textContent = text.slice(0, index + 1)
+        el.innerHTML = renderMarkdown(text.slice(0, index + 1))
         index++
         messagesEl.scrollTop = messagesEl.scrollHeight
       } else {
