@@ -137,9 +137,15 @@ async function saveMessage(
   content: string,
   source: string,
 ) {
-  return prisma.message.create({
+  const msg = await prisma.message.create({
     data: { conversationId, role, content, source },
   })
+  // 同步更新会话最后消息时间,供后台列表排序
+  await prisma.conversation.update({
+    where: { id: conversationId },
+    data: { lastMessageAt: msg.createdAt },
+  })
+  return msg
 }
 
 // ---- Dify 对接 ----
@@ -293,6 +299,37 @@ async function getConversationSiteId(conversationId: string): Promise<string> {
   return conv?.siteId || ''
 }
 
+/** 检查会话是否已被人工接管（接管后 AI 不自动回复） */
+async function isTakenOver(conversationId: string): Promise<boolean> {
+  const conv = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+    select: { status: true },
+  })
+  return conv?.status === 'taken_over'
+}
+
+/** 人工接管：把会话状态改为 taken_over */
+async function takeOver(conversationId: string): Promise<void> {
+  await prisma.conversation.update({
+    where: { id: conversationId },
+    data: { status: 'taken_over' },
+  })
+}
+
+/** 释放接管：恢复 AI 自动回复 */
+async function releaseTakeOver(conversationId: string): Promise<void> {
+  const conv = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+    select: { status: true },
+  })
+  if (conv?.status === 'taken_over') {
+    await prisma.conversation.update({
+      where: { id: conversationId },
+      data: { status: 'active' },
+    })
+  }
+}
+
 /** 根据 apiKey 查找站点 */
 async function findSiteByApiKey(apiKey: string) {
   return prisma.site.findUnique({ where: { apiKey } })
@@ -328,4 +365,7 @@ export const chatService = {
   findSiteByApiKey,
   getConversationSiteId,
   getSiteSettings,
+  isTakenOver,
+  takeOver,
+  releaseTakeOver,
 }

@@ -64,7 +64,23 @@ router.post('/message', wrap(async (req, res) => {
   // 1. 保存用户消息
   await chatService.saveMessage(conversationId, 'user', content, 'user')
 
-  // 2. 问题分类
+  // 2. 若已被人工接管，不调 AI，只返回提示
+  const takenOver = await chatService.isTakenOver(conversationId)
+  if (takenOver) {
+    // 通过 pub/sub 推给后台 SSE
+    const { publish } = require('../services/pubsub')
+    publish(conversationId, {
+      event: 'user_message',
+      data: { conversationId, role: 'user', content, source: 'user' },
+    })
+    res.json({
+      code: 0,
+      data: { reply: '', source: 'human', needForm: false, takenOver: true },
+    })
+    return
+  }
+
+  // 3. 问题分类
   const category = chatService.classifyQuestion(content)
 
   let reply: string
@@ -273,6 +289,69 @@ router.get('/leads/test-notify', wrap(async (_req, res) => {
   }
 
   res.json({ code: 0, message: '仅配置了 n8n，跳过企微测试' })
+}))
+
+// ========================
+// SSE 实时推送 + 历史消息
+// ========================
+
+/** GET /api/chat/stream?conversationId=xxx - widget 建立 SSE 长连接，接收后台人工回复 */
+router.get('/stream', (req, res) => {
+  const { conversationId } = req.query
+  if (!conversationId) {
+    res.status(400).json({ code: 1, message: '缺少必填参数: conversationId' })
+    return
+  }
+
+  // widget SSE 无需认证（访客建立连接），后台通过 pubsub 推送
+
+  // SSE 头
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-transform',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no', // 关闭 Nginx/网关缓冲
+  })
+  res.write('\n')
+
+  // 心跳保活（每 25 秒）
+  const heartbeat = setInterval(() => {
+    res.write(': heartbeat\n\n')
+  }, 25_000)
+
+  // 订阅该会话的推送
+  const { subscribe } = require('../services/pubsub')
+  const unsubscribe = subscribe(conversationId as string, (payload: any) => {
+    res.write(`data: ${JSON.stringify(payload)}\n\n`)
+  })
+
+  // 客户端断开时清理
+  req.on('close', () => {
+    clearInterval(heartbeat)
+    unsubscribe()
+  })
+})
+
+/** GET /api/chat/messages?conversationId=xxx&after=ISO时间 - 拉取历史消息（widget 重连时拉未读） */
+router.get('/messages', wrap(async (req, res) => {
+  const { conversationId, after } = req.query
+  if (!conversationId) {
+    res.status(400).json({ code: 1, message: '缺少必填参数: conversationId' })
+    return
+  }
+
+  const where: any = { conversationId: conversationId as string }
+  if (after) {
+    where.createdAt = { gt: new Date(after as string) }
+  }
+
+  const messages = await require('../db/client').prisma.message.findMany({
+    where,
+    orderBy: { createdAt: 'asc' },
+    take: 100,
+  })
+
+  res.json({ code: 0, data: messages })
 }))
 
 export default router

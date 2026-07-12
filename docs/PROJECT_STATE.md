@@ -7,15 +7,25 @@
 - [x] 技术方案设计
 - [x] Chat API 后端（Express + TypeScript + Prisma）
 - [x] Widget 聊天窗口（Vanilla TS + Vite + Shadow DOM）
-- [x] 数据库 Schema（6 表）
+- [x] 数据库 Schema（7 表，新增 AdminUser）
 - [x] n8n 集成（workflow 文件 + Docker 编排）
 - [x] Zeabur GitHub 自动部署链路
 - [x] Widget 构建产物自动同步到 Server
 - [x] Zeabur 线上部署成功（canhuo.site）
 - [x] 数据库自动初始化（bootstrap.ts 启动时建表 + seed）
 - [x] Widget 嵌入 luckyboy.me 成功，位置右侧中间
+- [x] **后台管理系统（Vite + Vue3 + TS + Pinia + Tailwind）**
+- [x] **管理员认证（AdminUser 表 + JWT + 多账号 + admin/staff 角色）**
+- [x] **线索管理（列表/详情/状态流转/备注/导出 CSV）**
+- [x] **会话管理（列表/详情/消息时间线）**
+- [x] **人工接管与回复（SSE 实时推送 + taken_over 状态）**
+- [x] **站点管理（编辑欢迎语/主题色/气泡文案）**
+- [x] **FAQ 管理（增删改查）**
+- [x] **账号管理（admin 角色可增删账号）**
+- [x] **Widget EventSource 监听后台人工回复**
 - [ ] 线上 AI 对话端到端验收（Widget → API → Dify）
 - [ ] 线上线索提交流程验收（n8n / 企微通知）
+- [ ] 线上后台端到端验收（登录 → 线索 → 回复 → 配置）
 
 ## 目录结构
 ```
@@ -59,20 +69,44 @@ chatbot/
 |------|------|
 | Site | 站点配置（域名、API Key、自定义设置） |
 | Faq | 预设高频问题 |
-| Conversation | 会话（访客、状态、兴趣等级、difyConversationId） |
-| Message | 聊天消息 |
-| Lead | 用户线索（姓名、电话、意向等） |
+| Conversation | 会话（访客、状态、兴趣等级、difyConversationId、lastMessageAt） |
+| Message | 聊天消息（source: ai/preset/human/user） |
+| Lead | 用户线索（姓名、电话、意向、status、note、assignedTo） |
 | KnowledgeCache | 知识库缓存 |
+| AdminUser | 管理员账号（username、password bcrypt、role: admin/staff） |
 
 ## API 接口
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | POST | /api/chat/session | 创建会话 |
-| POST | /api/chat/message | 发送消息，返回 AI 回复 |
+| POST | /api/chat/message | 发送消息，返回 AI 回复（被接管时不调 AI） |
 | POST | /api/chat/lead | 提交/更新线索 |
 | GET | /api/chat/faqs | 获取预设问题 |
 | GET | /api/chat/site?siteKey=xxx | 根据 apiKey 获取站点信息 |
+| GET | /api/chat/stream?conversationId=xxx | SSE 长连接，接收后台人工回复 |
+| GET | /api/chat/messages?conversationId=xxx&after=ISO | 拉取历史消息（重连拉未读） |
 | GET | /api/health | 健康检查 |
+| POST | /api/admin/login | 管理员登录 |
+| GET | /api/admin/me | 当前用户信息 |
+| GET | /api/admin/leads | 线索列表（分页+筛选） |
+| GET | /api/admin/leads/:id | 线索详情（含对话） |
+| PATCH | /api/admin/leads/:id | 改状态/备注/负责人 |
+| GET | /api/admin/leads/export | 导出 CSV |
+| GET | /api/admin/conversations | 会话列表 |
+| GET | /api/admin/conversations/:id | 会话详情 |
+| POST | /api/admin/conversations/:id/reply | 后台人工回复 |
+| POST | /api/admin/conversations/:id/takeover | 人工接管 |
+| POST | /api/admin/conversations/:id/release | 释放接管 |
+| GET | /api/admin/sites | 站点列表 |
+| PATCH | /api/admin/sites/:id | 编辑站点 |
+| GET | /api/admin/faqs | FAQ 列表 |
+| POST | /api/admin/faqs | 新增 FAQ |
+| PATCH | /api/admin/faqs/:id | 编辑 FAQ |
+| DELETE | /api/admin/faqs/:id | 删除 FAQ |
+| GET | /api/admin/users | 账号列表（admin） |
+| POST | /api/admin/users | 新增账号（admin） |
+| PATCH | /api/admin/users/:id | 改账号（admin） |
+| DELETE | /api/admin/users/:id | 删除账号（admin） |
 
 ## 线上环境
 - **域名**: https://canhuo.site
@@ -92,8 +126,20 @@ chatbot/
 | PORT | 3001 |
 | WECOM_WEBHOOK_URL | 企微机器人通知（可选） |
 | N8N_WEBHOOK_URL | n8n 通知（可选） |
+| ADMIN_USERNAME | 默认管理员用户名（未配置则 admin） |
+| ADMIN_PASSWORD | 默认管理员密码（未配置则 admin123，请尽快修改） |
+| JWT_SECRET | JWT 签名密钥（未配置则用开发默认值，生产必须配置） |
 
 ## 最近完成
+- 2026-07-12: **后台管理系统完整实现**
+  - 新增 AdminUser 表，Lead 加 status/note/assignedTo，Conversation 加 lastMessageAt
+  - 认证：JWT + bcrypt + admin/staff 角色 + 中间件
+  - 线索：列表/详情/状态流转/备注/导出CSV
+  - 会话：列表/详情/消息时间线
+  - 人工接管：SSE pub/sub + taken_over 状态 + 后台回复推送到 widget
+  - 站点/FAQ/账号管理：增删改查
+  - Widget EventSource 监听 + 重连拉未读
+  - 构建链路：admin build → sync → server，Dockerfile 更新
 - 2026-07-09: Chat API 后端完整实现（4 接口 + 6 表）
 - 2026-07-09: Widget 聊天窗口完整实现（Shadow DOM + i18n）
 - 2026-07-09: n8n 集成（Dockerfile + workflow + docker-compose 编排）
@@ -133,6 +179,8 @@ chatbot/
 1. **验收 AI 对话**: 在 luckyboy.me 发送消息，确认 Dify 正常回复
 2. **验收线索表单**: 发送 3 轮消息后触发表单，提交线索验证入库
 3. **验收通知**: 配置 WECOM_WEBHOOK_URL 或 N8N_WEBHOOK_URL，验证通知到达
-4. 在企微后台轮换已进入 Git 历史的 webhook key
-5. 后续增加数据库 readiness 检查和完整 API 集成测试
-6. 考虑增加 Widget 拖动功能（用户有此需求，暂未实现）
+4. **验收后台**: 访问 /admin，用 admin/admin123 登录，查看线索/会话，测试人工回复
+5. **生产配置**: 在 Zeabur 配置 ADMIN_PASSWORD 和 JWT_SECRET，改默认密码
+6. 在企微后台轮换已进入 Git 历史的 webhook key
+7. 后续增加数据库 readiness 检查和完整 API 集成测试
+8. 考虑增加 Widget 拖动功能（用户有此需求，暂未实现）
