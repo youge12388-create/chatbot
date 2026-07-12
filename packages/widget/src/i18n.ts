@@ -13,6 +13,7 @@ export type Lang = 'zh-CN' | 'en' | 'ru'
 const translations: Record<Lang, Record<string, string>> = {
   'zh-CN': {
     'header.title': '在线咨询',
+    'header.welcome': '您好！有什么可以帮您的？',
     'input.placeholder': '输入问题...',
     'loading': '正在思考...',
     'networkError': '网络异常，请稍后重试。',
@@ -34,6 +35,7 @@ const translations: Record<Lang, Record<string, string>> = {
   },
   'en': {
     'header.title': 'Online Support',
+    'header.welcome': 'Hello! How can I help you?',
     'input.placeholder': 'Type your question...',
     'loading': 'Thinking...',
     'networkError': 'Network error, please try again.',
@@ -55,6 +57,7 @@ const translations: Record<Lang, Record<string, string>> = {
   },
   'ru': {
     'header.title': 'Онлайн консультация',
+    'header.welcome': 'Здравствуйте! Чем я могу помочь?',
     'input.placeholder': 'Введите вопрос...',
     'loading': 'Думаю...',
     'networkError': 'Ошибка сети, попробуйте позже.',

@@ -2,7 +2,7 @@
  * 渲染 UI：浮窗按钮 + 聊天窗口
  */
 
-import { ChatApi, FaqItem } from './api'
+import { ChatApi, FaqItem, SiteSettings } from './api'
 import { renderForm } from './form'
 import { Lang, t } from './i18n'
 
@@ -29,6 +29,7 @@ const CSS = `
   justify-content: center;
   cursor: pointer;
   transition: transform 0.2s;
+  position: relative;
 }
 .chat-widget-button:hover {
   transform: scale(1.05);
@@ -37,6 +38,37 @@ const CSS = `
   width: 28px;
   height: 28px;
   fill: white;
+}
+
+.chat-widget-bubble {
+  position: absolute;
+  right: 70px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: white;
+  color: #333;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-size: 13px;
+  white-space: nowrap;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+.chat-widget-bubble.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+.chat-widget-bubble::after {
+  content: '';
+  position: absolute;
+  right: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 6px solid transparent;
+  border-left-color: white;
 }
 
 .chat-widget-window {
@@ -250,6 +282,7 @@ const CSS = `
 
 export interface WidgetConfig {
   siteId: string
+  siteKey?: string
   apiHost: string
   lang: Lang
 }
@@ -261,6 +294,7 @@ interface Message {
 
 export function createWidget(config: WidgetConfig) {
   const api = new ChatApi(config.apiHost, config.siteId, config.lang)
+  if (config.siteKey) api.setSiteKey(config.siteKey)
   const lang = config.lang
 
   // Shadow DOM 隔离样式
@@ -300,6 +334,7 @@ export function createWidget(config: WidgetConfig) {
     </div>
     <div class="chat-widget-button">
       <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+      <div class="chat-widget-bubble"></div>
     </div>
   `
 
@@ -314,12 +349,73 @@ export function createWidget(config: WidgetConfig) {
   const input = shadow.querySelector('.chat-widget-input input')!
   const sendBtn = shadow.querySelector('.chat-widget-send')!
   const formOverlay = shadow.querySelector<HTMLElement>('.chat-widget-form-overlay')!
+  const bubble = shadow.querySelector<HTMLElement>('.chat-widget-bubble')!
 
   // 状态
   let isOpen = false
   let messages: Message[] = []
   let faqs: FaqItem[] = []
   let conversationCreated = false
+  let siteSettings: SiteSettings | null = null
+  let bubbleShown = false
+
+  // 提前获取站点配置（用于气泡提示和欢迎语）
+  if (config.siteKey) {
+    api.getSiteSettings().then(settings => {
+      if (settings) {
+        siteSettings = settings
+        // 应用主题色
+        applyThemeColor(settings.primaryColor)
+        // 延迟 5 秒显示气泡（如果窗口还没打开）
+        if (!isOpen && !bubbleShown) {
+          setTimeout(() => {
+            if (!isOpen) showBubble(settings.bubbleMessage)
+          }, 5000)
+        }
+      }
+    })
+  }
+
+  // 应用主题色
+  function applyThemeColor(color: string) {
+    if (!color) return
+    const styleEl = shadow.querySelector('style')!
+    styleEl.textContent += `
+      .chat-widget-button { background: ${color} !important; }
+      .chat-widget-header { background: ${color} !important; }
+      .chat-message.user { background: ${color} !important; }
+      .chat-widget-send { background: ${color} !important; }
+      .chat-faq-btn { border-color: ${color} !important; color: ${color} !important; }
+      .chat-faq-btn:hover { background: ${color} !important; }
+      .chat-form-submit { background: ${color} !important; }
+    `
+  }
+
+  // 显示气泡提示
+  let bubbleTimer: ReturnType<typeof setTimeout> | null = null
+  function showBubble(text: string) {
+    if (!text || isOpen) return
+    bubble.textContent = text
+    bubble.classList.add('show')
+    bubbleShown = true
+    // 8秒后自动隐藏
+    bubbleTimer = setTimeout(() => hideBubble(), 8000)
+  }
+
+  function hideBubble() {
+    bubble.classList.remove('show')
+    if (bubbleTimer) {
+      clearTimeout(bubbleTimer)
+      bubbleTimer = null
+    }
+  }
+
+  // 点击气泡也能打开窗口
+  bubble.addEventListener('click', (e) => {
+    e.stopPropagation()
+    hideBubble()
+    if (!isOpen) toggle()
+  })
 
   // 切换窗口
   function toggle() {
@@ -327,12 +423,13 @@ export function createWidget(config: WidgetConfig) {
     if (isOpen) {
       window.classList.add('open')
       button.style.display = 'none'
+      hideBubble()
       if (!conversationCreated) {
         initConversation()
       }
     } else {
       window.classList.remove('open')
-      button.style.display = 'block'
+      button.style.display = 'flex'
     }
   }
 
@@ -342,7 +439,21 @@ export function createWidget(config: WidgetConfig) {
   // 初始化会话
   async function initConversation() {
     conversationCreated = true
-    await api.createSession()
+    const result = await api.createSession()
+    // 优先用 session 返回的配置，否则用提前获取的
+    const settings = result.siteSettings || siteSettings
+    if (settings) {
+      siteSettings = settings
+      applyThemeColor(settings.primaryColor)
+    }
+    // 显示欢迎消息
+    const welcome = settings?.welcomeMessage || t(lang, 'header.welcome')
+    addMessage({ role: 'assistant', content: welcome }, true)
+    // 显示引导语
+    const guide = settings?.guideMessage
+    if (guide) {
+      setTimeout(() => addMessage({ role: 'assistant', content: guide }, true), 1500)
+    }
     loadFaqs()
   }
 
@@ -358,14 +469,51 @@ export function createWidget(config: WidgetConfig) {
     })
   }
 
-  // 添加消息到 UI
-  function addMessage(message: Message) {
+  // 添加消息到 UI（用户消息直接显示，AI 消息用打字机效果）
+  function addMessage(message: Message, useTypewriter = false) {
     messages.push(message)
     const el = document.createElement('div')
     el.className = `chat-message ${message.role}`
-    el.textContent = message.content
     messagesEl.appendChild(el)
-    messagesEl.scrollTop = messagesEl.scrollHeight
+
+    if (useTypewriter && message.role === 'assistant') {
+      typewriter(el, message.content)
+    } else {
+      el.textContent = message.content
+      messagesEl.scrollTop = messagesEl.scrollHeight
+    }
+  }
+
+  // 打字机效果：逐字显示
+  function typewriter(el: HTMLElement, text: string, speed = 25) {
+    let index = 0
+    let timer: ReturnType<typeof setInterval> | null = null
+
+    // 点击可跳过动画
+    el.style.cursor = 'pointer'
+    el.addEventListener('click', () => {
+      if (timer) {
+        clearInterval(timer)
+        timer = null
+      }
+      el.textContent = text
+      el.style.cursor = ''
+      messagesEl.scrollTop = messagesEl.scrollHeight
+    })
+
+    timer = setInterval(() => {
+      if (index < text.length) {
+        el.textContent = text.slice(0, index + 1)
+        index++
+        messagesEl.scrollTop = messagesEl.scrollHeight
+      } else {
+        if (timer) {
+          clearInterval(timer)
+          timer = null
+        }
+        el.style.cursor = ''
+      }
+    }, speed)
   }
 
   // 显示 loading
@@ -395,14 +543,14 @@ export function createWidget(config: WidgetConfig) {
     try {
       const res = await api.sendMessage(content)
       removeLoading()
-      addMessage({ role: 'assistant', content: res.reply })
+      addMessage({ role: 'assistant', content: res.reply }, true)
 
       if (res.needForm) {
         openForm()
       }
     } catch (err) {
       removeLoading()
-      addMessage({ role: 'assistant', content: t(lang, 'networkError') })
+      addMessage({ role: 'assistant', content: t(lang, 'networkError') }, true)
     } finally {
       sendBtn.disabled = false
       input.focus()
