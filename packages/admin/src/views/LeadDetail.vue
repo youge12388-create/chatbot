@@ -78,6 +78,18 @@ function fmtTime(t: string | null | undefined): string {
   return new Date(t).toLocaleString('zh-CN')
 }
 
+/** 把 extra 中的任意值转为可读字符串（对象/数组转 JSON） */
+function formatExtraValue(val: unknown): string {
+  if (val === null || val === undefined) return '-'
+  if (typeof val === 'string') return val || '-'
+  if (typeof val === 'number' || typeof val === 'boolean') return String(val)
+  try {
+    return JSON.stringify(val)
+  } catch {
+    return String(val)
+  }
+}
+
 function back() {
   router.push('/leads')
 }
@@ -106,6 +118,24 @@ onMounted(fetchDetail)
             <div class="flex justify-between"><dt class="text-muted">预算</dt><dd class="text-ink">{{ lead.budget || '-' }}</dd></div>
             <div class="flex justify-between"><dt class="text-muted">提交时间</dt><dd class="text-ink">{{ fmtTime(lead.createdAt) }}</dd></div>
           </dl>
+
+          <!-- 自定义字段（仅当 lead.extra 有内容时显示） -->
+          <div
+            v-if="lead.extra && Object.keys(lead.extra as Record<string, unknown>).length > 0"
+            class="mt-4 pt-3 border-t border-border"
+          >
+            <h4 class="text-xs font-semibold text-muted mb-3">自定义信息</h4>
+            <dl class="text-sm flex flex-col gap-3">
+              <div
+                v-for="(val, key) in (lead.extra as Record<string, unknown>)"
+                :key="key"
+                class="flex justify-between gap-3"
+              >
+                <dt class="text-muted shrink-0">{{ key }}</dt>
+                <dd class="text-ink text-right break-all">{{ formatExtraValue(val) }}</dd>
+              </div>
+            </dl>
+          </div>
         </div>
 
         <!-- 右侧：状态/备注/负责人 -->

@@ -721,11 +721,11 @@ export function createWidget(config: WidgetConfig) {
 
   // 打开表单
   function openForm() {
-    renderForm(formOverlay, lang, async (data) => {
-      await api.submitLead(data)
+    renderForm(formOverlay, lang, async (data, extra) => {
+      await api.submitLead(data, extra)
       closeForm()
       addMessage({ role: 'assistant', content: t(lang, 'form.success') })
-    }, closeForm)
+    }, closeForm, siteSettings?.formConfig)
     formOverlay.classList.add('open')
   }
 
