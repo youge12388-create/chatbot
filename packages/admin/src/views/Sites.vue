@@ -259,6 +259,30 @@ onMounted(fetchList)
                 class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full font-mono text-xs"
               />
             </div>
+
+            <!-- Dify 配置 -->
+            <div class="col-span-2 mt-2 pt-4 border-t border-border">
+              <h4 class="text-sm font-semibold text-ink mb-3">Dify AI 配置（每个站点可独立配置不同智能体）</h4>
+            </div>
+            <div class="col-span-2">
+              <label class="text-sm text-muted block mb-1.5">Dify API 地址</label>
+              <input
+                v-model="getDraft(site.id)!.settings.difyApiUrl"
+                type="text"
+                placeholder="https://api.dify.ai/v1/chat-messages"
+                class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full font-mono text-xs"
+              />
+            </div>
+            <div class="col-span-2">
+              <label class="text-sm text-muted block mb-1.5">Dify API Key</label>
+              <input
+                v-model="getDraft(site.id)!.settings.difyApiKey"
+                type="text"
+                placeholder="app-xxxxxxxxxxxxxxxxx"
+                class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full font-mono text-xs"
+              />
+              <p class="text-xs text-muted mt-1">留空则使用环境变量中的全局 Dify 配置</p>
+            </div>
           </div>
 
           <!-- 表单配置 -->

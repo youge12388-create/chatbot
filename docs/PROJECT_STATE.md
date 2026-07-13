@@ -132,6 +132,12 @@ chatbot/
 | JWT_SECRET | JWT 签名密钥（未配置则用开发默认值，生产必须配置） |
 
 ## 最近完成
+- 2026-07-13: **FAQ 动态推荐 + 空数据兜底**
+  - 问题 1：站点无 FAQ 数据时按钮区域空白 → 后端 `getFaqs` 空时返回 `DEFAULT_FAQS` 3 条通用问题
+  - 问题 2：FAQ 不会随用户问题更新 → `/api/chat/message` 返回 `suggestedQuestions`
+  - 后端新增 `getSuggestedQuestions(siteId, content, excludeQuestions)`：关键词匹配 + 排除已问过的
+  - widget `renderFaqs(questions)` 抽函数，sendMessage 后动态更新 FAQ 区域
+  - 涉及文件：server chat.ts/routes chat.ts、widget api.ts/ui.ts
 - 2026-07-13: **后台 UI 视觉优化（不触碰核心代码，仅样式层）**
   - 色板升级（style.css）：muted 从 0.55 提到 0.48 满足 4.5:1 对比度；新增 surface-2 / ink-2 / primary-soft / border-strong 变量；tailwind.config.js 同步暴露新色
   - 全局控件语汇（style.css @layer components）：`.btn` / `.btn-primary` / `.btn-danger` / `.btn-ghost` / `.btn-sm` / `.input` / `.select` / `.textarea` / `.table-base` / `.panel` / `.badge`；focus ring 用原生 CSS `color-mix` 实现（Tailwind @apply 对 var() 颜色的透明度修饰符不兼容）

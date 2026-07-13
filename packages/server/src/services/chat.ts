@@ -106,6 +106,13 @@ const DEFAULT_SITE_SETTINGS = {
   },
 }
 
+/** 默认 FAQ（站点无 FAQ 时兜底，不入库，保证引导入口始终存在） */
+const DEFAULT_FAQS = [
+  { id: 'default-1', question: '学费大概多少？', answer: '请咨询具体项目，不同课程费用不同。', priority: 1 },
+  { id: 'default-2', question: '申请条件是什么？', answer: '一般需要学历证明和语言成绩，具体视项目而定。', priority: 2 },
+  { id: 'default-3', question: '有奖学金吗？', answer: '部分项目提供奖学金，欢迎留下联系方式获取详情。', priority: 3 },
+]
+
 async function createSession(siteId: string, visitorId: string, metadata?: any) {
   // 确保站点存在（不存在则自动创建，避免外键报错）
   let site = await prisma.site.findUnique({
@@ -363,11 +370,57 @@ async function transferToHuman(conversationId: string) {
 // ---- 预设问题 ----
 
 async function getFaqs(siteId: string) {
-  return prisma.faq.findMany({
+  const faqs = await prisma.faq.findMany({
     where: { siteId },
     orderBy: { priority: 'asc' },
     take: 10,
   })
+  return faqs.length > 0 ? faqs : DEFAULT_FAQS
+}
+
+/**
+ * 根据用户当前问题返回 3 条推荐问题（用于动态引导）。
+ * - 优先返回与用户问题关键词匹配的 FAQ
+ * - 无匹配返回前 3 条（按 priority）
+ * - 排除用户刚问过的问题（避免重复推荐）
+ */
+async function getSuggestedQuestions(
+  siteId: string,
+  userContent?: string,
+  excludeQuestions: string[] = [],
+): Promise<string[]> {
+  const faqs = await prisma.faq.findMany({
+    where: { siteId },
+    orderBy: { priority: 'asc' },
+    take: 20,
+  })
+  const pool = faqs.length > 0 ? faqs : DEFAULT_FAQS
+
+  const excludeSet = new Set(excludeQuestions.map(q => q.trim()))
+  const available = pool.filter(f => !excludeSet.has(f.question.trim()))
+  if (available.length === 0) return []
+
+  // 有关键词时按匹配度排序
+  if (userContent && userContent.trim()) {
+    const content = userContent.trim()
+    const scored = available.map(f => {
+      let score = 0
+      // FAQ 问题关键词出现在用户消息中
+      for (const ch of content) {
+        if (f.question.includes(ch)) score += 1
+      }
+      // 用户消息关键词出现在 FAQ 问题中
+      for (const ch of f.question) {
+        if (content.includes(ch)) score += 1
+      }
+      return { q: f.question, score }
+    })
+    scored.sort((a, b) => b.score - a.score)
+    return scored.slice(0, 3).map(s => s.q)
+  }
+
+  // 无关键词，返回前 3 条
+  return available.slice(0, 3).map(f => f.question)
 }
 
 /** 获取会话所属站点 ID */
@@ -441,6 +494,7 @@ export const chatService = {
   getTransferReply,
   transferToHuman,
   getFaqs,
+  getSuggestedQuestions,
   findFaqAnswer,
   findSiteByApiKey,
   getConversationSiteId,
