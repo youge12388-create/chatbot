@@ -58,28 +58,23 @@ onMounted(() => {
 
 <template>
   <div class="flex h-screen bg-bg">
-    <!-- 左侧导航 -->
-    <aside class="w-[220px] shrink-0 bg-surface-2 border-r border-border flex flex-col">
+    <!-- 左侧导航 —— Google Console 风格：浅灰底 + 主内容纯白 -->
+    <aside class="w-[220px] shrink-0 bg-surface border-r border-border flex flex-col">
       <div class="h-14 flex items-center px-5 border-b border-border">
         <span class="text-[15px] font-semibold text-ink tracking-tight">运营后台</span>
       </div>
-      <nav class="flex-1 py-3">
+      <nav class="flex-1 py-3 px-3">
         <router-link
           v-for="m in visibleMenus"
           :key="m.to"
           :to="m.to"
-          class="relative flex items-center gap-3 px-5 py-2 text-sm transition-colors duration-150"
+          class="flex items-center gap-3 px-3 py-2 rounded-[8px] text-sm transition-colors duration-150"
           :class="
             isActive(m.to)
               ? 'text-primary font-medium bg-primary-soft'
-              : 'text-ink-2 hover:text-ink hover:bg-surface'
+              : 'text-ink-2 hover:text-ink hover:bg-surface-2'
           "
         >
-          <!-- 当前项左侧色条 -->
-          <span
-            v-if="isActive(m.to)"
-            class="absolute left-0 top-0 bottom-0 w-[3px] bg-primary"
-          ></span>
           <span class="text-xs w-4 text-center opacity-60">{{ m.icon }}</span>
           <span>{{ m.label }}</span>
         </router-link>
@@ -88,7 +83,7 @@ onMounted(() => {
 
     <!-- 主区域 -->
     <div class="flex-1 flex flex-col min-w-0">
-      <!-- 顶栏 -->
+      <!-- 顶栏 —— Material top app bar：1px border 代替阴影 -->
       <header class="h-14 shrink-0 bg-bg border-b border-border flex items-center justify-between px-8 sticky top-0 z-10">
         <h1 class="text-base font-semibold text-ink">{{ title }}</h1>
         <div class="flex items-center gap-4 text-sm">
