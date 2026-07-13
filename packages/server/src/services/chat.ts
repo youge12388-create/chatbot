@@ -85,6 +85,25 @@ const DEFAULT_SITE_SETTINGS = {
     '点击聊聊，专属顾问为您服务',
   ],
   primaryColor: '#165DFF',
+  // 表单配置：预设字段开关 + 自定义字段
+  formConfig: {
+    presetFields: {
+      name:        { enabled: true,  required: true },
+      phone:       { enabled: true,  required: true },
+      email:       { enabled: false, required: false },
+      wechat:      { enabled: true,  required: false },
+      education:   { enabled: false, required: false },
+      targetMajor: { enabled: false, required: false },
+      budget:      { enabled: false, required: false },
+    },
+    customFields: [] as Array<{
+      id: string
+      label: string
+      type: 'text' | 'tel' | 'email' | 'select' | 'textarea'
+      options?: string[]
+      required: boolean
+    }>,
+  },
 }
 
 async function createSession(siteId: string, visitorId: string, metadata?: any) {
@@ -142,6 +161,24 @@ function mergeSettings(raw: any): Record<string, any> {
   }
   // 移除已废弃的旧字段，避免回写时混淆
   delete merged.bubbleMessage
+  // 兜底 formConfig
+  if (!merged.formConfig || typeof merged.formConfig !== 'object') {
+    merged.formConfig = JSON.parse(JSON.stringify(DEFAULT_SITE_SETTINGS.formConfig))
+  } else {
+    const fc = merged.formConfig
+    if (!fc.presetFields || typeof fc.presetFields !== 'object') {
+      fc.presetFields = JSON.parse(JSON.stringify(DEFAULT_SITE_SETTINGS.formConfig.presetFields))
+    } else {
+      // 补全缺失的预设字段
+      const defaults = DEFAULT_SITE_SETTINGS.formConfig.presetFields as Record<string, any>
+      for (const key of Object.keys(defaults)) {
+        if (!fc.presetFields[key]) {
+          fc.presetFields[key] = { ...defaults[key] }
+        }
+      }
+    }
+    if (!Array.isArray(fc.customFields)) fc.customFields = []
+  }
   return merged
 }
 
@@ -208,18 +245,38 @@ async function getRecentHistory(conversationId: string, limit = 6): Promise<stri
 }
 
 async function askDify(conversationId: string, query: string, questionType?: string): Promise<string> {
-  const url = process.env.DIFY_API_URL
-  const key = process.env.DIFY_API_KEY
+  const conversation = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+    select: { metadata: true, siteId: true },
+  })
+
+  // 优先使用站点级 Dify 配置，回退到环境变量
+  let url = process.env.DIFY_API_URL
+  let key = process.env.DIFY_API_KEY
+
+  if (conversation?.siteId) {
+    const site = await prisma.site.findUnique({
+      where: { id: conversation.siteId },
+      select: { settings: true },
+    })
+    const siteSettings = (
+      site?.settings &&
+      typeof site.settings === 'object' &&
+      !Array.isArray(site.settings)
+    ) ? site.settings as Record<string, any> : {}
+
+    if (typeof siteSettings.difyApiUrl === 'string' && siteSettings.difyApiUrl.trim()) {
+      url = siteSettings.difyApiUrl.trim()
+    }
+    if (typeof siteSettings.difyApiKey === 'string' && siteSettings.difyApiKey.trim()) {
+      key = siteSettings.difyApiKey.trim()
+    }
+  }
 
   if (!url || !key) {
     console.warn('[chat-api] Dify 未配置，返回兜底回复')
     return '抱歉，AI 服务暂未配置，请联系管理员。'
   }
-
-  const conversation = await prisma.conversation.findUnique({
-    where: { id: conversationId },
-    select: { metadata: true },
-  })
   const metadata = (
     conversation?.metadata &&
     typeof conversation.metadata === 'object' &&
