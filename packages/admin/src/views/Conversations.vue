@@ -140,41 +140,35 @@ onMounted(() => {
   <Layout>
     <!-- 筛选栏 -->
     <div class="flex items-center gap-3 mb-4">
-      <select
-        v-model="statusFilter"
-        class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none"
-      >
+      <select v-model="statusFilter" class="select w-auto">
         <option v-for="o in statusOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
       </select>
-      <select
-        v-model="siteFilter"
-        class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none"
-      >
+      <select v-model="siteFilter" class="select w-auto">
         <option value="">全部站点</option>
         <option v-for="s in sites" :key="s.id" :value="s.id">{{ s.name }}</option>
       </select>
     </div>
 
     <!-- 表格 -->
-    <div class="bg-bg rounded-lg border border-border overflow-hidden">
-      <table class="w-full text-sm">
+    <div class="panel overflow-hidden">
+      <table class="table-base">
         <thead>
-          <tr class="bg-surface text-muted text-left">
-            <th class="px-4 py-3 font-medium">访客</th>
-            <th class="px-4 py-3 font-medium">站点</th>
-            <th class="px-4 py-3 font-medium">状态</th>
-            <th class="px-4 py-3 font-medium">兴趣</th>
-            <th class="px-4 py-3 font-medium">消息数</th>
-            <th class="px-4 py-3 font-medium">线索</th>
-            <th class="px-4 py-3 font-medium">最后消息时间</th>
-            <th class="px-4 py-3 font-medium text-right">操作</th>
+          <tr>
+            <th>访客</th>
+            <th>站点</th>
+            <th>状态</th>
+            <th>兴趣</th>
+            <th>消息数</th>
+            <th>线索</th>
+            <th>最后消息时间</th>
+            <th class="text-right">操作</th>
           </tr>
         </thead>
         <tbody>
           <template v-if="loading">
-            <tr v-for="i in 8" :key="`sk-${i}`" class="border-t border-border">
-              <td v-for="j in 8" :key="j" class="px-4 py-3">
-                <div class="h-4 bg-surface rounded animate-pulse"></div>
+            <tr v-for="i in 8" :key="`sk-${i}`">
+              <td v-for="j in 8" :key="j">
+                <div class="h-4 bg-surface-2 rounded animate-pulse"></div>
               </td>
             </tr>
           </template>
@@ -182,17 +176,16 @@ onMounted(() => {
             <tr
               v-for="c in list"
               :key="c.id"
-              class="border-t border-border hover:bg-surface/60 transition-colors"
               :class="hasUnread(c.id) ? 'bg-accent/10' : ''"
             >
-              <td class="px-4 py-3 text-ink">{{ visitorLabel(c) }}</td>
-              <td class="px-4 py-3 text-ink">{{ c.site?.name || '-' }}</td>
-              <td class="px-4 py-3"><StatusBadge :status="c.status" type="conversation" :timeout="isTimeout(c)" /></td>
-              <td class="px-4 py-3 text-muted">{{ interestLabels[c.interestLevel] || c.interestLevel }}</td>
-              <td class="px-4 py-3 text-muted">{{ c._count?.messages ?? '-' }}</td>
-              <td class="px-4 py-3 text-muted">{{ c._count?.leads ?? '-' }}</td>
-              <td class="px-4 py-3 text-muted">{{ fmtTime(c.lastMessageAt) }}</td>
-              <td class="px-4 py-3 text-right">
+              <td class="text-ink font-medium">{{ visitorLabel(c) }}</td>
+              <td class="text-ink-2">{{ c.site?.name || '-' }}</td>
+              <td><StatusBadge :status="c.status" type="conversation" :timeout="isTimeout(c)" /></td>
+              <td class="text-muted">{{ interestLabels[c.interestLevel] || c.interestLevel }}</td>
+              <td class="text-muted tabular-nums">{{ c._count?.messages ?? '-' }}</td>
+              <td class="text-muted tabular-nums">{{ c._count?.leads ?? '-' }}</td>
+              <td class="text-muted tabular-nums">{{ fmtTime(c.lastMessageAt) }}</td>
+              <td class="text-right">
                 <button class="text-primary hover:underline" @click="viewDetail(c.id)">查看</button>
               </td>
             </tr>

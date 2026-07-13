@@ -29,34 +29,34 @@ async function onSubmit() {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-surface px-4">
-    <div class="w-full max-w-sm bg-bg rounded-lg border border-border shadow-sm p-8">
+  <div class="min-h-screen flex items-center justify-center bg-surface-2 px-4">
+    <div class="w-full max-w-sm panel shadow-sm p-8">
       <h1 class="text-xl font-semibold text-ink text-center mb-8">运营后台登录</h1>
       <form class="flex flex-col gap-4" @submit.prevent="onSubmit">
         <div class="flex flex-col gap-1.5">
-          <label class="text-sm text-muted">用户名</label>
+          <label class="text-sm text-ink-2">用户名</label>
           <input
             v-model="username"
             type="text"
             autocomplete="username"
-            class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none transition-colors"
+            class="input"
             placeholder="请输入用户名"
           />
         </div>
         <div class="flex flex-col gap-1.5">
-          <label class="text-sm text-muted">密码</label>
+          <label class="text-sm text-ink-2">密码</label>
           <input
             v-model="password"
             type="password"
             autocomplete="current-password"
-            class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none transition-colors"
+            class="input"
             placeholder="请输入密码"
           />
         </div>
         <button
           type="submit"
           :disabled="loading"
-          class="mt-2 py-2.5 rounded bg-primary text-white font-medium hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          class="btn btn-primary mt-2 py-2.5"
         >
           {{ loading ? '登录中...' : '登录' }}
         </button>

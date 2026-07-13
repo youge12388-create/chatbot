@@ -57,25 +57,30 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="flex h-screen bg-surface">
+  <div class="flex h-screen bg-bg">
     <!-- 左侧导航 -->
-    <aside class="w-[240px] shrink-0 bg-bg border-r border-border flex flex-col">
+    <aside class="w-[220px] shrink-0 bg-surface-2 border-r border-border flex flex-col">
       <div class="h-14 flex items-center px-5 border-b border-border">
-        <span class="text-base font-semibold text-ink">运营后台</span>
+        <span class="text-[15px] font-semibold text-ink tracking-tight">运营后台</span>
       </div>
       <nav class="flex-1 py-3">
         <router-link
           v-for="m in visibleMenus"
           :key="m.to"
           :to="m.to"
-          class="flex items-center gap-3 px-5 py-2.5 text-sm transition-colors border-l-2"
+          class="relative flex items-center gap-3 px-5 py-2 text-sm transition-colors duration-150"
           :class="
             isActive(m.to)
-              ? 'border-primary text-primary bg-primary/5 font-medium'
-              : 'border-transparent text-muted hover:text-ink hover:bg-surface'
+              ? 'text-primary font-medium bg-primary-soft'
+              : 'text-ink-2 hover:text-ink hover:bg-surface'
           "
         >
-          <span class="text-xs w-4 text-center opacity-70">{{ m.icon }}</span>
+          <!-- 当前项左侧色条 -->
+          <span
+            v-if="isActive(m.to)"
+            class="absolute left-0 top-0 bottom-0 w-[3px] bg-primary"
+          ></span>
+          <span class="text-xs w-4 text-center opacity-60">{{ m.icon }}</span>
           <span>{{ m.label }}</span>
         </router-link>
       </nav>
@@ -84,27 +89,29 @@ onMounted(() => {
     <!-- 主区域 -->
     <div class="flex-1 flex flex-col min-w-0">
       <!-- 顶栏 -->
-      <header class="h-14 shrink-0 bg-bg border-b border-border flex items-center justify-between px-8">
+      <header class="h-14 shrink-0 bg-bg border-b border-border flex items-center justify-between px-8 sticky top-0 z-10">
         <h1 class="text-base font-semibold text-ink">{{ title }}</h1>
         <div class="flex items-center gap-4 text-sm">
           <button
             v-if="notification.hasUnread"
-            class="flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-danger text-white text-[11px] leading-none font-medium hover:opacity-80 transition-opacity"
+            class="flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-danger text-white text-[11px] leading-none font-semibold hover:opacity-85 transition-opacity"
             :title="`未读消息 ${notification.unreadCount} 条`"
             @click="goConversations"
           >
             {{ unreadDisplay }}
           </button>
-          <span class="text-muted">
-            {{ auth.user?.name || auth.user?.username || '未登录' }}
-            <span v-if="auth.user?.role" class="ml-1 text-xs text-muted/70">
-              ({{ auth.user.role === 'admin' ? '管理员' : '客服' }})
+          <div class="flex items-center gap-2 text-ink-2">
+            <span class="w-7 h-7 rounded-full bg-primary-soft text-primary flex items-center justify-center text-xs font-semibold">
+              {{ (auth.user?.name || auth.user?.username || '?').charAt(0).toUpperCase() }}
             </span>
-          </span>
-          <button
-            class="px-3 py-1.5 rounded border border-border text-muted hover:text-danger hover:border-danger/50 transition-colors"
-            @click="onLogout"
-          >
+            <span>
+              {{ auth.user?.name || auth.user?.username || '未登录' }}
+              <span v-if="auth.user?.role" class="ml-1 text-xs text-muted">
+                {{ auth.user.role === 'admin' ? '管理员' : '客服' }}
+              </span>
+            </span>
+          </div>
+          <button class="btn btn-sm" @click="onLogout">
             登出
           </button>
         </div>

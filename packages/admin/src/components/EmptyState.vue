@@ -11,8 +11,8 @@ withDefaults(
 </script>
 
 <template>
-  <div class="flex flex-col items-center justify-center py-16 text-muted">
-    <div class="text-3xl mb-3 opacity-50">{{ icon }}</div>
-    <div class="text-sm">{{ message }}</div>
+  <div class="flex flex-col items-center justify-center py-16 px-4">
+    <div class="text-2xl text-muted/50 mb-2.5 leading-none">{{ icon }}</div>
+    <div class="text-sm text-ink-2">{{ message }}</div>
   </div>
 </template>
