@@ -618,7 +618,7 @@ export function createWidget(config: WidgetConfig) {
 
   // 元素引用
   const button = shadow.querySelector('.chat-widget-button')!
-  const window = shadow.querySelector('.chat-widget-window')!
+  const chatWindow = shadow.querySelector('.chat-widget-window')!
   const closeBtn = shadow.querySelector('.chat-widget-close')!
   const messagesEl = shadow.querySelector('.chat-widget-messages')!
   const faqsEl = shadow.querySelector('.chat-widget-faqs')!
@@ -799,7 +799,7 @@ export function createWidget(config: WidgetConfig) {
   // 根据按钮位置调整气泡方向：左半屏 → 气泡在右；右半屏 → 气泡在左（默认）
   function adjustBubbleDirection() {
     const rect = button.getBoundingClientRect()
-    const isLeftHalf = rect.left + rect.width / 2 < window.innerWidth / 2
+    const isLeftHalf = rect.left + rect.width / 2 < globalThis.innerWidth / 2
     if (isLeftHalf) {
       bubble.style.right = 'auto'
       bubble.style.left = '72px'
@@ -864,7 +864,7 @@ export function createWidget(config: WidgetConfig) {
   function toggle() {
     isOpen = !isOpen
     if (isOpen) {
-      window.classList.add('open')
+      chatWindow.classList.add('open')
       button.style.display = 'none'
       hideBubble()
       if (!conversationCreated) {
@@ -883,7 +883,7 @@ export function createWidget(config: WidgetConfig) {
 
   // 真正关闭窗口（挽留跳过或已挽留过）
   function actuallyCloseWindow() {
-    window.classList.remove('open')
+    chatWindow.classList.remove('open')
     button.style.display = 'flex'
     isOpen = false
     showBubble()
@@ -925,9 +925,9 @@ export function createWidget(config: WidgetConfig) {
       hideBubble()
     }
     if (hasDragged) {
-      const size = 60
-      let newLeft = Math.max(0, Math.min(window.innerWidth - size, conLeft0 + dx))
-      let newTop = Math.max(0, Math.min(window.innerHeight - size, conTop0 + dy))
+      const buttonRect = button.getBoundingClientRect()
+      let newLeft = Math.max(0, Math.min(globalThis.innerWidth - buttonRect.width, conLeft0 + dx))
+      let newTop = Math.max(0, Math.min(globalThis.innerHeight - buttonRect.height, conTop0 + dy))
       container.style.left = newLeft + 'px'
       container.style.top = newTop + 'px'
     }
