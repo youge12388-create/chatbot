@@ -21,6 +21,8 @@ async function main() {
           '点击聊聊，专属顾问为您服务',
         ],
         primaryColor: '#165DFF',
+        contactWhatsApp: '',    // 国际格式不带+，如 8613800138000
+        contactWecomQrUrl: '',  // 企微二维码图片 URL
       },
     },
   })

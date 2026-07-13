@@ -132,6 +132,14 @@ chatbot/
 | JWT_SECRET | JWT 签名密钥（未配置则用开发默认值，生产必须配置） |
 
 ## 最近完成
+- 2026-07-13: **引流转化升级：底部抽屉表单 + 联系顾问 + 退出挽留**
+  - 表单改底部抽屉滑出（不遮挡对话，带滑入动画和拖动条）
+  - 表单字段精简：姓名 + 电话 + 申请学历层次（下拉：本科/硕士/博士/预科/语言班），其他默认关闭
+  - 聊天窗口头部加"联系顾问"按钮（常驻），点击弹卡片让用户选 WhatsApp 或企微二维码
+  - 联系方式配置加到 siteSettings：contactWhatsApp / contactWecomQrUrl，后台可编辑，留空不显示按钮
+  - 退出挽留：点关闭按钮先弹挽留卡片（仅聊天窗口内，不拦截浏览器），只要手机号，提交后入库为线索
+  - 挽留卡片每个会话只触发一次，用户可选"仍要关闭"真关
+  - 涉及文件：widget ui.ts/form.ts/api.ts、server chat.ts/seed.js、admin types.ts/Sites.vue
 - 2026-07-13: **FAQ 动态推荐 + 空数据兜底**
   - 问题 1：站点无 FAQ 数据时按钮区域空白 → 后端 `getFaqs` 空时返回 `DEFAULT_FAQS` 3 条通用问题
   - 问题 2：FAQ 不会随用户问题更新 → `/api/chat/message` 返回 `suggestedQuestions`

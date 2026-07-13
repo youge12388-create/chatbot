@@ -38,6 +38,8 @@ export interface SiteSettings {
   bubbleMessages: string[]
   primaryColor: string
   formConfig?: FormConfig
+  contactWhatsApp?: string
+  contactWecomQrUrl?: string
 }
 
 export class ChatApi {

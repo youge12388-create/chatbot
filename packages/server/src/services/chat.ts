@@ -85,16 +85,20 @@ const DEFAULT_SITE_SETTINGS = {
     '点击聊聊，专属顾问为您服务',
   ],
   primaryColor: '#165DFF',
+  // 联系顾问配置：未配置则不显示联系顾问按钮
+  contactWhatsApp: '',    // 国际格式号码，如 8613800138000，前端拼 wa.me/链接
+  contactWecomQrUrl: '',  // 企微二维码图片 URL
   // 表单配置：预设字段开关 + 自定义字段
   formConfig: {
     presetFields: {
-      name:        { enabled: true,  required: true },
-      phone:       { enabled: true,  required: true },
-      email:       { enabled: false, required: false },
-      wechat:      { enabled: true,  required: false },
-      education:   { enabled: false, required: false },
-      targetMajor: { enabled: false, required: false },
-      budget:      { enabled: false, required: false },
+      name:          { enabled: true,  required: true },
+      phone:         { enabled: true,  required: true },
+      applyingLevel: { enabled: true,  required: false }, // 申请学历层次：本科/硕士/博士/预科/语言班
+      email:         { enabled: false, required: false },
+      wechat:        { enabled: false, required: false },
+      education:     { enabled: false, required: false },
+      targetMajor:   { enabled: false, required: false },
+      budget:        { enabled: false, required: false },
     },
     customFields: [] as Array<{
       id: string

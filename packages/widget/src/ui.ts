@@ -118,6 +118,162 @@ const CSS = `
   fill: white;
 }
 
+.chat-widget-contact-btn {
+  cursor: pointer;
+  padding: 4px 10px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  margin-right: 8px;
+}
+.chat-widget-contact-btn svg {
+  width: 14px;
+  height: 14px;
+  fill: white;
+}
+
+/* 联系顾问弹窗 */
+.chat-widget-contact-modal {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+.chat-widget-contact-modal.open {
+  display: flex;
+}
+.chat-widget-contact-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  width: 80%;
+  max-width: 280px;
+  text-align: center;
+}
+.chat-widget-contact-card h4 {
+  margin: 0 0 16px 0;
+  font-size: 15px;
+  color: #333;
+}
+.chat-widget-contact-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid #165DFF;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  color: #165DFF;
+  font-size: 14px;
+  text-decoration: none;
+}
+.chat-widget-contact-option:hover {
+  background: #165DFF;
+  color: #fff;
+}
+.chat-widget-contact-option svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+.chat-widget-contact-qr {
+  width: 200px;
+  height: 200px;
+  margin: 8px auto;
+  display: block;
+  object-fit: contain;
+}
+.chat-widget-contact-close {
+  background: #f5f5f5;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #666;
+  margin-top: 8px;
+}
+
+/* 退出挽留卡片 */
+.chat-widget-retain-modal {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+.chat-widget-retain-modal.open {
+  display: flex;
+}
+.chat-widget-retain-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  width: 84%;
+  max-width: 300px;
+  text-align: center;
+}
+.chat-widget-retain-card h4 {
+  margin: 0 0 8px 0;
+  font-size: 15px;
+  color: #333;
+}
+.chat-widget-retain-card p {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  color: #666;
+  line-height: 1.5;
+}
+.chat-widget-retain-card input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  box-sizing: border-box;
+  margin-bottom: 12px;
+}
+.chat-widget-retain-actions {
+  display: flex;
+  gap: 8px;
+}
+.chat-widget-retain-submit {
+  flex: 1;
+  padding: 10px;
+  background: #165DFF;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.chat-widget-retain-skip {
+  padding: 10px 14px;
+  background: #f5f5f5;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #666;
+}
+
 .chat-widget-messages {
   flex: 1;
   overflow-y: auto;
@@ -213,21 +369,33 @@ const CSS = `
 
 .chat-widget-form-overlay {
   position: absolute;
-  top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(255, 255, 255, 0.98);
+  max-height: 80%;
+  background: #fff;
   display: none;
-  padding: 16px;
+  padding: 20px 16px 16px;
   overflow-y: auto;
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
 }
 .chat-widget-form-overlay.open {
   display: block;
+  transform: translateY(0);
 }
 .chat-widget-form-overlay h4 {
   margin: 0 0 12px 0;
   font-size: 16px;
+}
+.chat-form-overlay-handle {
+  width: 36px;
+  height: 4px;
+  background: #ddd;
+  border-radius: 2px;
+  margin: 0 auto 12px;
 }
 .chat-form-row {
   margin-bottom: 12px;
@@ -390,8 +558,14 @@ export function createWidget(config: WidgetConfig) {
     <div class="chat-widget-window">
       <div class="chat-widget-header">
         <h3>${t(lang, 'header.title')}</h3>
-        <div class="chat-widget-close">
-          <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        <div style="display:flex;align-items:center;">
+          <div class="chat-widget-contact-btn" style="display:none;">
+            <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+            <span>${lang === 'en' ? 'Contact' : lang === 'ru' ? 'Связаться' : '联系顾问'}</span>
+          </div>
+          <div class="chat-widget-close">
+            <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+          </div>
         </div>
       </div>
       <div class="chat-widget-messages"></div>
@@ -402,7 +576,27 @@ export function createWidget(config: WidgetConfig) {
           <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
         </button>
       </div>
-      <div class="chat-widget-form-overlay"></div>
+      <div class="chat-widget-form-overlay">
+        <div class="chat-form-overlay-handle"></div>
+      </div>
+      <div class="chat-widget-contact-modal">
+        <div class="chat-widget-contact-card">
+          <h4>${lang === 'en' ? 'Contact Consultant' : lang === 'ru' ? 'Связаться с консультантом' : '联系顾问'}</h4>
+          <div class="chat-widget-contact-options"></div>
+          <button class="chat-widget-contact-close">${lang === 'en' ? 'Close' : lang === 'ru' ? 'Закрыть' : '关闭'}</button>
+        </div>
+      </div>
+      <div class="chat-widget-retain-modal">
+        <div class="chat-widget-retain-card">
+          <h4>${lang === 'en' ? 'Wait!' : lang === 'ru' ? 'Подождите!' : '等一下！'}</h4>
+          <p>${lang === 'en' ? 'Leave your phone, we will help you with a study plan.' : lang === 'ru' ? 'Оставьте телефон, поможем с планом обучения.' : '留个手机号，我们帮您看具体方案'}</p>
+          <input type="tel" placeholder="${lang === 'en' ? 'Your phone number' : lang === 'ru' ? 'Ваш номер телефона' : '您的手机号码'}" />
+          <div class="chat-widget-retain-actions">
+            <button class="chat-widget-retain-skip">${lang === 'en' ? 'Still close' : lang === 'ru' ? 'Всё равно закрыть' : '仍要关闭'}</button>
+            <button class="chat-widget-retain-submit">${lang === 'en' ? 'Submit' : lang === 'ru' ? 'Отправить' : '提交'}</button>
+          </div>
+        </div>
+      </div>
     </div>
     <div class="chat-widget-button">
       <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
@@ -422,6 +616,14 @@ export function createWidget(config: WidgetConfig) {
   const sendBtn = shadow.querySelector('.chat-widget-send')!
   const formOverlay = shadow.querySelector<HTMLElement>('.chat-widget-form-overlay')!
   const bubble = shadow.querySelector<HTMLElement>('.chat-widget-bubble')!
+  const contactBtn = shadow.querySelector<HTMLElement>('.chat-widget-contact-btn')!
+  const contactModal = shadow.querySelector<HTMLElement>('.chat-widget-contact-modal')!
+  const contactOptions = shadow.querySelector<HTMLElement>('.chat-widget-contact-options')!
+  const contactCloseBtn = shadow.querySelector<HTMLElement>('.chat-widget-contact-close')!
+  const retainModal = shadow.querySelector<HTMLElement>('.chat-widget-retain-modal')!
+  const retainInput = shadow.querySelector<HTMLInputElement>('.chat-widget-retain-card input')!
+  const retainSubmitBtn = shadow.querySelector<HTMLElement>('.chat-widget-retain-submit')!
+  const retainSkipBtn = shadow.querySelector<HTMLElement>('.chat-widget-retain-skip')!
 
   // 状态
   let isOpen = false
@@ -429,6 +631,7 @@ export function createWidget(config: WidgetConfig) {
   let faqs: FaqItem[] = []
   let conversationCreated = false
   let siteSettings: SiteSettings | null = null
+  let retainShown = false  // 挽留卡片只触发一次
 
   // 气泡状态：多条文案轮播，常驻显示（仅打开聊天窗口时隐藏）
   let bubbleIndex = 0
@@ -443,6 +646,7 @@ export function createWidget(config: WidgetConfig) {
       if (settings) {
         siteSettings = settings
         applyThemeColor(settings.primaryColor)
+        updateContactButton()
         // 气泡已显示时，更新文案列表并按需启动轮播
         if (bubbleVisible) refreshBubble()
       }
@@ -468,8 +672,98 @@ export function createWidget(config: WidgetConfig) {
       .chat-form-submit { background: ${color} !important; }
       .chat-widget-bubble { background: ${color} !important; }
       .chat-widget-bubble::after { border-left-color: ${color} !important; }
+      .chat-widget-contact-option { border-color: ${color} !important; color: ${color} !important; }
+      .chat-widget-contact-option:hover { background: ${color} !important; }
+      .chat-widget-retain-submit { background: ${color} !important; }
     `
   }
+
+  // 更新联系顾问按钮显示（配置了至少一个联系方式才显示）
+  function updateContactButton() {
+    const hasWhatsApp = siteSettings?.contactWhatsApp && siteSettings.contactWhatsApp.trim()
+    const hasQr = siteSettings?.contactWecomQrUrl && siteSettings.contactWecomQrUrl.trim()
+    if (hasWhatsApp || hasQr) {
+      contactBtn.style.display = 'flex'
+    } else {
+      contactBtn.style.display = 'none'
+    }
+  }
+
+  // 打开联系顾问弹窗
+  function openContactModal() {
+    contactOptions.innerHTML = ''
+    const wa = siteSettings?.contactWhatsApp?.trim()
+    const qr = siteSettings?.contactWecomQrUrl?.trim()
+    if (wa) {
+      const a = document.createElement('a')
+      a.className = 'chat-widget-contact-option'
+      a.href = `https://wa.me/${wa}`
+      a.target = '_blank'
+      a.rel = 'noopener noreferrer'
+      a.innerHTML = `<svg viewBox="0 0 24 24"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38c1.45.79 3.08 1.21 4.79 1.21 5.46 0 9.91-4.45 9.91-9.91C21.95 6.45 17.5 2 12.04 2zm0 18.15c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.264 8.264 0 0 1-1.26-4.38c0-4.54 3.7-8.23 8.24-8.23 2.2 0 4.27.86 5.82 2.42a8.183 8.183 0 0 1 2.41 5.83c0 4.54-3.7 8.23-8.24 8.23zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.12-.17.25-.64.81-.78.97-.14.17-.29.19-.54.06-.25-.12-1.02-.38-1.94-1.2-.72-.64-1.2-1.43-1.34-1.68-.14-.25-.02-.38.11-.5.11-.11.25-.29.37-.43.12-.14.17-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.48-.41-.42-.56-.43-.14 0-.31-.01-.47-.01s-.43.06-.66.31c-.23.25-.87.85-.87 2.07 0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.14-1.18-.06-.11-.22-.17-.47-.29z"/></svg><span>WhatsApp</span>`
+      contactOptions.appendChild(a)
+    }
+    if (qr) {
+      const btn = document.createElement('div')
+      btn.className = 'chat-widget-contact-option'
+      btn.style.cursor = 'pointer'
+      btn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M3 3h18v18H3V3zm2 2v14h14V5H5zm2 2h4v4H7V7zm6 0h4v4h-4V7zM7 13h4v4H7v-4zm6 0h4v4h-4v-4z"/></svg><span>${lang === 'en' ? 'WeChat QR' : lang === 'ru' ? 'WeChat QR' : '企微二维码'}</span>`
+      btn.addEventListener('click', () => {
+        contactOptions.innerHTML = ''
+        const img = document.createElement('img')
+        img.className = 'chat-widget-contact-qr'
+        img.src = qr
+        img.alt = 'WeChat QR'
+        contactOptions.appendChild(img)
+      })
+      contactOptions.appendChild(btn)
+    }
+    contactModal.classList.add('open')
+  }
+
+  function closeContactModal() {
+    contactModal.classList.remove('open')
+  }
+  contactBtn.addEventListener('click', openContactModal)
+  contactCloseBtn.addEventListener('click', closeContactModal)
+
+  // 退出挽留：关闭聊天窗口时触发一次
+  function tryShowRetain(): boolean {
+    if (retainShown) return false
+    retainShown = true
+    retainInput.value = ''
+    retainModal.classList.add('open')
+    return true
+  }
+
+  function closeRetainModal() {
+    retainModal.classList.remove('open')
+  }
+
+  // 挽留卡片提交手机号
+  retainSubmitBtn.addEventListener('click', async () => {
+    const phone = retainInput.value.trim()
+    if (!phone) {
+      retainInput.focus()
+      return
+    }
+    closeRetainModal()
+    // 提交线索（若会话已创建）
+    if (conversationCreated) {
+      try {
+        await api.submitLead({ phone })
+      } catch (e) {
+        // 忽略，不影响关闭
+      }
+    }
+    addMessage({ role: 'assistant', content: lang === 'en' ? 'Got it, we will contact you soon.' : lang === 'ru' ? 'Понятно, скоро свяжемся.' : '收到，我们会尽快联系您。' }, true)
+  })
+
+  // 仍要关闭
+  retainSkipBtn.addEventListener('click', () => {
+    closeRetainModal()
+    actuallyCloseWindow()
+  })
 
   // 当前气泡文案列表
   function getBubbleMessages(): string[] {
@@ -548,11 +842,22 @@ export function createWidget(config: WidgetConfig) {
         initConversation()
       }
     } else {
-      window.classList.remove('open')
-      button.style.display = 'flex'
-      // 关闭窗口后重新显示气泡（常驻）
-      showBubble()
+      // 关闭聊天窗口：先尝试触发挽留（仅一次），未触发则真关
+      if (conversationCreated && tryShowRetain()) {
+        // 挽留卡片已弹出，用户选择后再决定是否真关
+        isOpen = true  // 保持打开状态，等挽留结果
+      } else {
+        actuallyCloseWindow()
+      }
     }
+  }
+
+  // 真正关闭窗口（挽留跳过或已挽留过）
+  function actuallyCloseWindow() {
+    window.classList.remove('open')
+    button.style.display = 'flex'
+    isOpen = false
+    showBubble()
   }
 
   button.addEventListener('click', toggle)
@@ -567,6 +872,7 @@ export function createWidget(config: WidgetConfig) {
     if (settings) {
       siteSettings = settings
       applyThemeColor(settings.primaryColor)
+      updateContactButton()
     }
     // 显示欢迎消息
     const welcome = settings?.welcomeMessage || t(lang, 'header.welcome')
@@ -737,13 +1043,15 @@ export function createWidget(config: WidgetConfig) {
       closeForm()
       addMessage({ role: 'assistant', content: t(lang, 'form.success') })
     }, closeForm, siteSettings?.formConfig)
+    // 重新插入拖动条 handle（renderForm 会清空容器）
+    const handle = document.createElement('div')
+    handle.className = 'chat-form-overlay-handle'
+    formOverlay.insertBefore(handle, formOverlay.firstChild)
     formOverlay.classList.add('open')
   }
 
   function closeForm() {
     formOverlay.classList.remove('open')
-    // 清空内容，避免白色残留
-    formOverlay.innerHTML = ''
   }
 
   // enable send button when input has content
