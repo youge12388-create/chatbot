@@ -16,11 +16,27 @@ export interface FaqItem {
   answer: string
 }
 
+export type CustomFieldType = 'text' | 'tel' | 'email' | 'select' | 'textarea'
+
+export interface CustomField {
+  id: string
+  label: string
+  type: CustomFieldType
+  options?: string[]
+  required: boolean
+}
+
+export interface FormConfig {
+  presetFields: Record<string, { enabled: boolean; required: boolean }>
+  customFields: CustomField[]
+}
+
 export interface SiteSettings {
   welcomeMessage: string
   guideMessage: string
   bubbleMessages: string[]
   primaryColor: string
+  formConfig?: FormConfig
 }
 
 export class ChatApi {
@@ -100,14 +116,13 @@ export class ChatApi {
     return data.data
   }
 
-  async submitLead(fields: Record<string, string>): Promise<void> {
+  async submitLead(fields: Record<string, string>, extra?: Record<string, string>): Promise<void> {
+    const body: Record<string, unknown> = { conversationId: this.conversationId, ...fields }
+    if (extra && Object.keys(extra).length > 0) body.extra = extra
     await fetch(`${this.apiHost}/api/chat/lead`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        conversationId: this.conversationId,
-        ...fields,
-      }),
+      body: JSON.stringify(body),
     })
   }
 

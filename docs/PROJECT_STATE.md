@@ -132,6 +132,16 @@ chatbot/
 | JWT_SECRET | JWT 签名密钥（未配置则用开发默认值，生产必须配置） |
 
 ## 最近完成
+- 2026-07-13: **自定义表单收集功能（admin + widget 全链路）**
+  - 后端已就绪：`DEFAULT_SITE_SETTINGS.formConfig`、`mergeSettings` 兜底、`upsertLead` 解构 extra 合并到 lead.extra、admin PATCH 透传 settings，无需改动
+  - admin `types.ts`：新增 `CustomFieldType` / `CustomField` / `FormConfig` 类型，`SiteSettings.formConfig` 可选字段
+  - admin `Sites.vue`：站点编辑表单加"表单配置"区，预设字段表格样式（启用/必填 checkbox，关闭启用时同步关闭必填），自定义字段堆叠卡片样式（label/type/options/required，select 类型才显示选项输入），自定义字段 id 用 `f_` + 随机串；旧数据用 `ensureFormConfig` 兜底
+  - widget `api.ts`：`SiteSettings.formConfig` 字段；`submitLead` 增加 `extra?: Record<string,string>` 参数，有内容才写入 body
+  - widget `form.ts`：完全重写为按 formConfig 动态渲染。`PRESET_FIELDS` 常量数组（按固定顺序，多语言 label/placeholder），`normalizeFormConfig` 兜底；预设字段值进 onSubmit 第一参（顶层字段），自定义字段值进第二参 extra；textarea/select 用 DOM API 创建；保留原有错误提示/校验/样式
+  - widget `ui.ts`：`openForm` 透传 `siteSettings?.formConfig`，回调改为 `(data, extra) => api.submitLead(data, extra)`
+  - admin `LeadDetail.vue`：基本信息卡下方加"自定义信息"区，`v-if="lead.extra && Object.keys(...).length>0"`，遍历 `lead.extra` 显示 key-value，`formatExtraValue` 处理 unknown 类型转字符串
+  - 验证：`npx vue-tsc --noEmit` 零错误；`npx vite build` 通过（22.43 kB）
+  - 涉及文件：admin src/types.ts、views/Sites.vue、views/LeadDetail.vue；widget src/api.ts、src/form.ts、src/ui.ts
 - 2026-07-13: **后台实时通知与 webhook 配置（admin 前端）**
   - 新增 `adminSseUrl()`（client.ts）：后台 SSE 端点 `/api/admin/stream?token=xxx`，JWT 拼到 query（EventSource 不支持自定义头）
   - 新增 `stores/notification.ts`：单一 admin SSE 连接管理未读数 + 最近 50 条客户消息；`connect()` 幂等，`onmessage` 解析 `{event,data}`，`user_message` 累加未读并入栈，`agent_reply` 单独入栈（供详情页实时追加）

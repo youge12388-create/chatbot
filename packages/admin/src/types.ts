@@ -17,6 +17,21 @@ export interface AdminUser {
   createdAt?: string
 }
 
+export type CustomFieldType = 'text' | 'tel' | 'email' | 'select' | 'textarea'
+
+export interface CustomField {
+  id: string
+  label: string
+  type: CustomFieldType
+  options?: string[]
+  required: boolean
+}
+
+export interface FormConfig {
+  presetFields: Record<string, { enabled: boolean; required: boolean }>
+  customFields: CustomField[]
+}
+
 export interface SiteSettings {
   welcomeMessage?: string
   guideMessage?: string
@@ -24,6 +39,7 @@ export interface SiteSettings {
   primaryColor?: string
   webhookUrl?: string
   n8nWebhookUrl?: string
+  formConfig?: FormConfig
 }
 
 export interface Site {
