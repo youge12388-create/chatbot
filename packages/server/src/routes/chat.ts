@@ -88,61 +88,60 @@ router.post('/message', wrap(async (req, res) => {
     return
   }
 
-  // 3. 问题分类
+  // 3. 优先匹配 FAQ 预设答案（用户点 FAQ 按钮时文本与 FAQ 问题一致，直接返回预设）
+  const siteId = await chatService.getConversationSiteId(conversationId)
+  const faqAnswer = await chatService.findFaqAnswer(siteId, content)
   const category = chatService.classifyQuestion(content)
 
   let reply: string
   let source: 'preset' | 'ai' | 'human'
   let needForm: boolean = false
 
-  switch (category.type) {
-    case 'faq': {
-      const siteId = await chatService.getConversationSiteId(conversationId)
-      const faqAnswer = await chatService.findFaqAnswer(siteId, content)
-      if (faqAnswer) {
-        reply = faqAnswer
-        source = 'preset'
-      } else {
+  if (faqAnswer) {
+    reply = faqAnswer
+    source = 'preset'
+  } else {
+    switch (category.type) {
+      case 'faq':
         // FAQ 关键词匹配但无对应预设答案，降级走 Dify
         reply = await chatService.askDify(conversationId, content, 'faq')
         source = 'ai'
-      }
-      break
+        break
+
+      case 'knowledge':
+        reply = await chatService.askDify(conversationId, content, 'knowledge')
+        source = 'ai'
+        needForm = await chatService.shouldShowForm(conversationId)
+        break
+
+      case 'personalized':
+        reply = await chatService.askDify(conversationId, content, 'personalized')
+        source = 'ai'
+        needForm = true
+        break
+
+      case 'transfer':
+        reply = chatService.getTransferReply(lang || 'zh-CN')
+        source = 'human'
+        needForm = true
+        await chatService.transferToHuman(conversationId)
+        // 转人工自动推通知（不阻塞响应）
+        leadService.notifyTransfer(conversationId).catch(() => {})
+        break
+
+      default:
+        reply = await chatService.askDify(conversationId, content)
+        source = 'ai'
     }
-
-    case 'knowledge':
-      reply = await chatService.askDify(conversationId, content, 'knowledge')
-      source = 'ai'
-      needForm = await chatService.shouldShowForm(conversationId)
-      break
-
-    case 'personalized':
-      reply = await chatService.askDify(conversationId, content, 'personalized')
-      source = 'ai'
-      needForm = true
-      break
-
-    case 'transfer':
-      reply = chatService.getTransferReply(lang || 'zh-CN')
-      source = 'human'
-      needForm = true
-      await chatService.transferToHuman(conversationId)
-      // 转人工自动推通知（不阻塞响应）
-      leadService.notifyTransfer(conversationId).catch(() => {})
-      break
-
-    default:
-      reply = await chatService.askDify(conversationId, content)
-      source = 'ai'
   }
 
-  // 3. 保存 AI 回复
+  // 4. 保存 AI 回复
   await chatService.saveMessage(conversationId, 'assistant', reply, source)
 
-  // 4. 更新兴趣评分（不阻塞响应）
+  // 5. 更新兴趣评分（不阻塞响应）
   leadService.updateInterestScore(conversationId, content, category.type).catch(() => {})
 
-  // 5. 获取动态推荐问题（基于用户当前问题 + 排除已问过的）
+  // 6. 获取动态推荐问题（基于用户当前问题 + 排除已问过的）
   const { prisma } = require('../db/client')
   const askedMsgs = await prisma.message.findMany({
     where: { conversationId, role: 'user' },
@@ -152,7 +151,7 @@ router.post('/message', wrap(async (req, res) => {
   })
   const askedQuestions = askedMsgs.map((m: any) => m.content)
   const suggestedQuestions = await chatService.getSuggestedQuestions(
-    await chatService.getConversationSiteId(conversationId),
+    siteId,
     content,
     askedQuestions,
   )
