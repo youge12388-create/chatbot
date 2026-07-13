@@ -478,9 +478,16 @@ async function findFaqAnswer(siteId: string, content: string): Promise<string | 
     where: { siteId },
     orderBy: { priority: 'asc' },
   })
+  const pool = faqs.length > 0 ? faqs : DEFAULT_FAQS
 
-  for (const faq of faqs) {
-    // 双向匹配：用户问题包含 FAQ 问题，或 FAQ 问题包含用户问题
+  for (const faq of pool) {
+    // 精确匹配优先
+    if (content.trim() === faq.question.trim()) {
+      return faq.answer
+    }
+  }
+  for (const faq of pool) {
+    // 双向模糊匹配：用户问题包含 FAQ 问题，或 FAQ 问题包含用户问题
     if (content.includes(faq.question) || faq.question.includes(content)) {
       return faq.answer
     }

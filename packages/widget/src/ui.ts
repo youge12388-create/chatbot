@@ -78,6 +78,12 @@ const CSS = `
   border: 6px solid transparent;
   border-left-color: #165DFF;
 }
+.chat-widget-bubble.bubble-right::after {
+  right: auto;
+  left: -6px;
+  border-left-color: transparent;
+  border-right-color: #165DFF;
+}
 
 .chat-widget-window {
   width: 380px;
@@ -672,6 +678,7 @@ export function createWidget(config: WidgetConfig) {
       .chat-form-submit { background: ${color} !important; }
       .chat-widget-bubble { background: ${color} !important; }
       .chat-widget-bubble::after { border-left-color: ${color} !important; }
+      .chat-widget-bubble.bubble-right::after { border-right-color: ${color} !important; }
       .chat-widget-contact-option { border-color: ${color} !important; color: ${color} !important; }
       .chat-widget-contact-option:hover { background: ${color} !important; }
       .chat-widget-retain-submit { background: ${color} !important; }
@@ -781,7 +788,25 @@ export function createWidget(config: WidgetConfig) {
     bubble.classList.remove('switching')
     bubble.classList.add('show')
     bubbleVisible = true
+    adjustBubbleDirection()
     startBubbleRotation()
+  }
+
+  // 根据按钮位置调整气泡方向：左半屏 → 气泡在右；右半屏 → 气泡在左（默认）
+  function adjustBubbleDirection() {
+    const rect = button.getBoundingClientRect()
+    const isLeftHalf = rect.left + rect.width / 2 < window.innerWidth / 2
+    if (isLeftHalf) {
+      bubble.style.right = 'auto'
+      bubble.style.left = '72px'
+      bubble.style.transform = 'translateY(-50%)'
+      bubble.classList.add('bubble-right')
+    } else {
+      bubble.style.left = 'auto'
+      bubble.style.right = '72px'
+      bubble.style.transform = 'translateY(-50%)'
+      bubble.classList.remove('bubble-right')
+    }
   }
 
   // 站点配置到达后刷新：更新文案并按需启动轮播
@@ -862,6 +887,89 @@ export function createWidget(config: WidgetConfig) {
 
   button.addEventListener('click', toggle)
   closeBtn.addEventListener('click', toggle)
+
+  // === 气泡按钮拖动 ===
+  let isDragging = false
+  let dragStartX = 0
+  let dragStartY = 0
+  let btnLeft0 = 0
+  let btnTop0 = 0
+  let hasDragged = false
+  const DRAG_THRESHOLD = 5
+
+  function onDragStart(clientX: number, clientY: number) {
+    const rect = button.getBoundingClientRect()
+    btnLeft0 = rect.left
+    btnTop0 = rect.top
+    dragStartX = clientX
+    dragStartY = clientY
+    hasDragged = false
+    isDragging = true
+  }
+
+  function onDragMove(clientX: number, clientY: number) {
+    if (!isDragging) return
+    const dx = clientX - dragStartX
+    const dy = clientY - dragStartY
+    if (!hasDragged && (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD)) {
+      hasDragged = true
+      // 首次越阈值：切换为 fixed 定位
+      button.style.position = 'fixed'
+      button.style.left = btnLeft0 + 'px'
+      button.style.top = btnTop0 + 'px'
+      button.style.right = 'auto'
+      button.style.bottom = 'auto'
+      button.style.margin = '0'
+      button.style.transform = 'none'
+      hideBubble()
+    }
+    if (hasDragged) {
+      const size = 60
+      let newLeft = Math.max(0, Math.min(window.innerWidth - size, btnLeft0 + dx))
+      let newTop = Math.max(0, Math.min(window.innerHeight - size, btnTop0 + dy))
+      button.style.left = newLeft + 'px'
+      button.style.top = newTop + 'px'
+    }
+  }
+
+  function onDragEnd() {
+    if (!isDragging) return
+    isDragging = false
+    if (hasDragged) {
+      // 拖动后延迟恢复气泡
+      setTimeout(() => { if (!isOpen) showBubble() }, 800)
+    }
+  }
+
+  // 阻止 click 事件在拖动后触发
+  button.addEventListener('click', (e) => {
+    if (hasDragged) {
+      e.preventDefault()
+      e.stopPropagation()
+      hasDragged = false
+      return
+    }
+  }, true) // 捕获阶段，先于 toggle
+
+  button.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return
+    onDragStart(e.clientX, e.clientY)
+  })
+  document.addEventListener('mousemove', (e) => onDragMove(e.clientX, e.clientY))
+  document.addEventListener('mouseup', onDragEnd)
+
+  // 触摸事件
+  button.addEventListener('touchstart', (e) => {
+    const t = e.touches[0]
+    onDragStart(t.clientX, t.clientY)
+  }, { passive: true })
+  document.addEventListener('touchmove', (e) => {
+    if (!isDragging) return
+    const t = e.touches[0]
+    onDragMove(t.clientX, t.clientY)
+    e.preventDefault()
+  }, { passive: false })
+  document.addEventListener('touchend', onDragEnd)
 
   // 初始化会话
   async function initConversation() {

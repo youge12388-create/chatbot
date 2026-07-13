@@ -132,6 +132,13 @@ chatbot/
 | JWT_SECRET | JWT 签名密钥（未配置则用开发默认值，生产必须配置） |
 
 ## 最近完成
+- 2026-07-13: **FAQ 点击仍走 AI 修复 + 气泡按钮自由拖动**
+  - 问题 1：站点无 FAQ 记录时点击 3 个默认问题仍显示"思考中"。根因：`getFaqs` 有 `DEFAULT_FAQS` 兜底所以按钮能显示，但 `findFaqAnswer` 只查数据库，空数据返回 null → 走 AI
+  - 修复：`findFaqAnswer` 加 `const pool = faqs.length > 0 ? faqs : DEFAULT_FAQS` 兜底，并改为精确匹配优先 + 双向模糊匹配兜底
+  - 问题 2：气泡按钮不能自由拖动
+  - 修复：widget `ui.ts` 加 mouse + touch 拖动逻辑（5px 阈值判定拖动 vs 点击，越阈值后切 fixed 定位并移动，边界限制在视口内），捕获阶段阻止拖动后的 click 触发 toggle
+  - 附带：气泡方向自适应（按钮在左半屏时气泡显示在右侧，箭头朝左）
+  - 涉及文件：server chat.ts、widget ui.ts
 - 2026-07-13: **引流转化升级：底部抽屉表单 + 联系顾问 + 退出挽留**
   - 表单改底部抽屉滑出（不遮挡对话，带滑入动画和拖动条）
   - 表单字段精简：姓名 + 电话 + 申请学历层次（下拉：本科/硕士/博士/预科/语言班），其他默认关闭
@@ -239,4 +246,4 @@ chatbot/
 5. **生产配置**: 在 Zeabur 配置 ADMIN_PASSWORD 和 JWT_SECRET，改默认密码
 6. 在企微后台轮换已进入 Git 历史的 webhook key
 7. 后续增加数据库 readiness 检查和完整 API 集成测试
-8. 考虑增加 Widget 拖动功能（用户有此需求，暂未实现）
+8. ~~考虑增加 Widget 拖动功能~~（已完成，2026-07-13）
