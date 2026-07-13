@@ -260,6 +260,29 @@ onMounted(fetchList)
               />
             </div>
 
+            <!-- 联系顾问配置 -->
+            <div class="col-span-2 mt-2 pt-4 border-t border-border">
+              <h4 class="text-sm font-semibold text-ink mb-3">联系顾问配置（聊天窗口头部按钮，留空不显示）</h4>
+            </div>
+            <div>
+              <label class="text-sm text-muted block mb-1.5">WhatsApp 号码</label>
+              <input
+                v-model="getDraft(site.id)!.settings.contactWhatsApp"
+                type="text"
+                placeholder="国际格式不带+，如 8613800138000"
+                class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full font-mono text-xs"
+              />
+            </div>
+            <div>
+              <label class="text-sm text-muted block mb-1.5">企微二维码图片 URL</label>
+              <input
+                v-model="getDraft(site.id)!.settings.contactWecomQrUrl"
+                type="text"
+                placeholder="https://xxx/qr.png"
+                class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full font-mono text-xs"
+              />
+            </div>
+
             <!-- Dify 配置 -->
             <div class="col-span-2 mt-2 pt-4 border-t border-border">
               <h4 class="text-sm font-semibold text-ink mb-3">Dify AI 配置（每个站点可独立配置不同智能体）</h4>

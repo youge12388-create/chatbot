@@ -12,26 +12,37 @@ import { FormConfig } from './api'
 /** 默认表单配置（站点未配置时兜底） */
 const DEFAULT_FORM_CONFIG: FormConfig = {
   presetFields: {
-    name:        { enabled: true,  required: true },
-    phone:       { enabled: true,  required: true },
-    email:       { enabled: false, required: false },
-    wechat:      { enabled: true,  required: false },
-    education:   { enabled: false, required: false },
-    targetMajor: { enabled: false, required: false },
-    budget:      { enabled: false, required: false },
+    name:          { enabled: true,  required: true },
+    phone:         { enabled: true,  required: true },
+    applyingLevel: { enabled: true,  required: false },
+    email:         { enabled: false, required: false },
+    wechat:        { enabled: false, required: false },
+    education:     { enabled: false, required: false },
+    targetMajor:   { enabled: false, required: false },
+    budget:        { enabled: false, required: false },
   },
   customFields: [],
 }
 
-/** 预设字段顺序与多语言 label */
-const PRESET_FIELDS: Array<{ key: string; labels: Record<Lang, string>; placeholder: Record<Lang, string> }> = [
-  { key: 'name',        labels: { 'zh-CN': '姓名',       en: 'Name',           ru: 'Имя' },            placeholder: { 'zh-CN': '您的称呼',          en: 'Your name',            ru: 'Ваше имя' } },
-  { key: 'phone',       labels: { 'zh-CN': '手机号',     en: 'Phone',          ru: 'Телефон' },        placeholder: { 'zh-CN': '您的手机号码',      en: 'Your phone number',    ru: 'Ваш номер телефона' } },
-  { key: 'email',       labels: { 'zh-CN': '邮箱',       en: 'Email',          ru: 'Email' },          placeholder: { 'zh-CN': '您的邮箱',          en: 'Your email',           ru: 'Ваш email' } },
-  { key: 'wechat',      labels: { 'zh-CN': '微信号',     en: 'WeChat',         ru: 'WeChat' },         placeholder: { 'zh-CN': '微信号',            en: 'WeChat ID',            ru: 'WeChat ID' } },
-  { key: 'education',   labels: { 'zh-CN': '学历',       en: 'Education',      ru: 'Образование' },   placeholder: { 'zh-CN': '如：本科、大专、高中', en: 'e.g. Bachelor',       ru: 'напр. Бакалавр' } },
-  { key: 'targetMajor', labels: { 'zh-CN': '意向专业',   en: 'Intended Major', ru: 'Специальность' }, placeholder: { 'zh-CN': '您想申请的专业',    en: 'Intended major',       ru: 'Ваша специальность' } },
-  { key: 'budget',      labels: { 'zh-CN': '预算',       en: 'Budget',         ru: 'Бюджет' },         placeholder: { 'zh-CN': '如：30万/年',       en: 'e.g. 300k/year',       ru: 'напр. 300k/год' } },
+/** 申请学历层次选项 */
+const APPLYING_LEVEL_OPTIONS = ['本科', '硕士', '博士', '预科', '语言班']
+
+/** 预设字段顺序与多语言 label。select 类型用 options 渲染下拉 */
+const PRESET_FIELDS: Array<{
+  key: string
+  labels: Record<Lang, string>
+  placeholder: Record<Lang, string>
+  type?: 'text' | 'tel' | 'email' | 'select'
+  options?: string[]
+}> = [
+  { key: 'name',          labels: { 'zh-CN': '姓名',       en: 'Name',           ru: 'Имя' },            placeholder: { 'zh-CN': '您的称呼',          en: 'Your name',            ru: 'Ваше имя' } },
+  { key: 'phone',         labels: { 'zh-CN': '手机号',     en: 'Phone',          ru: 'Телефон' },        placeholder: { 'zh-CN': '您的手机号码',      en: 'Your phone number',    ru: 'Ваш номер телефона' }, type: 'tel' },
+  { key: 'applyingLevel', labels: { 'zh-CN': '申请学历',   en: 'Applying Level', ru: 'Уровень' },        placeholder: { 'zh-CN': '请选择',            en: 'Please select',        ru: 'Выберите' },           type: 'select', options: APPLYING_LEVEL_OPTIONS },
+  { key: 'email',          labels: { 'zh-CN': '邮箱',       en: 'Email',          ru: 'Email' },          placeholder: { 'zh-CN': '您的邮箱',          en: 'Your email',           ru: 'Ваш email' },           type: 'email' },
+  { key: 'wechat',         labels: { 'zh-CN': '微信号',     en: 'WeChat',         ru: 'WeChat' },         placeholder: { 'zh-CN': '微信号',            en: 'WeChat ID',            ru: 'WeChat ID' } },
+  { key: 'education',      labels: { 'zh-CN': '学历',       en: 'Education',      ru: 'Образование' },   placeholder: { 'zh-CN': '如：本科、大专、高中', en: 'e.g. Bachelor',       ru: 'напр. Бакалавр' } },
+  { key: 'targetMajor',    labels: { 'zh-CN': '意向专业',   en: 'Intended Major', ru: 'Специальность' }, placeholder: { 'zh-CN': '您想申请的专业',    en: 'Intended major',       ru: 'Ваша специальность' } },
+  { key: 'budget',         labels: { 'zh-CN': '预算',       en: 'Budget',         ru: 'Бюджет' },         placeholder: { 'zh-CN': '如：30万/年',       en: 'e.g. 300k/year',       ru: 'напр. 300k/год' } },
 ]
 
 /** 校验手机号（中国11位或国际格式） */
@@ -158,10 +169,31 @@ export function renderForm(
     const labelText = preset.labels[lang] || preset.labels['zh-CN']
     const placeholder = preset.placeholder[lang] || preset.placeholder['zh-CN']
     const row = createRow(labelText, conf.required)
-    const input = document.createElement('input')
-    input.type = preset.key === 'phone' ? 'tel' : (preset.key === 'email' ? 'email' : 'text')
-    input.name = preset.key
-    input.placeholder = placeholder
+    let input: HTMLElement
+    if (preset.type === 'select') {
+      const sel = document.createElement('select')
+      sel.name = preset.key
+      sel.style.cssText = 'width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 14px; background: #fff;'
+      const placeholderOpt = document.createElement('option')
+      placeholderOpt.value = ''
+      placeholderOpt.textContent = placeholder
+      placeholderOpt.disabled = true
+      placeholderOpt.selected = true
+      sel.appendChild(placeholderOpt)
+      for (const opt of preset.options || []) {
+        const o = document.createElement('option')
+        o.value = opt
+        o.textContent = opt
+        sel.appendChild(o)
+      }
+      input = sel
+    } else {
+      const inp = document.createElement('input')
+      inp.type = preset.type || (preset.key === 'phone' ? 'tel' : (preset.key === 'email' ? 'email' : 'text'))
+      inp.name = preset.key
+      inp.placeholder = placeholder
+      input = inp
+    }
     row.appendChild(input)
     container.appendChild(row)
     bindClearOnError(input)

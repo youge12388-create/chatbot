@@ -39,6 +39,8 @@ export interface SiteSettings {
   primaryColor?: string
   webhookUrl?: string
   n8nWebhookUrl?: string
+  contactWhatsApp?: string
+  contactWecomQrUrl?: string
   difyApiUrl?: string
   difyApiKey?: string
   formConfig?: FormConfig
