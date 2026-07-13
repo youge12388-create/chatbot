@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import Layout from '../components/Layout.vue'
 import Pagination from '../components/Pagination.vue'
 import StatusBadge from '../components/StatusBadge.vue'
@@ -11,6 +11,7 @@ import { useNotificationStore } from '../stores/notification'
 import type { Conversation, PageResult, ConversationStatus, Site, InterestLevel } from '../types'
 
 const router = useRouter()
+const route = useRoute()
 const notification = useNotificationStore()
 
 // 有实时新消息（未读）的会话 ID 集合，用于列表高亮
@@ -25,12 +26,13 @@ function hasUnread(convId: string): boolean {
 const loading = ref(false)
 const list = ref<Conversation[]>([])
 const total = ref(0)
-const page = ref(1)
 const totalPages = ref(1)
 const size = ref(20)
 
-const statusFilter = ref<'all' | ConversationStatus>('all')
-const siteFilter = ref('')
+// 筛选状态从 URL query 初始化，返回页面不丢失
+const page = ref(Number(route.query.page) || 1)
+const statusFilter = ref((route.query.status as 'all' | ConversationStatus) || 'all')
+const siteFilter = ref((route.query.siteId as string) || '')
 const sites = ref<Site[]>([])
 
 const interestLabels: Record<InterestLevel, string> = {
@@ -49,6 +51,23 @@ const statusOptions: { value: 'all' | ConversationStatus; label: string }[] = [
   { value: 'transferred', label: '已转接' },
   { value: 'closed', label: '已关闭' },
 ]
+
+/** active 会话超过 2 小时无消息，视为超时 */
+const TIMEOUT_MS = 2 * 60 * 60 * 1000
+function isTimeout(c: Conversation): boolean {
+  if (c.status !== 'active') return false
+  const last = c.lastMessageAt ? new Date(c.lastMessageAt).getTime() : 0
+  return Date.now() - last > TIMEOUT_MS
+}
+
+/** 访客显示名：有线索显示姓名，无线索显示"访客 + 后6位大写" */
+function visitorLabel(c: Conversation): string {
+  const lead = c.leads?.[0]
+  if (lead?.name) return lead.name
+  if (lead?.phone) return lead.phone
+  const tail = c.visitorId.replace(/[^a-zA-Z0-9]/g, '').slice(-6).toUpperCase()
+  return `访客 ${tail || '??????'}`
+}
 
 async function fetchSites() {
   try {
@@ -93,12 +112,21 @@ function fmtTime(t: string | null | undefined): string {
   return new Date(t).toLocaleString('zh-CN')
 }
 
-function truncateId(id: string): string {
-  return id.length > 10 ? id.slice(0, 10) + '…' : id
+/** 筛选变化时同步到 URL query（保留页面状态） */
+function syncQueryToUrl() {
+  router.replace({
+    query: {
+      ...route.query,
+      page: page.value > 1 ? String(page.value) : undefined,
+      status: statusFilter.value !== 'all' ? statusFilter.value : undefined,
+      siteId: siteFilter.value || undefined,
+    },
+  })
 }
 
 watch([statusFilter, siteFilter], () => {
   page.value = 1
+  syncQueryToUrl()
   fetchList()
 })
 
@@ -132,7 +160,7 @@ onMounted(() => {
       <table class="w-full text-sm">
         <thead>
           <tr class="bg-surface text-muted text-left">
-            <th class="px-4 py-3 font-medium">访客 ID</th>
+            <th class="px-4 py-3 font-medium">访客</th>
             <th class="px-4 py-3 font-medium">站点</th>
             <th class="px-4 py-3 font-medium">状态</th>
             <th class="px-4 py-3 font-medium">兴趣</th>
@@ -157,9 +185,9 @@ onMounted(() => {
               class="border-t border-border hover:bg-surface/60 transition-colors"
               :class="hasUnread(c.id) ? 'bg-accent/10' : ''"
             >
-              <td class="px-4 py-3 font-mono text-xs text-muted">{{ truncateId(c.visitorId) }}</td>
+              <td class="px-4 py-3 text-ink">{{ visitorLabel(c) }}</td>
               <td class="px-4 py-3 text-ink">{{ c.site?.name || '-' }}</td>
-              <td class="px-4 py-3"><StatusBadge :status="c.status" type="conversation" /></td>
+              <td class="px-4 py-3"><StatusBadge :status="c.status" type="conversation" :timeout="isTimeout(c)" /></td>
               <td class="px-4 py-3 text-muted">{{ interestLabels[c.interestLevel] || c.interestLevel }}</td>
               <td class="px-4 py-3 text-muted">{{ c._count?.messages ?? '-' }}</td>
               <td class="px-4 py-3 text-muted">{{ c._count?.leads ?? '-' }}</td>
