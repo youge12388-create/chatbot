@@ -23,6 +23,7 @@
 - [x] **FAQ 管理（增删改查）**
 - [x] **账号管理（admin 角色可增删账号）**
 - [x] **Widget EventSource 监听后台人工回复**
+- [x] **后台实时通知（admin SSE 全局连接 + 顶栏未读红点 + 会话列表高亮 + 站点 webhook 配置）**
 - [ ] 线上 AI 对话端到端验收（Widget → API → Dify）
 - [ ] 线上线索提交流程验收（n8n / 企微通知）
 - [ ] 线上后台端到端验收（登录 → 线索 → 回复 → 配置）
@@ -131,6 +132,24 @@ chatbot/
 | JWT_SECRET | JWT 签名密钥（未配置则用开发默认值，生产必须配置） |
 
 ## 最近完成
+- 2026-07-13: **后台实时通知与 webhook 配置（admin 前端）**
+  - 新增 `adminSseUrl()`（client.ts）：后台 SSE 端点 `/api/admin/stream?token=xxx`，JWT 拼到 query（EventSource 不支持自定义头）
+  - 新增 `stores/notification.ts`：单一 admin SSE 连接管理未读数 + 最近 50 条客户消息；`connect()` 幂等，`onmessage` 解析 `{event,data}`，`user_message` 累加未读并入栈，`agent_reply` 单独入栈（供详情页实时追加）
+  - Layout 顶栏加未读红点徽标（danger 色，99+ 封顶，点击跳 /conversations）；onMounted 调 `connect()`，**不在 onUnmounted 断开**（Layout 为 per-view，断开会违反"页面切换 SSE 不断开"，logout 全页刷新自然销毁）
+  - ConversationDetail 改为复用 store 连接（watch latestMessages/latestAgentReplies 按 id 去重追加），移除独立 EventSource
+  - Conversations 订阅 latestMessages 做行高亮（bg-accent/10），点击详情调 `markConversationRead` 清除高亮
+  - Sites 编辑表单加 `webhookUrl` / `n8nWebhookUrl` 两个 text input，随 settings 一起 PATCH
+  - 类型补全：`SiteSettings` 加 webhookUrl/n8nWebhookUrl；`MessageSource` 补 `'user'`（后端用户消息 source 即 'user'，前端类型原本缺失）
+  - 验证：`npx vue-tsc --noEmit` 零错误
+  - 涉及文件：admin src/api/client.ts、stores/notification.ts(新)、components/Layout.vue、views/ConversationDetail.vue、views/Conversations.vue、views/Sites.vue、types.ts
+- 2026-07-13: **Widget 气泡提示升级**
+  - 气泡文案字段从单条 `bubbleMessage: string` 改为多条 `bubbleMessages: string[]`，后台可配置轮播
+  - 气泡样式增强：主题色背景 + 白字 + 阴影 + 淡入淡出，背景与箭头跟随主题色
+  - 气泡改为常驻显示（不再 3 秒自动消失），多条文案每 5 秒轮播切换
+  - 打开聊天窗口时隐藏气泡，关闭窗口后重新出现
+  - 后端 `mergeSettings` 兼容旧 `bubbleMessage` 字符串字段，自动转数组并清理
+  - admin 站点编辑：单行 input 改为 textarea（每行一条文案）
+  - 涉及文件：widget ui.ts/api.ts、server chat.ts/seed.js、admin types.ts/Sites.vue
 - 2026-07-12: **后台管理系统完整实现**
   - 新增 AdminUser 表，Lead 加 status/note/assignedTo，Conversation 加 lastMessageAt
   - 认证：JWT + bcrypt + admin/staff 角色 + 中间件
@@ -169,6 +188,7 @@ chatbot/
 - AI 对话: 待最终验收（Dify API Key 已配置，需发消息测试）
 
 ## 已知问题
+- **后端 admin SSE 当前只推 `user_message`，未推 `agent_reply`**：`chat.ts` 的 `publishAdmin` 只发 user_message；`agent_reply` 仅经 `publish()` 推到 widget 通道（admin.ts:283）。因此 ConversationDetail 的 agent_reply 实时追加分支目前不会触发（前端已防御性实现，后端补 `publishAdmin({event:'agent_reply',...})` 后即生效；自身回复已由 sendReply 本地追加，不影响使用）
 - Zeabur 市场 PostgreSQL 不可用（postgres:18 镜像不存在），已改用 Neon 外部数据库
 - 已泄露的企微 webhook 仍存在于 Git 历史，必须在企微后台作废并轮换
 - 尚未完成线上 Dify 端到端验收（发消息 → AI 回复）

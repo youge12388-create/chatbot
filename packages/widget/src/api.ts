@@ -19,7 +19,7 @@ export interface FaqItem {
 export interface SiteSettings {
   welcomeMessage: string
   guideMessage: string
-  bubbleMessage: string
+  bubbleMessages: string[]
   primaryColor: string
 }
 

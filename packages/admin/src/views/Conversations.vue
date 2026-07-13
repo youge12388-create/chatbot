@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import Layout from '../components/Layout.vue'
 import Pagination from '../components/Pagination.vue'
@@ -7,9 +7,20 @@ import StatusBadge from '../components/StatusBadge.vue'
 import EmptyState from '../components/EmptyState.vue'
 import { request } from '../api/client'
 import { pushToast } from '../components/toast-bus'
+import { useNotificationStore } from '../stores/notification'
 import type { Conversation, PageResult, ConversationStatus, Site, InterestLevel } from '../types'
 
 const router = useRouter()
+const notification = useNotificationStore()
+
+// 有实时新消息（未读）的会话 ID 集合，用于列表高亮
+const unreadConvIds = computed(
+  () => new Set(notification.latestMessages.map((m) => m.conversationId)),
+)
+
+function hasUnread(convId: string): boolean {
+  return unreadConvIds.value.has(convId)
+}
 
 const loading = ref(false)
 const list = ref<Conversation[]>([])
@@ -73,6 +84,7 @@ function onPageChange(p: number) {
 }
 
 function viewDetail(id: string) {
+  notification.markConversationRead(id)
   router.push(`/conversations/${id}`)
 }
 
@@ -143,6 +155,7 @@ onMounted(() => {
               v-for="c in list"
               :key="c.id"
               class="border-t border-border hover:bg-surface/60 transition-colors"
+              :class="hasUnread(c.id) ? 'bg-accent/10' : ''"
             >
               <td class="px-4 py-3 font-mono text-xs text-muted">{{ truncateId(c.visitorId) }}</td>
               <td class="px-4 py-3 text-ink">{{ c.site?.name || '-' }}</td>

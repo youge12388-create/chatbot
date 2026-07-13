@@ -2,12 +2,22 @@
 import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useNotificationStore } from '../stores/notification'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const notification = useNotificationStore()
 
 const title = computed(() => (route.meta.title as string) || '')
+
+const unreadDisplay = computed(() =>
+  notification.unreadCount > 99 ? '99+' : String(notification.unreadCount),
+)
+
+function goConversations() {
+  router.push('/conversations')
+}
 
 interface MenuItem {
   to: string
@@ -41,6 +51,8 @@ onMounted(() => {
   if (auth.isLoggedIn && !auth.user) {
     auth.fetchMe()
   }
+  // 幂等：已连接则 no-op；不在 onUnmounted 断开以保持页面切换时 SSE 常驻
+  notification.connect()
 })
 </script>
 
@@ -75,6 +87,14 @@ onMounted(() => {
       <header class="h-14 shrink-0 bg-bg border-b border-border flex items-center justify-between px-8">
         <h1 class="text-base font-semibold text-ink">{{ title }}</h1>
         <div class="flex items-center gap-4 text-sm">
+          <button
+            v-if="notification.hasUnread"
+            class="flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-danger text-white text-[11px] leading-none font-medium hover:opacity-80 transition-opacity"
+            :title="`未读消息 ${notification.unreadCount} 条`"
+            @click="goConversations"
+          >
+            {{ unreadDisplay }}
+          </button>
           <span class="text-muted">
             {{ auth.user?.name || auth.user?.username || '未登录' }}
             <span v-if="auth.user?.role" class="ml-1 text-xs text-muted/70">

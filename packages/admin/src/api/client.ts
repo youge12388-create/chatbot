@@ -79,6 +79,13 @@ export function sseUrl(conversationId: string): string {
   return `/api/chat/stream?conversationId=${encodeURIComponent(conversationId)}${t}`
 }
 
+/** 后台 SSE 端点（实时接收客户消息，JWT 拼到 query 因 EventSource 不支持自定义头） */
+export function adminSseUrl(): string {
+  const token = getToken()
+  const t = token ? `?token=${encodeURIComponent(token)}` : ''
+  return `/api/admin/stream${t}`
+}
+
 /** 当前登录用户快捷读取（从 localStorage 缓存） */
 export function getCachedUser(): AdminUser | null {
   const raw = localStorage.getItem('admin_user')
