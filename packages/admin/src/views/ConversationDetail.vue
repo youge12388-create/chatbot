@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, onMounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Layout from '../components/Layout.vue'
 import StatusBadge from '../components/StatusBadge.vue'
-import { request, sseUrl } from '../api/client'
+import { request } from '../api/client'
 import { pushToast } from '../components/toast-bus'
-import type { Conversation, Message, ConversationStatus, InterestLevel } from '../types'
+import { useNotificationStore, type NotificationMessage } from '../stores/notification'
+import type { Conversation, Message, ConversationStatus, InterestLevel, MessageRole, MessageSource } from '../types'
 
 const route = useRoute()
 const router = useRouter()
@@ -17,6 +18,8 @@ const conv = ref<Conversation | null>(null)
 const messages = ref<Message[]>([])
 const replyText = ref('')
 
+const notification = useNotificationStore()
+
 const interestLabels: Record<InterestLevel, string> = {
   unknown: '未知',
   low: '低',
@@ -26,7 +29,6 @@ const interestLabels: Record<InterestLevel, string> = {
   strong: '极高',
 }
 
-let es: EventSource | null = null
 const messagesEl = ref<HTMLElement | null>(null)
 
 function fmtTime(t: string | null | undefined): string {
@@ -55,32 +57,29 @@ function scrollToBottom() {
   }
 }
 
-function connectSSE() {
-  const id = String(route.params.id)
-  try {
-    es = new EventSource(sseUrl(id))
-    es.addEventListener('agent_reply', (ev: MessageEvent) => {
-      try {
-        const msg = JSON.parse(ev.data) as Message
-        messages.value.push(msg)
-        nextTick(scrollToBottom)
-      } catch {
-        /* ignore */
-      }
-    })
-    es.addEventListener('user_message', (ev: MessageEvent) => {
-      try {
-        const msg = JSON.parse(ev.data) as Message
-        messages.value.push(msg)
-        nextTick(scrollToBottom)
-      } catch {
-        /* ignore */
-      }
-    })
-  } catch {
-    /* SSE 不可用时静默降级，刷新页面仍可获取最新消息 */
-  }
+function appendIfNew(m: NotificationMessage, role: MessageRole, source: MessageSource): void {
+  const convId = String(route.params.id)
+  if (m.conversationId !== convId) return
+  if (messages.value.some((x) => x.id === m.id)) return
+  messages.value.push({
+    id: m.id,
+    conversationId: m.conversationId,
+    role,
+    content: m.content,
+    source,
+    createdAt: m.createdAt,
+  })
+  nextTick(scrollToBottom)
 }
+
+// 复用 notification store 的全局 SSE 连接，按 id 去重追加当前会话的新消息
+function drainStore(): void {
+  for (const m of notification.latestMessages) appendIfNew(m, 'user', 'user')
+  for (const m of notification.latestAgentReplies) appendIfNew(m, 'assistant', 'human')
+}
+
+watch(() => notification.latestMessages.length, drainStore)
+watch(() => notification.latestAgentReplies.length, drainStore)
 
 async function sendReply() {
   const content = replyText.value.trim()
@@ -137,14 +136,10 @@ function back() {
   router.push('/conversations')
 }
 
-onMounted(() => {
-  fetchDetail()
-  connectSSE()
-})
-
-onUnmounted(() => {
-  es?.close()
-  es = null
+onMounted(async () => {
+  await fetchDetail()
+  // 处理挂载前已到达 store 的实时消息（按 id 去重，已在列表中的不会重复追加）
+  drainStore()
 })
 </script>
 

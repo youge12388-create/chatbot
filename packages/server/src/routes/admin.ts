@@ -17,7 +17,7 @@ import { prisma } from '../db/client'
 import { chatService } from '../services/chat'
 import { authService } from '../services/auth'
 import { requireAuth, requireAdmin } from '../middleware/auth'
-import { publish } from '../services/pubsub'
+import { publish, publishAdmin, subscribeAdmin } from '../services/pubsub'
 
 const router = Router()
 
@@ -52,6 +52,48 @@ router.post('/login', wrap(async (req, res) => {
 /** GET /api/admin/me */
 router.get('/me', requireAuth, (req, res) => {
   res.json({ code: 0, data: req.user })
+})
+
+/** GET /api/admin/stream - 后台侧 SSE，实时接收所有客户消息
+ *  EventSource 不支持自定义头，token 通过 query 传入
+ */
+router.get('/stream', async (req, res) => {
+  // 从 query 或 header 取 token
+  const token = (req.query.token as string) || (req.headers.authorization?.replace('Bearer ', '') || '')
+  if (!token) {
+    res.status(401).json({ code: 1, message: '未登录' })
+    return
+  }
+  const user = await authService.verifyToken(token)
+  if (!user) {
+    res.status(401).json({ code: 1, message: '登录已过期' })
+    return
+  }
+
+  // SSE 头
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-transform',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  })
+  res.write('\n')
+
+  // 心跳保活（每 25 秒）
+  const heartbeat = setInterval(() => {
+    res.write(': heartbeat\n\n')
+  }, 25_000)
+
+  // 订阅全局 admin 通道
+  const unsubscribe = subscribeAdmin((payload: any) => {
+    res.write(`data: ${JSON.stringify(payload)}\n\n`)
+  })
+
+  // 客户端断开时清理
+  req.on('close', () => {
+    clearInterval(heartbeat)
+    unsubscribe()
+  })
 })
 
 // ========================
@@ -251,8 +293,21 @@ router.post('/conversations/:id/reply', requireAuth, wrap(async (req, res) => {
   // 存消息
   const msg = await chatService.saveMessage(conversationId, 'assistant', content.trim(), 'human')
 
-  // 推送到 widget
+  // 推送到 widget（客户侧实时收到）
   publish(conversationId, {
+    event: 'agent_reply',
+    data: {
+      id: msg.id,
+      conversationId,
+      role: 'assistant',
+      content: content.trim(),
+      source: 'human',
+      createdAt: msg.createdAt,
+    },
+  })
+
+  // 推送到后台 admin 通道（多客服端实时看到彼此回复）
+  publishAdmin({
     event: 'agent_reply',
     data: {
       id: msg.id,

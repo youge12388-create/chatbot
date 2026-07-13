@@ -6,7 +6,7 @@ export type LeadStatus = 'new' | 'following' | 'contacted' | 'converted' | 'disc
 export type ConversationStatus = 'active' | 'taken_over' | 'transferred' | 'closed'
 export type InterestLevel = 'unknown' | 'low' | 'normal' | 'medium' | 'high' | 'strong'
 export type MessageRole = 'user' | 'assistant' | 'system'
-export type MessageSource = 'ai' | 'preset' | 'human'
+export type MessageSource = 'ai' | 'preset' | 'human' | 'user'
 export type AdminRole = 'admin' | 'staff'
 
 export interface AdminUser {
@@ -20,8 +20,10 @@ export interface AdminUser {
 export interface SiteSettings {
   welcomeMessage?: string
   guideMessage?: string
-  bubbleMessage?: string
+  bubbleMessages?: string[]
   primaryColor?: string
+  webhookUrl?: string
+  n8nWebhookUrl?: string
 }
 
 export interface Site {

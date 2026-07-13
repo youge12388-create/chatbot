@@ -145,11 +145,31 @@ onMounted(fetchList)
               ></textarea>
             </div>
             <div class="col-span-2">
-              <label class="text-sm text-muted block mb-1.5">气泡文案</label>
+              <label class="text-sm text-muted block mb-1.5">气泡文案（每行一条，轮播展示）</label>
+              <textarea
+                :value="(getDraft(site.id)!.settings.bubbleMessages || []).join('\n')"
+                @input="(e) => { getDraft(site.id)!.settings.bubbleMessages = (e.target as HTMLTextAreaElement).value.split('\n').map((s: string) => s.trim()).filter(Boolean) }"
+                rows="4"
+                placeholder="每行一条气泡文案，留空则使用默认"
+                class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full resize-none font-sans"
+              ></textarea>
+            </div>
+            <div class="col-span-2">
+              <label class="text-sm text-muted block mb-1.5">企微 Webhook 地址</label>
               <input
-                v-model="getDraft(site.id)!.settings.bubbleMessage"
+                v-model="getDraft(site.id)!.settings.webhookUrl"
                 type="text"
-                class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full"
+                placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx"
+                class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full font-mono text-xs"
+              />
+            </div>
+            <div class="col-span-2">
+              <label class="text-sm text-muted block mb-1.5">n8n Webhook 地址</label>
+              <input
+                v-model="getDraft(site.id)!.settings.n8nWebhookUrl"
+                type="text"
+                placeholder="https://n8n.example.com/webhook/xxx"
+                class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full font-mono text-xs"
               />
             </div>
           </div>

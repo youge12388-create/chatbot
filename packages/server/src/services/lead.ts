@@ -131,13 +131,17 @@ async function upsertLead(conversationId: string, fields: Record<string, any>) {
 
 /**
  * 通知新线索：优先 n8n，降级到企微直连
+ * webhook 地址优先从 site.settings.webhookUrl 读，兼容环境变量
  */
 async function notifyNewLead(conversationId: string) {
   const lead = await prisma.lead.findFirst({
     where: { conversationId },
     include: {
       conversation: {
-        include: { messages: { orderBy: { createdAt: 'asc' }, take: 20 } },
+        include: {
+          messages: { orderBy: { createdAt: 'asc' }, take: 20 },
+          site: { select: { settings: true } },
+        },
       },
     },
   })
@@ -159,16 +163,21 @@ async function notifyNewLead(conversationId: string) {
     },
   }
 
+  // webhook 地址：站点配置优先，环境变量兜底
+  const siteSettings = (lead.conversation.site?.settings as any) || {}
+  const n8nUrl = siteSettings.n8nWebhookUrl || process.env.N8N_WEBHOOK_URL
+  const wecomUrl = siteSettings.webhookUrl || process.env.WECOM_WEBHOOK_URL
+
   // 优先走 n8n
-  if (process.env.N8N_WEBHOOK_URL) {
-    const ok = await postJson(process.env.N8N_WEBHOOK_URL, payload)
+  if (n8nUrl) {
+    const ok = await postJson(n8nUrl, payload)
     if (ok) return
   }
 
   // 降级：直连企微机器人
-  if (process.env.WECOM_WEBHOOK_URL) {
+  if (wecomUrl) {
     const text = formatWecomText(payload.data)
-    await postJson(process.env.WECOM_WEBHOOK_URL, {
+    await postJson(wecomUrl, {
       msgtype: 'text',
       text: { content: text },
     })
@@ -227,6 +236,7 @@ async function postJson(url: string, body: any): Promise<boolean> {
 
 /**
  * 转人工通知：即使用户未留资，也推送一条通知
+ * webhook 地址优先从 site.settings.webhookUrl 读，兼容环境变量
  */
 async function notifyTransfer(conversationId: string) {
   const conv = await prisma.conversation.findUnique({
@@ -234,6 +244,7 @@ async function notifyTransfer(conversationId: string) {
     include: {
       messages: { orderBy: { createdAt: 'asc' }, take: 20 },
       leads: true,
+      site: { select: { settings: true } },
     },
   })
   if (!conv) return
@@ -258,14 +269,19 @@ async function notifyTransfer(conversationId: string) {
     },
   }
 
+  // webhook 地址：站点配置优先，环境变量兜底
+  const siteSettings = (conv.site?.settings as any) || {}
+  const n8nUrl = siteSettings.n8nWebhookUrl || process.env.N8N_WEBHOOK_URL
+  const wecomUrl = siteSettings.webhookUrl || process.env.WECOM_WEBHOOK_URL
+
   // 优先走 n8n
-  if (process.env.N8N_WEBHOOK_URL) {
-    const ok = await postJson(process.env.N8N_WEBHOOK_URL, payload)
+  if (n8nUrl) {
+    const ok = await postJson(n8nUrl, payload)
     if (ok) return
   }
 
   // 降级：直连企微机器人
-  if (process.env.WECOM_WEBHOOK_URL) {
+  if (wecomUrl) {
     const chatHistory = (payload.data.messages || [])
       .slice(-6)
       .map((m: any) => `${m.role === 'user' ? '用户' : 'AI'}：${m.content}`)
@@ -282,7 +298,7 @@ async function notifyTransfer(conversationId: string) {
       chatHistory || '（无对话记录）',
     ].join('\n')
 
-    await postJson(process.env.WECOM_WEBHOOK_URL, {
+    await postJson(wecomUrl, {
       msgtype: 'text',
       text: { content: text },
     })

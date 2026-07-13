@@ -79,7 +79,11 @@ async function shouldShowForm(conversationId: string): Promise<boolean> {
 const DEFAULT_SITE_SETTINGS = {
   welcomeMessage: '您好！我是留学顾问助手，可以帮您解答院校申请、专业选择、学费奖学金等问题。有什么可以帮您的？',
   guideMessage: '您可以直接输入问题，或点击下方常见问题快速咨询。',
-  bubbleMessage: '有问题？点击这里随时咨询 👋',
+  bubbleMessages: [
+    '有问题？点击这里随时咨询 👋',
+    '免费咨询院校申请、专业选择',
+    '点击聊聊，专属顾问为您服务',
+  ],
   primaryColor: '#165DFF',
 }
 
@@ -115,10 +119,30 @@ async function createSession(siteId: string, visitorId: string, metadata?: any) 
   return { ...session, siteSettings: settings }
 }
 
-/** 合并站点配置与默认值 */
+/** 合并站点配置与默认值，并兼容旧的 bubbleMessage 字符串字段 */
 function mergeSettings(raw: any): Record<string, any> {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return DEFAULT_SITE_SETTINGS
-  return { ...DEFAULT_SITE_SETTINGS, ...raw }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ...DEFAULT_SITE_SETTINGS }
+  const merged = { ...DEFAULT_SITE_SETTINGS, ...raw }
+  // 兼容旧版单个 bubbleMessage 字符串：转成数组
+  if (
+    (!Array.isArray(merged.bubbleMessages) || merged.bubbleMessages.length === 0) &&
+    typeof merged.bubbleMessage === 'string' && merged.bubbleMessage.trim()
+  ) {
+    merged.bubbleMessages = [merged.bubbleMessage.trim()]
+  }
+  if (!Array.isArray(merged.bubbleMessages) || merged.bubbleMessages.length === 0) {
+    merged.bubbleMessages = [...DEFAULT_SITE_SETTINGS.bubbleMessages]
+  }
+  // 清理空字符串项
+  merged.bubbleMessages = merged.bubbleMessages
+    .map((s: any) => (typeof s === 'string' ? s.trim() : ''))
+    .filter(Boolean)
+  if (merged.bubbleMessages.length === 0) {
+    merged.bubbleMessages = [...DEFAULT_SITE_SETTINGS.bubbleMessages]
+  }
+  // 移除已废弃的旧字段，避免回写时混淆
+  delete merged.bubbleMessage
+  return merged
 }
 
 /** 获取站点配置（供 widget 初始化使用） */
@@ -275,9 +299,8 @@ function getTransferReply(lang: string): string {
 async function transferToHuman(conversationId: string) {
   await prisma.conversation.update({
     where: { id: conversationId },
-    data: { status: 'transferred' },
+    data: { status: 'taken_over' },
   })
-  // TODO: 触发 n8n webhook 通知企微/飞书
 }
 
 // ---- 预设问题 ----

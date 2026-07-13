@@ -42,24 +42,32 @@ const CSS = `
 
 .chat-widget-bubble {
   position: absolute;
-  right: 70px;
+  right: 72px;
   top: 50%;
   transform: translateY(-50%);
-  background: white;
-  color: #333;
-  padding: 10px 16px;
-  border-radius: 12px;
-  font-size: 13px;
-  white-space: nowrap;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  background: #165DFF;
+  color: #fff;
+  padding: 12px 18px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 500;
+  max-width: 220px;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.4;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
   cursor: pointer;
   opacity: 0;
-  transition: opacity 0.3s;
+  transition: opacity 0.4s ease;
   pointer-events: none;
 }
 .chat-widget-bubble.show {
   opacity: 1;
   pointer-events: auto;
+}
+.chat-widget-bubble.switching {
+  opacity: 0;
+  pointer-events: none;
 }
 .chat-widget-bubble::after {
   content: '';
@@ -68,7 +76,7 @@ const CSS = `
   top: 50%;
   transform: translateY(-50%);
   border: 6px solid transparent;
-  border-left-color: white;
+  border-left-color: #165DFF;
 }
 
 .chat-widget-window {
@@ -421,25 +429,29 @@ export function createWidget(config: WidgetConfig) {
   let faqs: FaqItem[] = []
   let conversationCreated = false
   let siteSettings: SiteSettings | null = null
-  let bubbleShown = false
+
+  // 气泡状态：多条文案轮播，常驻显示（仅打开聊天窗口时隐藏）
+  let bubbleIndex = 0
+  let bubbleVisible = false
+  let bubbleInterval: ReturnType<typeof setInterval> | null = null
+  const BUBBLE_INTERVAL_MS = 5000
+  const BUBBLE_SWITCH_MS = 400
 
   // 提前获取站点配置（用于气泡提示和欢迎语）
   if (config.siteKey) {
     api.getSiteSettings().then(settings => {
       if (settings) {
         siteSettings = settings
-        // 应用主题色
         applyThemeColor(settings.primaryColor)
+        // 气泡已显示时，更新文案列表并按需启动轮播
+        if (bubbleVisible) refreshBubble()
       }
     })
   }
 
-  // 延迟 3 秒显示气泡（无论是否配置 siteKey）
+  // 延迟 3 秒显示气泡（常驻，不自动隐藏）
   setTimeout(() => {
-    if (!isOpen && !bubbleShown) {
-      const bubbleText = siteSettings?.bubbleMessage || t(lang, 'header.welcome')
-      showBubble(bubbleText)
-    }
+    if (!isOpen) showBubble()
   }, 3000)
 
   // 应用主题色
@@ -454,29 +466,71 @@ export function createWidget(config: WidgetConfig) {
       .chat-faq-btn { border-color: ${color} !important; color: ${color} !important; }
       .chat-faq-btn:hover { background: ${color} !important; }
       .chat-form-submit { background: ${color} !important; }
+      .chat-widget-bubble { background: ${color} !important; }
+      .chat-widget-bubble::after { border-left-color: ${color} !important; }
     `
   }
 
-  // 显示气泡提示
-  let bubbleTimer: ReturnType<typeof setTimeout> | null = null
-  function showBubble(text: string) {
-    if (!text || isOpen) return
-    bubble.textContent = text
-    bubble.classList.add('show')
-    bubbleShown = true
-    // 3秒后自动隐藏
-    bubbleTimer = setTimeout(() => hideBubble(), 3000)
+  // 当前气泡文案列表
+  function getBubbleMessages(): string[] {
+    const list = siteSettings?.bubbleMessages
+    if (Array.isArray(list) && list.length > 0) return list
+    return [t(lang, 'header.welcome')]
   }
 
-  function hideBubble() {
-    bubble.classList.remove('show')
-    if (bubbleTimer) {
-      clearTimeout(bubbleTimer)
-      bubbleTimer = null
+  // 显示气泡（常驻，不自动隐藏）
+  function showBubble() {
+    const msgs = getBubbleMessages()
+    if (msgs.length === 0 || isOpen) return
+    bubbleIndex = bubbleIndex % msgs.length
+    bubble.textContent = msgs[bubbleIndex]
+    bubble.classList.remove('switching')
+    bubble.classList.add('show')
+    bubbleVisible = true
+    startBubbleRotation()
+  }
+
+  // 站点配置到达后刷新：更新文案并按需启动轮播
+  function refreshBubble() {
+    const msgs = getBubbleMessages()
+    if (msgs.length === 0) {
+      hideBubble()
+      return
+    }
+    if (bubbleIndex >= msgs.length) bubbleIndex = 0
+    bubble.textContent = msgs[bubbleIndex]
+    startBubbleRotation()
+  }
+
+  function startBubbleRotation() {
+    stopBubbleRotation()
+    const msgs = getBubbleMessages()
+    if (msgs.length <= 1) return
+    bubbleInterval = setInterval(() => {
+      if (isOpen || !bubbleVisible) return
+      bubble.classList.add('switching')
+      setTimeout(() => {
+        bubbleIndex = (bubbleIndex + 1) % msgs.length
+        bubble.textContent = msgs[bubbleIndex]
+        bubble.classList.remove('switching')
+      }, BUBBLE_SWITCH_MS)
+    }, BUBBLE_INTERVAL_MS)
+  }
+
+  function stopBubbleRotation() {
+    if (bubbleInterval) {
+      clearInterval(bubbleInterval)
+      bubbleInterval = null
     }
   }
 
-  // 点击气泡也能打开窗口
+  function hideBubble() {
+    bubble.classList.remove('show', 'switching')
+    bubbleVisible = false
+    stopBubbleRotation()
+  }
+
+  // 点击气泡打开窗口
   bubble.addEventListener('click', (e) => {
     e.stopPropagation()
     hideBubble()
@@ -496,6 +550,8 @@ export function createWidget(config: WidgetConfig) {
     } else {
       window.classList.remove('open')
       button.style.display = 'flex'
+      // 关闭窗口后重新显示气泡（常驻）
+      showBubble()
     }
   }
 

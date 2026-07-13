@@ -7,6 +7,7 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import { chatService } from '../services/chat'
 import { leadService } from '../services/lead'
+import { publish, publishAdmin } from '../services/pubsub'
 
 const router = Router()
 
@@ -62,17 +63,24 @@ router.post('/message', wrap(async (req, res) => {
   const { conversationId, content, lang } = req.body
 
   // 1. 保存用户消息
-  await chatService.saveMessage(conversationId, 'user', content, 'user')
+  const userMsg = await chatService.saveMessage(conversationId, 'user', content, 'user')
+
+  // 1.1 推到后台 admin 通道（后台实时显示客户消息）
+  publishAdmin({
+    event: 'user_message',
+    data: {
+      id: userMsg.id,
+      conversationId,
+      role: 'user',
+      content,
+      source: 'user',
+      createdAt: userMsg.createdAt,
+    },
+  })
 
   // 2. 若已被人工接管，不调 AI，只返回提示
   const takenOver = await chatService.isTakenOver(conversationId)
   if (takenOver) {
-    // 通过 pub/sub 推给后台 SSE
-    const { publish } = require('../services/pubsub')
-    publish(conversationId, {
-      event: 'user_message',
-      data: { conversationId, role: 'user', content, source: 'user' },
-    })
     res.json({
       code: 0,
       data: { reply: '', source: 'human', needForm: false, takenOver: true },
