@@ -132,6 +132,18 @@ chatbot/
 | JWT_SECRET | JWT 签名密钥（未配置则用开发默认值，生产必须配置） |
 
 ## 最近完成
+- 2026-07-13: **后台 UI 视觉优化（不触碰核心代码，仅样式层）**
+  - 色板升级（style.css）：muted 从 0.55 提到 0.48 满足 4.5:1 对比度；新增 surface-2 / ink-2 / primary-soft / border-strong 变量；tailwind.config.js 同步暴露新色
+  - 全局控件语汇（style.css @layer components）：`.btn` / `.btn-primary` / `.btn-danger` / `.btn-ghost` / `.btn-sm` / `.input` / `.select` / `.textarea` / `.table-base` / `.panel` / `.badge`；focus ring 用原生 CSS `color-mix` 实现（Tailwind @apply 对 var() 颜色的透明度修饰符不兼容）
+  - Layout.vue：侧边栏改用 surface-2 分层；当前项高亮改 `bg-primary-soft` + 左侧 3px 色条；顶栏 sticky；用户区加圆形头像；登出按钮用 `.btn .btn-sm`；未读徽章加大
+  - Pagination.vue：上一页/下一页改 `.btn .btn-sm`，页码加 `tabular-nums`
+  - StatusBadge.vue：模板改用 `.badge` 基类
+  - EmptyState.vue：图标降为 `text-2xl muted/50`，文案改 `ink-2`，加 `px-4` 内边距
+  - Toast.vue：`z-[9999]` → `z-50`（语义化）；加 `ring-1 ring-black/5` 边缘；关闭按钮改为 6x6 命中区带 `hover:bg-white/15`
+  - Login.vue：卡片用 `.panel`，输入用 `.input`，按钮用 `.btn .btn-primary`，label 从 muted 改 ink-2
+  - Leads.vue / Conversations.vue：筛选栏 select/input/button 改 `.select` / `.input` / `.btn`；表格改 `.table-base` + `.panel` 包裹；骨架屏 `bg-surface` → `bg-surface-2`；数字列加 `tabular-nums`；保留动态 class（hasUnread 高亮、URL query 持久化逻辑）
+  - 验证：`npx vue-tsc --noEmit` 零错误；`npm run build` 通过（62 模块，CSS 17.48 kB）
+  - 涉及文件：admin src/style.css、tailwind.config.js、components/{Layout,Pagination,StatusBadge,EmptyState,Toast}.vue、views/{Login,Leads,Conversations}.vue
 - 2026-07-13: **自定义表单收集功能（admin + widget 全链路）**
   - 后端已就绪：`DEFAULT_SITE_SETTINGS.formConfig`、`mergeSettings` 兜底、`upsertLead` 解构 extra 合并到 lead.extra、admin PATCH 透传 settings，无需改动
   - admin `types.ts`：新增 `CustomFieldType` / `CustomField` / `FormConfig` 类型，`SiteSettings.formConfig` 可选字段

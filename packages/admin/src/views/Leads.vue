@@ -112,79 +112,55 @@ onMounted(fetchList)
   <Layout>
     <!-- 筛选栏 -->
     <div class="flex items-center gap-3 mb-4">
-      <select
-        v-model="statusFilter"
-        class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none"
-      >
+      <select v-model="statusFilter" class="select w-auto">
         <option v-for="o in statusOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
       </select>
       <input
         v-model="search"
         type="text"
         placeholder="搜索姓名/电话/邮箱"
-        class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none w-64"
+        class="input w-64"
         @keyup.enter="onSearch"
       />
-      <button
-        class="px-3 py-2 rounded border border-border bg-bg hover:bg-surface text-sm"
-        @click="onSearch"
-      >
-        搜索
-      </button>
+      <button class="btn" @click="onSearch">搜索</button>
       <div class="flex-1"></div>
-      <button
-        class="px-3 py-2 rounded border border-border bg-bg hover:bg-surface text-sm"
-        @click="exportCsv"
-      >
-        导出 CSV
-      </button>
+      <button class="btn" @click="exportCsv">导出 CSV</button>
     </div>
 
     <!-- 表格 -->
-    <div class="bg-bg rounded-lg border border-border overflow-hidden">
-      <table class="w-full text-sm">
+    <div class="panel overflow-hidden">
+      <table class="table-base">
         <thead>
-          <tr class="bg-surface text-muted text-left">
-            <th class="px-4 py-3 font-medium">姓名</th>
-            <th class="px-4 py-3 font-medium">电话</th>
-            <th class="px-4 py-3 font-medium">邮箱</th>
-            <th class="px-4 py-3 font-medium">兴趣等级</th>
-            <th class="px-4 py-3 font-medium">状态</th>
-            <th class="px-4 py-3 font-medium">提交时间</th>
-            <th class="px-4 py-3 font-medium text-right">操作</th>
+          <tr>
+            <th>姓名</th>
+            <th>电话</th>
+            <th>邮箱</th>
+            <th>兴趣等级</th>
+            <th>状态</th>
+            <th>提交时间</th>
+            <th class="text-right">操作</th>
           </tr>
         </thead>
         <tbody>
           <!-- 骨架屏 -->
           <template v-if="loading">
-            <tr v-for="i in 8" :key="`sk-${i}`" class="border-t border-border">
-              <td v-for="j in 7" :key="j" class="px-4 py-3">
-                <div class="h-4 bg-surface rounded animate-pulse"></div>
+            <tr v-for="i in 8" :key="`sk-${i}`">
+              <td v-for="j in 7" :key="j">
+                <div class="h-4 bg-surface-2 rounded animate-pulse"></div>
               </td>
             </tr>
           </template>
           <!-- 数据行 -->
           <template v-else>
-            <tr
-              v-for="lead in list"
-              :key="lead.id"
-              class="border-t border-border hover:bg-surface/60 transition-colors"
-            >
-              <td class="px-4 py-3 text-ink">{{ lead.name || '-' }}</td>
-              <td class="px-4 py-3 text-muted">{{ lead.phone || '-' }}</td>
-              <td class="px-4 py-3 text-muted">{{ lead.email || '-' }}</td>
-              <td class="px-4 py-3 text-muted">{{ fmtInterest(lead.conversation?.interestLevel) }}</td>
-              <td class="px-4 py-3">
-                <StatusBadge :status="lead.status" type="lead" />
-              </td>
-              <td class="px-4 py-3 text-muted">{{ fmtTime(lead.createdAt) }}</td>
-              <td class="px-4 py-3 text-right">
-                <button
-                  class="text-primary hover:underline"
-                  @click="viewDetail(lead.id)"
-                >
-                  查看
-                </button>
+            <tr v-for="lead in list" :key="lead.id">
+              <td class="text-ink font-medium">{{ lead.name || '-' }}</td>
+              <td class="text-ink-2">{{ lead.phone || '-' }}</td>
+              <td class="text-ink-2">{{ lead.email || '-' }}</td>
+              <td class="text-muted">{{ fmtInterest(lead.conversation?.interestLevel) }}</td>
+              <td><StatusBadge :status="lead.status" type="lead" /></td>
+              <td class="text-muted tabular-nums">{{ fmtTime(lead.createdAt) }}</td>
+              <td class="text-right">
+                <button class="text-primary hover:underline" @click="viewDetail(lead.id)">查看</button>
               </td>
             </tr>
           </template>

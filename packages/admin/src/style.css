@@ -3,18 +3,27 @@
 @tailwind utilities;
 
 :root {
+  /* 基础层 */
   --bg: oklch(1 0 0);
   --surface: oklch(0.975 0.003 354);
+  --surface-2: oklch(0.965 0.004 354);       /* 次级面板：表头、骨架屏 */
   --ink: oklch(0.22 0.012 354);
+  --ink-2: oklch(0.40 0.010 354);             /* 次级文字，比 muted 深，保证可读 */
+  --muted: oklch(0.48 0.010 354);             /* 提到 0.48，满足 4.5:1 */
+
+  /* 主色：深酒红，承担动作 */
   --primary: oklch(0.42 0.14 354);
   --primary-hover: oklch(0.36 0.14 354);
+  --primary-soft: oklch(0.96 0.02 354);       /* 主色淡底：选中态、hover */
+
   --accent: oklch(0.62 0.14 55);
-  --muted: oklch(0.55 0.008 354);
   --success: oklch(0.55 0.13 145);
   --warning: oklch(0.72 0.15 75);
   --danger: oklch(0.52 0.16 25);
   --info: oklch(0.55 0.12 250);
-  --border: oklch(0.9 0.003 354);
+
+  --border: oklch(0.90 0.004 354);
+  --border-strong: oklch(0.82 0.006 354);     /* hover/focus 边框 */
 }
 
 html,
@@ -33,6 +42,7 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'cv11', 'ss01';
 }
 
 * {
@@ -50,14 +60,108 @@ select {
   font-size: inherit;
 }
 
+/* ===== 全局控件语汇 ===== */
+
+/* 按钮：基础 + 主色 + 次级 + 危险 */
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-md
+           border border-border bg-bg text-ink-2 text-sm font-medium
+           transition-colors duration-150
+           hover:bg-surface hover:border-border-strong hover:text-ink
+           focus:outline-none
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-bg disabled:hover:border-border;
+  }
+  .btn:focus-visible {
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary) 30%, transparent);
+  }
+  .btn-primary {
+    @apply bg-primary text-white border-primary
+           hover:bg-primary-hover hover:border-primary-hover
+           disabled:hover:bg-primary disabled:hover:border-primary;
+  }
+  .btn-danger {
+    @apply bg-danger text-white border-danger
+           hover:opacity-90
+           disabled:hover:opacity-50;
+  }
+  .btn-ghost {
+    @apply border-transparent bg-transparent hover:bg-surface;
+  }
+  .btn-sm {
+    @apply px-2.5 py-1 text-xs;
+  }
+
+  /* 输入控件 */
+  .input,
+  .select,
+  .textarea {
+    @apply w-full px-3 py-2 rounded-md border border-border bg-bg text-ink
+           text-sm transition-colors duration-150
+           placeholder:text-muted
+           focus:outline-none focus:border-primary;
+  }
+  .input:focus-visible,
+  .select:focus-visible,
+  .textarea:focus-visible {
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary) 20%, transparent);
+  }
+  .input:hover,
+  .select:hover,
+  .textarea:hover {
+    @apply border-border-strong;
+  }
+
+  /* 表格 */
+  .table-base {
+    @apply w-full text-sm;
+  }
+  .table-base thead th {
+    @apply px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-muted
+           bg-surface-2 border-b border-border;
+  }
+  .table-base tbody tr {
+    @apply border-b border-border transition-colors duration-100
+           hover:bg-surface;
+  }
+  .table-base tbody td {
+    @apply px-4 py-3 text-ink-2;
+  }
+
+  /* 卡片/面板 */
+  .panel {
+    @apply bg-bg rounded-lg border border-border;
+  }
+
+  /* 标签/徽章基类 */
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap;
+  }
+}
+
+/* ===== 滚动条 ===== */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 4px;
+  background: var(--border-strong);
+  border-radius: 5px;
+  border: 2px solid var(--bg);
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--muted);
+}
+
+/* ===== 动画偏好 ===== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }

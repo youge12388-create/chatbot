@@ -6,9 +6,12 @@ export default {
       colors: {
         bg: 'var(--bg)',
         surface: 'var(--surface)',
+        'surface-2': 'var(--surface-2)',
         ink: 'var(--ink)',
+        'ink-2': 'var(--ink-2)',
         primary: 'var(--primary)',
         'primary-hover': 'var(--primary-hover)',
+        'primary-soft': 'var(--primary-soft)',
         accent: 'var(--accent)',
         muted: 'var(--muted)',
         success: 'var(--success)',
@@ -16,6 +19,7 @@ export default {
         danger: 'var(--danger)',
         info: 'var(--info)',
         border: 'var(--border)',
+        'border-strong': 'var(--border-strong)',
       },
       fontFamily: {
         sans: [
