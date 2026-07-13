@@ -91,7 +91,12 @@ function formatExtraValue(val: unknown): string {
 }
 
 function back() {
-  router.push('/leads')
+  // 优先用浏览器历史返回（保留列表页的筛选 query）
+  if (window.history.length > 1) {
+    router.back()
+  } else {
+    router.push('/leads')
+  }
 }
 
 onMounted(fetchDetail)
