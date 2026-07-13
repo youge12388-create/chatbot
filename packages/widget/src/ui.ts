@@ -90,6 +90,10 @@ const CSS = `
 }
 
 .chat-widget-window {
+  position: absolute;
+  left: auto;
+  right: 0;
+  bottom: 76px;
   width: 380px;
   height: 520px;
   background: #fff;
@@ -98,7 +102,7 @@ const CSS = `
   display: none;
   flex-direction: column;
   overflow: hidden;
-  margin-bottom: 16px;
+  margin-bottom: 0;
 }
 .chat-widget-window.open {
   display: flex;
@@ -559,6 +563,8 @@ export function createWidget(config: WidgetConfig) {
     'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
     'font-size: 14px',
     'line-height: 1.5',
+    'width: 60px',
+    'height: 60px',
   ].join(';')
   const shadow = container.attachShadow({ mode: 'open' })
 
@@ -617,8 +623,8 @@ export function createWidget(config: WidgetConfig) {
   document.body.appendChild(container)
 
   // 元素引用
-  const button = shadow.querySelector('.chat-widget-button')!
-  const chatWindow = shadow.querySelector('.chat-widget-window')!
+  const button = shadow.querySelector<HTMLElement>('.chat-widget-button')!
+  const chatWindow = shadow.querySelector<HTMLElement>('.chat-widget-window')!
   const closeBtn = shadow.querySelector('.chat-widget-close')!
   const messagesEl = shadow.querySelector('.chat-widget-messages')!
   const faqsEl = shadow.querySelector('.chat-widget-faqs')!
@@ -861,12 +867,32 @@ export function createWidget(config: WidgetConfig) {
   })
 
   // 切换窗口
+  function adjustChatWindowPosition() {
+    const containerRect = container.getBoundingClientRect()
+    const windowRect = chatWindow.getBoundingClientRect()
+    const viewportPadding = 8
+    const maxLeft = Math.max(viewportPadding, globalThis.innerWidth - windowRect.width - viewportPadding)
+    const maxTop = Math.max(viewportPadding, globalThis.innerHeight - windowRect.height - viewportPadding)
+    const preferWindowRight = containerRect.left + containerRect.width / 2 < globalThis.innerWidth / 2
+    const desiredLeft = preferWindowRight
+      ? containerRect.left
+      : containerRect.right - windowRect.width
+    const desiredTop = containerRect.top - windowRect.height - 16
+    const left = Math.min(maxLeft, Math.max(viewportPadding, desiredLeft))
+    const top = Math.min(maxTop, Math.max(viewportPadding, desiredTop))
+
+    chatWindow.style.left = (left - containerRect.left) + 'px'
+    chatWindow.style.right = 'auto'
+    chatWindow.style.top = (top - containerRect.top) + 'px'
+    chatWindow.style.bottom = 'auto'
+  }
   function toggle() {
     isOpen = !isOpen
     if (isOpen) {
       chatWindow.classList.add('open')
       button.style.display = 'none'
       hideBubble()
+      adjustChatWindowPosition()
       if (!conversationCreated) {
         initConversation()
       }
@@ -884,6 +910,10 @@ export function createWidget(config: WidgetConfig) {
   // 真正关闭窗口（挽留跳过或已挽留过）
   function actuallyCloseWindow() {
     chatWindow.classList.remove('open')
+    chatWindow.style.left = ''
+    chatWindow.style.right = ''
+    chatWindow.style.top = ''
+    chatWindow.style.bottom = ''
     button.style.display = 'flex'
     isOpen = false
     showBubble()
