@@ -30,6 +30,10 @@ const CSS = `
   cursor: pointer;
   transition: transform 0.2s;
   position: relative;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: none;
 }
 .chat-widget-button:hover {
   transform: scale(1.05);
@@ -888,19 +892,19 @@ export function createWidget(config: WidgetConfig) {
   button.addEventListener('click', toggle)
   closeBtn.addEventListener('click', toggle)
 
-  // === 气泡按钮拖动 ===
+  // === 气泡按钮拖动（拖动整个容器，容器本身已 fixed 且有 z-index）===
   let isDragging = false
   let dragStartX = 0
   let dragStartY = 0
-  let btnLeft0 = 0
-  let btnTop0 = 0
+  let conLeft0 = 0
+  let conTop0 = 0
   let hasDragged = false
   const DRAG_THRESHOLD = 5
 
   function onDragStart(clientX: number, clientY: number) {
-    const rect = button.getBoundingClientRect()
-    btnLeft0 = rect.left
-    btnTop0 = rect.top
+    const rect = container.getBoundingClientRect()
+    conLeft0 = rect.left
+    conTop0 = rect.top
     dragStartX = clientX
     dragStartY = clientY
     hasDragged = false
@@ -913,22 +917,19 @@ export function createWidget(config: WidgetConfig) {
     const dy = clientY - dragStartY
     if (!hasDragged && (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD)) {
       hasDragged = true
-      // 首次越阈值：切换为 fixed 定位
-      button.style.position = 'fixed'
-      button.style.left = btnLeft0 + 'px'
-      button.style.top = btnTop0 + 'px'
-      button.style.right = 'auto'
-      button.style.bottom = 'auto'
-      button.style.margin = '0'
-      button.style.transform = 'none'
+      // 首次越阈值：容器从 right+transform 定位切到 left/top 定位（容器本身已 fixed）
+      container.style.right = 'auto'
+      container.style.transform = 'none'
+      container.style.left = conLeft0 + 'px'
+      container.style.top = conTop0 + 'px'
       hideBubble()
     }
     if (hasDragged) {
       const size = 60
-      let newLeft = Math.max(0, Math.min(window.innerWidth - size, btnLeft0 + dx))
-      let newTop = Math.max(0, Math.min(window.innerHeight - size, btnTop0 + dy))
-      button.style.left = newLeft + 'px'
-      button.style.top = newTop + 'px'
+      let newLeft = Math.max(0, Math.min(window.innerWidth - size, conLeft0 + dx))
+      let newTop = Math.max(0, Math.min(window.innerHeight - size, conTop0 + dy))
+      container.style.left = newLeft + 'px'
+      container.style.top = newTop + 'px'
     }
   }
 
