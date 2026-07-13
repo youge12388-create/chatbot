@@ -133,7 +133,12 @@ async function release() {
 }
 
 function back() {
-  router.push('/conversations')
+  // 优先用浏览器历史返回（保留列表页的筛选 query）
+  if (window.history.length > 1) {
+    router.back()
+  } else {
+    router.push('/conversations')
+  }
 }
 
 onMounted(async () => {
