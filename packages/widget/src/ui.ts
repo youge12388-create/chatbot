@@ -609,14 +609,20 @@ export function createWidget(config: WidgetConfig) {
     }
   }
 
-  // 加载高频问题
+  // 加载高频问题（初始）
   async function loadFaqs() {
     faqs = await api.getFaqs()
-    faqs.forEach(faq => {
+    renderFaqs(faqs.map(f => f.question))
+  }
+
+  // 渲染 FAQ 按钮区域（先清空旧的，再渲染新的）
+  function renderFaqs(questions: string[]) {
+    faqsEl.innerHTML = ''
+    questions.forEach(q => {
       const btn = document.createElement('button')
       btn.className = 'chat-faq-btn'
-      btn.textContent = faq.question
-      btn.addEventListener('click', () => sendMessage(faq.question))
+      btn.textContent = q
+      btn.addEventListener('click', () => sendMessage(q))
       faqsEl.appendChild(btn)
     })
   }
@@ -699,6 +705,11 @@ export function createWidget(config: WidgetConfig) {
       const res = await api.sendMessage(content)
       removeLoading()
       addMessage({ role: 'assistant', content: res.reply }, true)
+
+      // 动态更新 FAQ 推荐区域（基于当前问题，排除已问过的）
+      if (Array.isArray(res.suggestedQuestions) && res.suggestedQuestions.length > 0) {
+        renderFaqs(res.suggestedQuestions)
+      }
 
       if (res.needForm) {
         openForm()

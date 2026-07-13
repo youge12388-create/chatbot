@@ -142,9 +142,24 @@ router.post('/message', wrap(async (req, res) => {
   // 4. 更新兴趣评分（不阻塞响应）
   leadService.updateInterestScore(conversationId, content, category.type).catch(() => {})
 
+  // 5. 获取动态推荐问题（基于用户当前问题 + 排除已问过的）
+  const { prisma } = require('../db/client')
+  const askedMsgs = await prisma.message.findMany({
+    where: { conversationId, role: 'user' },
+    select: { content: true },
+    orderBy: { createdAt: 'desc' },
+    take: 10,
+  })
+  const askedQuestions = askedMsgs.map((m: any) => m.content)
+  const suggestedQuestions = await chatService.getSuggestedQuestions(
+    await chatService.getConversationSiteId(conversationId),
+    content,
+    askedQuestions,
+  )
+
   res.json({
     code: 0,
-    data: { reply, source, needForm },
+    data: { reply, source, needForm, suggestedQuestions },
   })
 }))
 

@@ -39,6 +39,8 @@ export interface SiteSettings {
   primaryColor?: string
   webhookUrl?: string
   n8nWebhookUrl?: string
+  difyApiUrl?: string
+  difyApiKey?: string
   formConfig?: FormConfig
 }
 

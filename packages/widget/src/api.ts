@@ -8,6 +8,7 @@ export interface ChatResponse {
   reply: string
   source: 'preset' | 'ai' | 'human'
   needForm: boolean
+  suggestedQuestions?: string[]
 }
 
 export interface FaqItem {
