@@ -1,16 +1,21 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import Layout from '../components/Layout.vue'
 import EmptyState from '../components/EmptyState.vue'
 import { request } from '../api/client'
 import { pushToast } from '../components/toast-bus'
 import type { Site, SiteSettings, FormConfig, CustomFieldType } from '../types'
+import { useSiteStore } from '../stores/site'
 
 const loading = ref(false)
+const siteStore = useSiteStore()
 const list = ref<Site[]>([])
 const expanded = ref<Record<string, boolean>>({})
 const saving = ref<Record<string, boolean>>({})
 const drafts = ref<Record<string, { name: string; settings: SiteSettings }>>({})
+const displayedSites = computed(() => list.value.filter(
+  (site) => site.id === siteStore.selectedSiteId,
+))
 
 // 预设字段中文名映射（按固定顺序展示）
 const PRESET_FIELD_LABELS: Record<string, string> = {
@@ -99,7 +104,7 @@ function onPresetEnabledChange(settings: SiteSettings, key: string) {
 async function fetchList() {
   loading.value = true
   try {
-    const data = await request<Site[]>('GET', '/api/admin/sites')
+    const data = await siteStore.loadSites(true)
     list.value = data
     for (const s of data) {
       drafts.value[s.id] = {
@@ -154,7 +159,7 @@ onMounted(fetchList)
 
     <div v-else class="flex flex-col gap-3">
       <div
-        v-for="site in list"
+        v-for="site in displayedSites"
         :key="site.id"
         class="bg-bg rounded-lg border border-border"
       >

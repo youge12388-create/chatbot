@@ -100,14 +100,15 @@ router.get('/stream', async (req, res) => {
 // 线索管理
 // ========================
 
-/** GET /api/admin/leads?page=1&size=20&status=&search= */
+/** GET /api/admin/leads?page=1&size=20&status=&search=&siteId= */
 router.get('/leads', requireAuth, wrap(async (req, res) => {
   const page = Math.max(1, Number(req.query.page) || 1)
   const size = Math.min(100, Math.max(1, Number(req.query.size) || 20))
-  const { status, search } = req.query
+  const { status, search, siteId } = req.query
 
   const where: any = {}
   if (status && status !== 'all') where.status = status
+  if (siteId) where.conversation = { siteId }
   if (search) {
     where.OR = [
       { name: { contains: search as string, mode: 'insensitive' } },
@@ -122,7 +123,14 @@ router.get('/leads', requireAuth, wrap(async (req, res) => {
       where,
       include: {
         conversation: {
-          select: { interestLevel: true, status: true, createdAt: true, lastMessageAt: true },
+          select: {
+            siteId: true,
+            interestLevel: true,
+            status: true,
+            createdAt: true,
+            lastMessageAt: true,
+            site: { select: { name: true, domain: true } },
+          },
         },
       },
       orderBy: { createdAt: 'desc' },
@@ -142,6 +150,9 @@ router.get('/leads', requireAuth, wrap(async (req, res) => {
     },
   })
 }))
+
+// 必须注册在 /leads/:id 之前，避免 export 被当作线索 ID。
+router.get('/leads/export', requireAuth, wrap(exportLeads))
 
 /** GET /api/admin/leads/:id */
 router.get('/leads/:id', requireAuth, wrap(async (req, res) => {
@@ -178,11 +189,22 @@ router.patch('/leads/:id', requireAuth, wrap(async (req, res) => {
   res.json({ code: 0, data: lead })
 }))
 
-/** GET /api/admin/leads/export - 导出 CSV */
-router.get('/leads/export', requireAuth, wrap(async (_req, res) => {
+/** 导出当前站点的线索 CSV */
+async function exportLeads(req: Request, res: Response): Promise<void> {
+  const siteId = req.query.siteId as string | undefined
+  const where = siteId ? { conversation: { siteId } } : {}
+
   const leads = await prisma.lead.findMany({
+    where,
     include: {
-      conversation: { select: { interestLevel: true, status: true, createdAt: true } },
+      conversation: {
+        select: {
+          interestLevel: true,
+          status: true,
+          createdAt: true,
+          site: { select: { name: true, domain: true } },
+        },
+      },
     },
     orderBy: { createdAt: 'desc' },
     take: 1000,
@@ -197,8 +219,9 @@ router.get('/leads/export', requireAuth, wrap(async (_req, res) => {
     converted: '已转化', discarded: '已废弃',
   }
 
-  const header = ['姓名', '电话', '邮箱', '微信', '学历', '意向专业', '预算', '兴趣等级', '线索状态', '提交时间']
+  const header = ['来源站点', '站点网址', '姓名', '电话', '邮箱', '微信', '学历', '意向专业', '预算', '兴趣等级', '线索状态', '提交时间']
   const rows = leads.map((l: any) => [
+    l.conversation?.site?.name || '', l.conversation?.site?.domain || '',
     l.name || '', l.phone || '', l.email || '', l.wechat || '',
     l.education || '', l.targetMajor || '', l.budget || '',
     interestLabel[l.conversation?.interestLevel] || '未知',
@@ -210,7 +233,7 @@ router.get('/leads/export', requireAuth, wrap(async (_req, res) => {
   res.setHeader('Content-Type', 'text/csv; charset=utf-8')
   res.setHeader('Content-Disposition', 'attachment; filename=leads.csv')
   res.send(csv)
-}))
+}
 
 // ========================
 // 会话管理
@@ -312,6 +335,7 @@ router.post('/conversations/:id/reply', requireAuth, wrap(async (req, res) => {
     data: {
       id: msg.id,
       conversationId,
+      siteId: conv.siteId,
       role: 'assistant',
       content: content.trim(),
       source: 'human',
