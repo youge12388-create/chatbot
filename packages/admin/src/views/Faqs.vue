@@ -4,11 +4,12 @@ import Layout from '../components/Layout.vue'
 import EmptyState from '../components/EmptyState.vue'
 import { request } from '../api/client'
 import { pushToast } from '../components/toast-bus'
-import type { Faq, Site } from '../types'
+import { useSiteStore } from '../stores/site'
+import { siteDisplayUrl, siteHref } from '../utils/site'
+import type { Faq } from '../types'
 
+const siteStore = useSiteStore()
 const loading = ref(false)
-const sites = ref<Site[]>([])
-const siteId = ref('')
 const list = ref<Faq[]>([])
 
 const creating = ref(false)
@@ -25,23 +26,11 @@ const form = ref(blankForm())
 const editForm = ref(blankForm())
 const confirmDeleteId = ref<string | null>(null)
 
-async function fetchSites() {
-  try {
-    const data = await request<Site[]>('GET', '/api/admin/sites')
-    sites.value = data
-    if (data.length > 0 && !siteId.value) {
-      siteId.value = data[0].id
-    }
-  } catch (e) {
-    pushToast('error', (e as Error).message)
-  }
-}
-
 async function fetchList() {
-  if (!siteId.value) return
+  if (!siteStore.selectedSiteId) return
   loading.value = true
   try {
-    const data = await request<Faq[]>('GET', '/api/admin/faqs', { siteId: siteId.value })
+    const data = await request<Faq[]>('GET', '/api/admin/faqs', { siteId: siteStore.selectedSiteId })
     list.value = data
   } catch (e) {
     pushToast('error', (e as Error).message)
@@ -67,7 +56,7 @@ async function submitCreate() {
   saving.value = true
   try {
     await request('POST', '/api/admin/faqs', {
-      siteId: siteId.value,
+      siteId: siteStore.selectedSiteId,
       question: form.value.question,
       answer: form.value.answer,
       priority: form.value.priority,
@@ -128,27 +117,32 @@ async function confirmDelete(f: Faq) {
   }
 }
 
-watch(siteId, fetchList)
+watch(() => siteStore.selectedSiteId, fetchList)
 
 onMounted(async () => {
-  await fetchSites()
+  await siteStore.loadSites()
   await fetchList()
 })
 </script>
 
 <template>
   <Layout>
-    <!-- 顶部：站点选择 + 新增 -->
+    <!-- FAQ 始终属于左上角选中的站点 -->
     <div class="flex items-center gap-3 mb-4">
-      <select
-        v-model="siteId"
-        class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none"
-      >
-        <option v-for="s in sites" :key="s.id" :value="s.id">{{ s.name }}</option>
-      </select>
-      <div class="flex-1"></div>
+      <div>
+        <p class="font-semibold text-ink">{{ siteStore.currentSite?.name || '未选择站点' }}</p>
+        <a
+          v-if="siteStore.currentSite"
+          :href="siteHref(siteStore.currentSite.domain)"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-xs text-primary underline underline-offset-2"
+        >
+          {{ siteDisplayUrl(siteStore.currentSite.domain) }}
+        </a>
+      </div>
       <button
-        class="px-3 py-2 rounded bg-primary text-white text-sm hover:bg-primary-hover"
+        class="ml-auto px-3 py-2 rounded bg-primary text-white text-sm hover:bg-primary-hover"
         @click="openCreate"
       >
         + 新增常见问题

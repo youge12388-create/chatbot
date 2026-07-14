@@ -7,6 +7,8 @@ import { request } from '../api/client'
 import { pushToast } from '../components/toast-bus'
 import { useNotificationStore, type NotificationMessage } from '../stores/notification'
 import type { Conversation, Message, ConversationStatus, InterestLevel, MessageRole, MessageSource } from '../types'
+import { useSiteStore } from '../stores/site'
+import { siteDisplayUrl, siteHref } from '../utils/site'
 
 const route = useRoute()
 const router = useRouter()
@@ -19,6 +21,7 @@ const messages = ref<Message[]>([])
 const replyText = ref('')
 
 const notification = useNotificationStore()
+const siteStore = useSiteStore()
 
 const interestLabels: Record<InterestLevel, string> = {
   unknown: '未知',
@@ -41,6 +44,7 @@ async function fetchDetail() {
   try {
     const data = await request<Conversation>('GET', `/api/admin/conversations/${route.params.id}`)
     conv.value = data
+    siteStore.selectSite(data.siteId)
     messages.value = data.messages || []
     await nextTick()
     scrollToBottom()
@@ -182,7 +186,18 @@ onMounted(async () => {
         <!-- 会话信息 -->
         <div class="bg-bg rounded-lg border border-border p-4 mb-4 grid grid-cols-4 gap-4 text-sm">
           <div><span class="text-muted">访客 ID：</span><span class="font-mono text-xs">{{ conv.visitorId }}</span></div>
-          <div><span class="text-muted">站点：</span>{{ conv.site?.name || '-' }}</div>
+          <div>
+            <span class="text-muted">来源站点：</span>{{ conv.site?.name || '-' }}
+            <a
+              v-if="conv.site?.domain"
+              :href="siteHref(conv.site.domain)"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="block text-xs text-primary underline underline-offset-2"
+            >
+              {{ siteDisplayUrl(conv.site.domain) }}
+            </a>
+          </div>
           <div><span class="text-muted">兴趣等级：</span>{{ interestLabels[conv.interestLevel] }}</div>
           <div><span class="text-muted">创建时间：</span>{{ fmtTime(conv.createdAt) }}</div>
         </div>
