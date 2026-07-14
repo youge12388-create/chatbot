@@ -44,8 +44,12 @@ router.post('/session', wrap(async (req, res) => {
     res.status(400).json({ code: 1, message: err })
     return
   }
-  const { siteId, visitorId, metadata } = req.body
-  const session = await chatService.createSession(siteId, visitorId, metadata)
+  const { siteId, visitorId, siteKey, metadata } = req.body
+  const session = await chatService.createSession(siteId, visitorId, metadata, siteKey)
+  if (!session) {
+    res.status(404).json({ code: 1, message: '站点不存在或站点标识不匹配' })
+    return
+  }
   res.json({ code: 0, data: session })
 }))
 

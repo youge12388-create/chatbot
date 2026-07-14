@@ -100,6 +100,7 @@ chatbot/
 | POST | /api/admin/conversations/:id/release | 释放接管 |
 | GET | /api/admin/sites | 站点列表 |
 | PATCH | /api/admin/sites/:id | 编辑站点 |
+| POST | /api/admin/sites/:id/test-dify | 使用站点已保存配置测试 Dify 连接（不返回 Key） |
 | GET | /api/admin/faqs | FAQ 列表 |
 | POST | /api/admin/faqs | 新增 FAQ |
 | PATCH | /api/admin/faqs/:id | 编辑 FAQ |
@@ -133,6 +134,14 @@ chatbot/
 
 ## 最近完成
 
+- 2026-07-14: **后台工作台重设计 + 多站点 Dify Agent 修复**
+  - 后台按白底、冷灰、深蓝的 Swiss 工作台方向重做：站点上下文侧栏、顶部站点信息、统一筛选面板、表格卡片、SVG 图标与空状态；站点选择在各业务页保持一致。
+  - 根因：Dify Agent / Agent Chat 只支持 streaming，原服务端固定发送 blocking，导致请求返回 400；现改为解析 SSE 的 `message` / `agent_message` 事件并保存 Dify 会话 ID。
+  - 每次聊天按会话所属 siteId 读取该站点的 Dify URL 和 Key；旧 Dify 会话失效时自动重建，不再因未知 siteId 隐式创建无配置站点。
+  - Widget 创建会话同时提交 siteKey；同时校验 siteId/siteKey，避免站点配置串用。
+  - `/api/chat/site` 与会话初始化只返回公开配置白名单，Dify Key、API 地址和 Webhook 不再暴露给访客。
+  - 站点配置新增“保存后测试连接”：服务端请求 Dify `/v1/info`，前端只接收应用名称和模式，不接收 Key。
+  - 验证：`npm test` 14/14 通过；server/admin/widget 构建通过；tracked diff 敏感模式扫描未发现真实 Dify Key。
 - 2026-07-14: **Dify 智能体切换兼容修复**
   - Dify API 地址支持填写 API 域名、`/v1` 基础地址或完整 `/v1/chat-messages` 地址，服务端统一规范化。
   - 站点更换 Dify 智能体后，若旧 `conversation_id` 已失效，自动创建新会话并保存新的会话 ID。
@@ -242,7 +251,7 @@ chatbot/
 - 2026-07-11: Zeabur 线上部署成功，数据库初始化成功，Widget 嵌入 luckyboy.me 成功
 
 ## 验证结果
-- `npm test`: 2 个 Dify 会话测试通过
+- `npm test`: 14/14 通过（含 Dify streaming、公开配置脱敏、URL 规范化、FAQ 回退、seed 与域名校验）
 - `npm run build`: Widget 构建、静态文件同步、Prisma generate、server tsc 全部通过
 - 线上 `/api/health`: 返回 `{"status":"ok"}`
 - 线上 `/api/chat/site?siteKey=demo-api-key-001`: 返回站点信息，数据库正常
@@ -251,6 +260,7 @@ chatbot/
 - AI 对话: 待最终验收（Dify API Key 已配置，需发消息测试）
 
 ## 已知问题
+- 当前线上版本在部署本次修复前，公开站点配置接口会返回完整 settings，Dify Key 可能已暴露；部署后必须轮换受影响站点的 Dify Key，并用新“测试连接”复验。
 - `luckyboy.me` 当前 Widget `data-site-id` 指向自动创建的“站点 nz2lu9”，不是默认站点；FAQ 已通过默认站点回退兼容，但仍建议后续把嵌入 ID 改为默认站点 ID，避免配置继续分裂
 - Zeabur 市场 PostgreSQL 不可用（postgres:18 镜像不存在），已改用 Neon 外部数据库
 - 已泄露的企微 webhook 仍存在于 Git 历史，必须在企微后台作废并轮换

@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import Layout from '../components/Layout.vue'
 import EmptyState from '../components/EmptyState.vue'
+import AppIcon from '../components/AppIcon.vue'
 import { request } from '../api/client'
 import { pushToast } from '../components/toast-bus'
 import { useAuthStore } from '../stores/auth'
@@ -134,19 +135,20 @@ onMounted(fetchList)
 
 <template>
   <Layout>
-    <div class="flex items-center mb-4">
+    <div class="page-toolbar">
       <span class="text-sm text-muted">仅管理员可管理账号</span>
       <div class="flex-1"></div>
       <button
-        class="px-3 py-2 rounded bg-primary text-white text-sm hover:bg-primary-hover"
+        class="btn btn-primary"
         @click="openCreate"
       >
-        + 新增账号
+        <AppIcon name="plus" :size="16" />
+        新增账号
       </button>
     </div>
 
     <!-- 新增表单 -->
-    <div v-if="creating" class="bg-bg rounded-lg border border-border p-4 mb-3">
+    <div v-if="creating" class="panel p-4 mb-3">
       <div class="grid grid-cols-4 gap-3">
         <input v-model="createForm.username" type="text" placeholder="用户名" class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none" />
         <input v-model="createForm.password" type="password" placeholder="密码" class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none" />
@@ -162,8 +164,8 @@ onMounted(fetchList)
     </div>
 
     <!-- 列表 -->
-    <div class="bg-bg rounded-lg border border-border overflow-hidden">
-      <table class="w-full text-sm">
+    <div class="panel overflow-hidden">
+      <table class="table-base">
         <thead>
           <tr class="bg-surface text-muted text-left">
             <th class="px-4 py-3 font-medium">用户名</th>
@@ -235,7 +237,7 @@ onMounted(fetchList)
           </template>
         </tbody>
       </table>
-      <EmptyState v-if="!loading && list.length === 0" message="暂无账号" icon="◉" />
+      <EmptyState v-if="!loading && list.length === 0" message="暂无账号" icon="users" />
     </div>
   </Layout>
 </template>

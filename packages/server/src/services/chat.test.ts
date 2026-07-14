@@ -2,15 +2,44 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   buildDifyRequestBody,
+  getDifyInfoUrl,
   getFaqPool,
+  getPublicSiteSettings,
   normalizeDifyApiUrl,
+  parseDifySse,
   shouldResetDifyConversation,
 } from './chat'
 
+test('Dify streaming 请求会拼接 Agent 消息并保存会话 ID', () => {
+  const result = parseDifySse(
+    'data: {"event":"agent_message","conversation_id":"dify-1","answer":"你好"}\n\n' +
+    'data: {"event":"message","conversation_id":"dify-1","answer":"，这里是答案"}\n\n',
+  )
+
+  assert.equal(result.answer, '你好，这里是答案')
+  assert.equal(result.conversationId, 'dify-1')
+})
+
+test('公开站点配置不会暴露 Dify Key、Webhook 或 n8n 地址', () => {
+  const settings = getPublicSiteSettings({
+    welcomeMessage: '欢迎',
+    difyApiUrl: 'https://api.dify.ai/v1/chat-messages',
+    difyApiKey: 'app-test-secret',
+    webhookUrl: 'https://example.com/wecom',
+    n8nWebhookUrl: 'https://example.com/n8n',
+  })
+
+  assert.equal(settings.difyApiKey, undefined)
+  assert.equal(settings.difyApiUrl, undefined)
+  assert.equal(settings.webhookUrl, undefined)
+  assert.equal(settings.n8nWebhookUrl, undefined)
+  assert.equal(settings.welcomeMessage, '欢迎')
+})
 test('Dify 首次请求使用空 conversation_id', () => {
   const body = buildDifyRequestBody('你好', null, 'local-conversation-id')
 
   assert.equal(body.conversation_id, '')
+  assert.equal(body.response_mode, 'streaming')
 })
 
 test('Dify 后续请求复用服务端返回的 conversation_id', () => {
@@ -32,6 +61,10 @@ test('Dify 基础地址自动补全聊天接口路径', () => {
   assert.equal(
     normalizeDifyApiUrl('https://dify.example.com/v1/chat-messages/'),
     'https://dify.example.com/v1/chat-messages',
+  )
+  assert.equal(
+    getDifyInfoUrl('https://dify.example.com/v1/chat-messages'),
+    'https://dify.example.com/v1/info',
   )
 })
 
