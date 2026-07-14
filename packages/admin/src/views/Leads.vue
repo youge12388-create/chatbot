@@ -8,7 +8,7 @@ import EmptyState from '../components/EmptyState.vue'
 import { request } from '../api/client'
 import { pushToast } from '../components/toast-bus'
 import { useSiteStore } from '../stores/site'
-import { siteDisplayUrl, siteHref } from '../utils/site'
+import { hasSiteUrl, siteDisplayUrl, siteHref } from '../utils/site'
 import type { Lead, PageResult, LeadStatus, InterestLevel } from '../types'
 
 const router = useRouter()
@@ -169,13 +169,13 @@ onMounted(async () => {
               <td>
                 <div class="font-medium text-ink">{{ lead.conversation?.site?.name || '-' }}</div>
                 <a
-                  v-if="lead.conversation?.site?.domain"
-                  :href="siteHref(lead.conversation.site.domain)"
+                  v-if="hasSiteUrl(lead.conversation?.site?.domain, lead.conversation?.siteId)"
+                  :href="siteHref(lead.conversation?.site?.domain, lead.conversation?.siteId)"
                   target="_blank"
                   rel="noopener noreferrer"
                   class="text-xs text-primary underline underline-offset-2"
                 >
-                  {{ siteDisplayUrl(lead.conversation.site.domain) }}
+                  {{ siteDisplayUrl(lead.conversation?.site?.domain, lead.conversation?.siteId) }}
                 </a>
               </td>
               <td class="text-muted">{{ fmtInterest(lead.conversation?.interestLevel) }}</td>

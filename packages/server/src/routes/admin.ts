@@ -18,6 +18,7 @@ import { chatService } from '../services/chat'
 import { authService } from '../services/auth'
 import { requireAuth, requireAdmin } from '../middleware/auth'
 import { publish, publishAdmin, subscribeAdmin } from '../services/pubsub'
+import { normalizeSiteDomain } from '../utils/site-domain'
 
 const router = Router()
 
@@ -373,9 +374,17 @@ router.get('/sites', requireAuth, wrap(async (_req, res) => {
 
 /** PATCH /api/admin/sites/:id - 编辑站点配置 */
 router.patch('/sites/:id', requireAuth, wrap(async (req, res) => {
-  const { name, settings } = req.body
+  const { name, domain, settings } = req.body
   const data: any = {}
   if (name !== undefined) data.name = name
+  if (domain !== undefined) {
+    const normalizedDomain = normalizeSiteDomain(domain)
+    if (!normalizedDomain) {
+      res.status(400).json({ code: 1, message: '请输入正确的网站域名，例如 luckyboy.me' })
+      return
+    }
+    data.domain = normalizedDomain
+  }
   if (settings !== undefined) data.settings = settings
 
   const site = await prisma.site.update({

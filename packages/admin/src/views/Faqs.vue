@@ -5,7 +5,7 @@ import EmptyState from '../components/EmptyState.vue'
 import { request } from '../api/client'
 import { pushToast } from '../components/toast-bus'
 import { useSiteStore } from '../stores/site'
-import { siteDisplayUrl, siteHref } from '../utils/site'
+import { hasSiteUrl, siteDisplayUrl, siteHref } from '../utils/site'
 import type { Faq } from '../types'
 
 const siteStore = useSiteStore()
@@ -132,13 +132,13 @@ onMounted(async () => {
       <div>
         <p class="font-semibold text-ink">{{ siteStore.currentSite?.name || '未选择站点' }}</p>
         <a
-          v-if="siteStore.currentSite"
-          :href="siteHref(siteStore.currentSite.domain)"
+          v-if="siteStore.currentSite && hasSiteUrl(siteStore.currentSite.domain, siteStore.currentSite.id)"
+          :href="siteHref(siteStore.currentSite.domain, siteStore.currentSite.id)"
           target="_blank"
           rel="noopener noreferrer"
           class="text-xs text-primary underline underline-offset-2"
         >
-          {{ siteDisplayUrl(siteStore.currentSite.domain) }}
+          {{ siteDisplayUrl(siteStore.currentSite.domain, siteStore.currentSite.id) }}
         </a>
       </div>
       <button
