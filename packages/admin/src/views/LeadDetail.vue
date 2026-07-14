@@ -209,7 +209,7 @@ onMounted(fetchDetail)
       <!-- 对话时间线 -->
       <div class="mt-6 bg-bg rounded-lg border border-border p-6">
         <h3 class="text-sm font-semibold text-muted mb-4">完整对话</h3>
-        <EmptyState v-if="messages.length === 0" message="暂无对话记录" icon="∅" />
+        <EmptyState v-if="messages.length === 0" message="暂无对话记录" icon="chat" />
         <div v-else class="flex flex-col gap-3">
           <div
             v-for="msg in messages"

@@ -90,6 +90,7 @@ export class ChatApi {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         siteId: this.siteId,
+        ...(this.siteKey ? { siteKey: this.siteKey } : {}),
         visitorId: this.visitorId,
         metadata: {
           url: location.href,
@@ -98,6 +99,9 @@ export class ChatApi {
       }),
     })
     const data = await res.json()
+    if (!res.ok || data.code !== 0 || !data.data?.id) {
+      throw new Error(data.message || '站点配置无效')
+    }
     this.conversationId = data.data.id
     return { conversationId: this.conversationId, siteSettings: data.data.siteSettings }
   }
@@ -116,6 +120,9 @@ export class ChatApi {
       }),
     })
     const data = await res.json()
+    if (!res.ok || data.code !== 0) {
+      throw new Error(data.message || '消息发送失败')
+    }
     return data.data
   }
 
@@ -132,6 +139,9 @@ export class ChatApi {
   async getFaqs(): Promise<FaqItem[]> {
     const res = await fetch(`${this.apiHost}/api/chat/faqs?siteId=${this.siteId}`)
     const data = await res.json()
+    if (!res.ok || data.code !== 0) {
+      throw new Error(data.message || 'FAQ 获取失败')
+    }
     return data.data || []
   }
 

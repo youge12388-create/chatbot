@@ -132,7 +132,7 @@ onMounted(async () => {
 <template>
   <Layout>
     <!-- 筛选栏 -->
-    <div class="flex items-center gap-3 mb-4">
+    <div class="page-toolbar">
       <select v-model="statusFilter" class="select w-auto">
         <option v-for="o in statusOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
       </select>
@@ -193,7 +193,7 @@ onMounted(async () => {
         </tbody>
       </table>
 
-      <EmptyState v-if="!loading && list.length === 0" message="暂无会话" icon="∅" />
+      <EmptyState v-if="!loading && list.length === 0" message="暂无会话" icon="chat" />
     </div>
 
     <Pagination
