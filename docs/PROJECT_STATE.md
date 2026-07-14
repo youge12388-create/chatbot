@@ -264,3 +264,8 @@ chatbot/
 6. 在企微后台轮换已进入 Git 历史的 webhook key
 7. 后续增加数据库 readiness 检查和完整 API 集成测试
 8. ~~考虑增加 Widget 拖动功能~~（已完成，2026-07-13）
+
+## 2026-07-14 Zeabur 构建修复
+- 根目录与 server Dockerfile 的依赖安装统一改为 `npm ci --ignore-scripts`，避免第三方 postinstall 在云构建阶段异常退出。
+- Prisma Client 仍由后续根构建中的 `npm run build:server` → `prisma generate` 显式生成，不改变运行时依赖。
+- 隔离验证：npm 10.8.2 全新安装 239 个包成功；Widget、Admin、Server 完整生产构建通过。
