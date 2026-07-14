@@ -132,7 +132,6 @@ chatbot/
 | JWT_SECRET | JWT 签名密钥（未配置则用开发默认值，生产必须配置） |
 
 ## 最近完成
-- 2026-07-13: **FAQ 点击仍走 AI 修复 + 气泡按钮自由拖动**
 
 - 2026-07-14: **Dify 智能体切换兼容修复**
   - Dify API 地址支持填写 API 域名、`/v1` 基础地址或完整 `/v1/chat-messages` 地址，服务端统一规范化。
@@ -140,6 +139,19 @@ chatbot/
   - 后台明确提示不能填写智能体访问页面链接；不修改或输出已有 API Key。
   - 回归测试覆盖地址补全、旧会话重建判定和非会话错误不重试。
   - 验证：`npm test` 12/12 通过；`npm run build:server`、`npm run build:admin`、`git diff --check` 通过。
+- 2026-07-13: **默认站点 FAQ 作为空站点的可配置兜底**
+  - 线上核验：`luckyboy.me` Widget 使用 `cmrgdlbi300008hsqmynz2lu9`（后台“站点 nz2lu9”），该站点无 FAQ；后台修改发生在默认站点 `cmrgd1bi300008hsqmynz21u9`
+  - 修复：FAQ 统一按“当前站点配置 → 默认站点配置 → 代码兜底”读取，覆盖初始按钮、动态推荐和点击答案
+  - 回归测试：覆盖“空站点继承默认 FAQ”和“当前站点自定义 FAQ 优先”
+  - 验证：`npm test` 6/6 通过；`npm run build:server` 通过；`git diff --check` 通过
+  - 涉及文件：server `src/services/chat.ts`、`src/services/chat.test.ts`
+- 2026-07-13: **修复后台 FAQ 答案被服务启动覆盖**
+  - 根因：`bootstrap.ts` 每次启动执行 `seed.js`，原 seed 会先删除默认站点全部 FAQ，再重建默认答案
+  - 修复：seed 改为幂等初始化；站点已有 FAQ 时完整保留，仅 FAQ 为零时创建 3 条默认数据
+  - 回归测试：覆盖“已有 FAQ 不写入”和“空库写入默认 FAQ”两条路径
+  - 验证：`npm test` 4/4 通过；`npm run build:server` 通过；`git diff --check` 通过
+  - 涉及文件：server `prisma/seed.js`、`src/seed.test.ts`
+- 2026-07-13: **FAQ 点击仍走 AI 修复 + 气泡按钮自由拖动**
   - 问题 1：站点无 FAQ 记录时点击 3 个默认问题仍显示"思考中"。根因：`getFaqs` 有 `DEFAULT_FAQS` 兜底所以按钮能显示，但 `findFaqAnswer` 只查数据库，空数据返回 null → 走 AI
   - 修复：`findFaqAnswer` 加 `const pool = faqs.length > 0 ? faqs : DEFAULT_FAQS` 兜底，并改为精确匹配优先 + 双向模糊匹配兜底
   - 问题 2：气泡按钮不能自由拖动
@@ -239,6 +251,7 @@ chatbot/
 - AI 对话: 待最终验收（Dify API Key 已配置，需发消息测试）
 
 ## 已知问题
+- `luckyboy.me` 当前 Widget `data-site-id` 指向自动创建的“站点 nz2lu9”，不是默认站点；FAQ 已通过默认站点回退兼容，但仍建议后续把嵌入 ID 改为默认站点 ID，避免配置继续分裂
 - Zeabur 市场 PostgreSQL 不可用（postgres:18 镜像不存在），已改用 Neon 外部数据库
 - 已泄露的企微 webhook 仍存在于 Git 历史，必须在企微后台作废并轮换
 - 尚未完成线上 Dify 端到端验收（发消息 → AI 回复）
