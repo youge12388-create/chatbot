@@ -5,6 +5,7 @@ import Layout from '../components/Layout.vue'
 import Pagination from '../components/Pagination.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import EmptyState from '../components/EmptyState.vue'
+import AppIcon from '../components/AppIcon.vue'
 import { request } from '../api/client'
 import { pushToast } from '../components/toast-bus'
 import { useSiteStore } from '../stores/site'
@@ -120,24 +121,31 @@ onMounted(async () => {
 <template>
   <Layout>
     <!-- 筛选栏 -->
-    <div class="flex items-center gap-3 mb-4">
-      <select v-model="statusFilter" class="select w-auto">
-        <option v-for="o in statusOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
-      </select>
-      <input
-        v-model="search"
-        type="text"
-        placeholder="搜索姓名/电话/邮箱"
-        class="input w-64"
-        @keyup.enter="onSearch"
-      />
-      <button class="btn" @click="onSearch">搜索</button>
-      <div class="flex-1"></div>
-      <button class="btn" @click="exportCsv">导出 CSV</button>
+    <div class="page-toolbar">
+      <div class="toolbar-field">
+        <select v-model="statusFilter" class="select">
+          <option v-for="o in statusOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
+        </select>
+      </div>
+      <label class="search-control">
+        <AppIcon name="search" :size="20" />
+        <input
+          v-model="search"
+          type="text"
+          placeholder="搜索姓名 / 电话 / 邮箱"
+          class="input"
+          @keyup.enter="onSearch"
+        />
+      </label>
+      <button class="btn btn-primary toolbar-search" @click="onSearch">搜索</button>
+      <span class="toolbar-spacer"></span>
+      <button class="btn toolbar-export" @click="exportCsv">
+        <AppIcon name="download" :size="18" />
+        导出 CSV
+      </button>
     </div>
-
     <!-- 表格 -->
-    <div class="panel overflow-hidden">
+    <div class="panel table-panel overflow-hidden">
       <table class="table-base">
         <thead>
           <tr>
@@ -190,7 +198,7 @@ onMounted(async () => {
       </table>
 
       <!-- 空态 -->
-      <EmptyState v-if="!loading && list.length === 0" message="暂无线索" icon="∅" />
+      <EmptyState v-if="!loading && list.length === 0" message="暂无线索" icon="target" />
     </div>
 
     <!-- 分页 -->

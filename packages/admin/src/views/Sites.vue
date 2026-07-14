@@ -13,6 +13,7 @@ const siteStore = useSiteStore()
 const list = ref<Site[]>([])
 const expanded = ref<Record<string, boolean>>({})
 const saving = ref<Record<string, boolean>>({})
+const testing = ref<Record<string, boolean>>({})
 const drafts = ref<Record<string, { name: string; domain: string; settings: SiteSettings }>>({})
 const displayedSites = computed(() => list.value.filter(
   (site) => site.id === siteStore.selectedSiteId,
@@ -151,6 +152,23 @@ async function save(site: Site) {
   }
 }
 
+async function testDify(site: Site) {
+  testing.value[site.id] = true
+  try {
+    const result = await request<{ name: string; mode: string }>(
+      'POST',
+      `/api/admin/sites/${site.id}/test-dify`,
+      {},
+    )
+    const detail = [result.name, result.mode].filter(Boolean).join(' · ')
+    pushToast('success', `Dify 连接成功：${detail}`)
+  } catch (e) {
+    pushToast('error', (e as Error).message)
+  } finally {
+    testing.value[site.id] = false
+  }
+}
+
 onMounted(fetchList)
 </script>
 
@@ -158,13 +176,13 @@ onMounted(fetchList)
   <Layout>
     <div v-if="loading" class="text-muted py-16 text-center">加载中...</div>
 
-    <EmptyState v-else-if="list.length === 0" message="暂无站点" icon="◼" />
+    <EmptyState v-else-if="list.length === 0" message="暂无站点" icon="settings" />
 
     <div v-else class="flex flex-col gap-3">
       <div
         v-for="site in displayedSites"
         :key="site.id"
-        class="bg-bg rounded-lg border border-border"
+        class="panel overflow-hidden"
       >
         <button
           type="button"
@@ -318,16 +336,31 @@ onMounted(fetchList)
                 placeholder="https://api.dify.ai/v1/chat-messages"
                 class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full font-mono text-xs"
               />
+              <p class="text-xs text-muted mt-1">
+                填 API 域名、/v1 基础地址或完整 chat-messages 地址；不要填写智能体访问页面链接。
+              </p>
             </div>
             <div class="col-span-2">
               <label class="text-sm text-muted block mb-1.5">Dify API Key</label>
               <input
                 v-model="getDraft(site.id)!.settings.difyApiKey"
-                type="text"
+                type="password"
+                autocomplete="new-password"
                 placeholder="app-xxxxxxxxxxxxxxxxx"
-                class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full font-mono text-xs"
+                class="input w-full font-mono text-xs"
               />
               <p class="text-xs text-muted mt-1">留空则使用环境变量中的全局 Dify 配置</p>
+            </div>
+            <div class="col-span-2 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface-2 px-4 py-3">
+              <p class="text-xs text-muted">连接测试读取已保存配置，不会把 API Key 返回到浏览器。</p>
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm"
+                :disabled="testing[site.id]"
+                @click="testDify(site)"
+              >
+                {{ testing[site.id] ? '测试中...' : '保存后测试连接' }}
+              </button>
             </div>
           </div>
 
@@ -449,7 +482,7 @@ onMounted(fetchList)
           <div class="flex justify-end mt-4">
             <button
               :disabled="saving[site.id]"
-              class="px-4 py-2 rounded bg-primary text-white text-sm hover:bg-primary-hover disabled:opacity-50"
+              class="btn btn-primary"
               @click="save(site)"
             >
               {{ saving[site.id] ? '保存中...' : '保存' }}

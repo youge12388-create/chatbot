@@ -117,28 +117,55 @@ const DEFAULT_FAQS = [
   { id: 'default-3', question: '有奖学金吗？', answer: '部分项目提供奖学金，欢迎留下联系方式获取详情。', priority: 3 },
 ]
 
-async function createSession(siteId: string, visitorId: string, metadata?: any) {
-  // 确保站点存在（不存在则自动创建，避免外键报错）
-  let site = await prisma.site.findUnique({
-    where: { id: siteId },
-    select: { settings: true },
+const DEFAULT_SITE_API_KEY = 'demo-api-key-001'
+
+type FaqLookupClient = Pick<typeof prisma, 'faq' | 'site'>
+
+/**
+ * FAQ 读取顺序：当前站点配置 -> 默认站点配置 -> 代码兜底。
+ * 空站点也能复用后台可编辑的默认 FAQ，同时保留最终可用性兜底。
+ */
+export async function getFaqPool(
+  siteId: string,
+  take?: number,
+  client: FaqLookupClient = prisma,
+) {
+  const findBySiteId = (targetSiteId: string) => client.faq.findMany({
+    where: { siteId: targetSiteId },
+    orderBy: { priority: 'asc' },
+    ...(take === undefined ? {} : { take }),
   })
 
-  if (!site) {
-    site = await prisma.site.create({
-      data: {
-        id: siteId,
-        name: '站点 ' + siteId.slice(-6),
-        domain: siteId,
-        apiKey: 'auto-' + siteId,
-        settings: DEFAULT_SITE_SETTINGS,
-      },
-      select: { settings: true },
-    })
-    console.log(`[chat-api] 自动创建站点: ${siteId}`)
+  const siteFaqs = await findBySiteId(siteId)
+  if (siteFaqs.length > 0) return siteFaqs
+
+  const defaultSite = await client.site.findUnique({
+    where: { apiKey: DEFAULT_SITE_API_KEY },
+    select: { id: true },
+  })
+  if (defaultSite && defaultSite.id !== siteId) {
+    const defaultSiteFaqs = await findBySiteId(defaultSite.id)
+    if (defaultSiteFaqs.length > 0) return defaultSiteFaqs
   }
 
-  const settings = mergeSettings(site?.settings)
+  return take === undefined ? DEFAULT_FAQS : DEFAULT_FAQS.slice(0, take)
+}
+
+async function createSession(
+  siteId: string,
+  visitorId: string,
+  metadata?: any,
+  siteKey?: string,
+) {
+  const site = await prisma.site.findUnique({
+    where: { id: siteId },
+    select: { apiKey: true, settings: true },
+  })
+
+  // 站点标识错误时拒绝创建隐式站点，避免聊天落到没有配置的站点。
+  if (!site || (siteKey && site.apiKey !== siteKey)) return null
+
+  const settings = getPublicSiteSettings(site.settings)
   const session = await prisma.conversation.create({
     data: {
       siteId,
@@ -148,8 +175,6 @@ async function createSession(siteId: string, visitorId: string, metadata?: any) 
   })
   return { ...session, siteSettings: settings }
 }
-
-/** 合并站点配置与默认值，并兼容旧的 bubbleMessage 字符串字段 */
 function mergeSettings(raw: any): Record<string, any> {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ...DEFAULT_SITE_SETTINGS }
   const merged = { ...DEFAULT_SITE_SETTINGS, ...raw }
@@ -193,14 +218,26 @@ function mergeSettings(raw: any): Record<string, any> {
   return merged
 }
 
-/** 获取站点配置（供 widget 初始化使用） */
+/** 公开给 Widget 的配置白名单，永不返回服务端密钥和通知 Webhook。 */
+export function getPublicSiteSettings(raw: any): Record<string, any> {
+  const settings = mergeSettings(raw)
+  return {
+    welcomeMessage: settings.welcomeMessage,
+    guideMessage: settings.guideMessage,
+    bubbleMessages: settings.bubbleMessages,
+    primaryColor: settings.primaryColor,
+    formConfig: settings.formConfig,
+    contactWhatsApp: settings.contactWhatsApp,
+    contactWecomQrUrl: settings.contactWecomQrUrl,
+  }
+}
 async function getSiteSettings(siteId: string) {
   const site = await prisma.site.findUnique({
     where: { id: siteId },
     select: { settings: true, name: true },
   })
   if (!site) return null
-  return { name: site.name, settings: mergeSettings(site.settings) }
+  return { id: siteId, name: site.name, settings: getPublicSiteSettings(site.settings) }
 }
 
 async function saveMessage(
@@ -224,6 +261,46 @@ async function saveMessage(
 
 const DIFY_TIMEOUT_MS = 15_000
 
+/**
+ * 后台既可填写完整接口，也可填写 Dify API 域名或 /v1 基础地址。
+ * 应用访问页（如 /chat/...）不是 API 地址，不能在这里自动转换。
+ */
+export function normalizeDifyApiUrl(rawUrl: string): string {
+  const value = rawUrl.trim()
+  const url = new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`)
+  const path = url.pathname.replace(/\/+$/, '')
+
+  if (!path) {
+    url.pathname = '/v1/chat-messages'
+  } else if (path.endsWith('/v1')) {
+    url.pathname = `${path}/chat-messages`
+  } else {
+    url.pathname = path
+  }
+
+  url.hash = ''
+  return url.toString()
+}
+
+/** 由聊天接口地址推导 Dify 应用信息接口，用于后台连接测试。 */
+export function getDifyInfoUrl(rawUrl: string): string {
+  const url = new URL(normalizeDifyApiUrl(rawUrl))
+  url.pathname = url.pathname.replace(/\/chat-messages$/, '/info')
+  return url.toString()
+}
+
+export function shouldResetDifyConversation(
+  status: number,
+  errorBody: string,
+  difyConversationId: string | null,
+): boolean {
+  return Boolean(
+    difyConversationId &&
+    (status === 400 || status === 404) &&
+    /conversation(?:_id)?[^\n]*(?:not[ _-]?found|not[^\n]*exist|invalid)/i.test(errorBody),
+  )
+}
+
 export function buildDifyRequestBody(
   query: string,
   difyConversationId: string | null,
@@ -236,8 +313,49 @@ export function buildDifyRequestBody(
     // Dify 首次请求必须为空，后续使用它返回的 conversation_id
     conversation_id: difyConversationId || '',
     user,
-    response_mode: 'blocking',
+    response_mode: 'streaming',
   }
+}
+
+export interface DifyStreamResult {
+  answer: string
+  conversationId: string | null
+}
+
+/** 解析 Dify streaming 响应，兼容 message、agent_message 和错误事件。 */
+export function parseDifySse(text: string): DifyStreamResult {
+  let answer = ''
+  let conversationId: string | null = null
+
+  for (const block of text.split(/\r?\n\r?\n/)) {
+    const data = block
+      .split(/\r?\n/)
+      .find(line => line.startsWith('data:'))
+      ?.slice(5)
+      .trim()
+    if (!data || data === '[DONE]') continue
+
+    let payload: any
+    try {
+      payload = JSON.parse(data)
+    } catch {
+      continue
+    }
+
+    if (payload.conversation_id) conversationId = payload.conversation_id
+    if (payload.event === 'error') {
+      throw new Error(payload.message || payload.code || 'Dify streaming error')
+    }
+    if (payload.event === 'message' || payload.event === 'agent_message') {
+      if (typeof payload.answer === 'string') answer += payload.answer
+    }
+  }
+
+  return { answer, conversationId }
+}
+
+async function readDifyStream(response: Response): Promise<DifyStreamResult> {
+  return parseDifySse(await response.text())
 }
 
 /** 获取最近 N 条对话历史（用于传给 Dify 作为上下文） */
@@ -288,6 +406,12 @@ async function askDify(conversationId: string, query: string, questionType?: str
     console.warn('[chat-api] Dify 未配置，返回兜底回复')
     return '抱歉，AI 服务暂未配置，请联系管理员。'
   }
+  try {
+    url = normalizeDifyApiUrl(url)
+  } catch {
+    console.error('[chat-api] Dify API 地址无效，请填写 API 域名或 /v1/chat-messages 接口地址')
+    return '抱歉，AI 服务暂时不可用，请稍后重试。'
+  }
   const metadata = (
     conversation?.metadata &&
     typeof conversation.metadata === 'object' &&
@@ -303,7 +427,7 @@ async function askDify(conversationId: string, query: string, questionType?: str
   const timer = setTimeout(() => controller.abort(), DIFY_TIMEOUT_MS)
 
   try {
-    const response = await fetch(url, {
+    const requestDify = (currentDifyConversationId: string | null) => fetch(url, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${key}`,
@@ -311,7 +435,7 @@ async function askDify(conversationId: string, query: string, questionType?: str
       },
       body: JSON.stringify(buildDifyRequestBody(
         query,
-        difyConversationId,
+        currentDifyConversationId,
         conversationId,
         {
           conversation_history: history || '',
@@ -321,22 +445,30 @@ async function askDify(conversationId: string, query: string, questionType?: str
       signal: controller.signal,
     })
 
+    let response = await requestDify(difyConversationId)
+    let errorBody = response.ok ? '' : await response.text().catch(() => '')
+
+    if (shouldResetDifyConversation(response.status, errorBody, difyConversationId)) {
+      console.warn('[chat-api] Dify 智能体已更换，旧会话失效，正在创建新会话')
+      response = await requestDify(null)
+      errorBody = response.ok ? '' : await response.text().catch(() => '')
+    }
+
     if (!response.ok) {
-      const errorBody = await response.text().catch(() => '')
       console.error(`[chat-api] Dify 返回 ${response.status}: ${response.statusText}`, errorBody)
       return '抱歉，AI 服务暂时不可用，请稍后重试。'
     }
 
-    const data = await response.json() as any
-    if (!difyConversationId && data.conversation_id) {
+    const stream = await readDifyStream(response)
+    if (stream.conversationId && stream.conversationId !== difyConversationId) {
       await prisma.conversation.update({
         where: { id: conversationId },
         data: {
-          metadata: { ...metadata, difyConversationId: data.conversation_id },
+          metadata: { ...metadata, difyConversationId: stream.conversationId },
         },
       })
     }
-    let answer = data.answer || '抱歉，我暂时无法回答这个问题，请稍后重试。'
+    let answer = stream.answer || '抱歉，我暂时无法回答这个问题，请稍后重试。'
     // 过滤推理模型的 <think>...</think> 标签
     answer = answer.replace(/<think>[\s\S]*?<\/think>/gi, '').trim()
     return answer
@@ -374,12 +506,7 @@ async function transferToHuman(conversationId: string) {
 // ---- 预设问题 ----
 
 async function getFaqs(siteId: string) {
-  const faqs = await prisma.faq.findMany({
-    where: { siteId },
-    orderBy: { priority: 'asc' },
-    take: 10,
-  })
-  return faqs.length > 0 ? faqs : DEFAULT_FAQS
+  return getFaqPool(siteId, 10)
 }
 
 /**
@@ -393,12 +520,7 @@ async function getSuggestedQuestions(
   userContent?: string,
   excludeQuestions: string[] = [],
 ): Promise<string[]> {
-  const faqs = await prisma.faq.findMany({
-    where: { siteId },
-    orderBy: { priority: 'asc' },
-    take: 20,
-  })
-  const pool = faqs.length > 0 ? faqs : DEFAULT_FAQS
+  const pool = await getFaqPool(siteId, 20)
 
   const excludeSet = new Set(excludeQuestions.map(q => q.trim()))
   const available = pool.filter(f => !excludeSet.has(f.question.trim()))
@@ -474,11 +596,7 @@ async function findSiteByApiKey(apiKey: string) {
 
 /** 根据用户消息匹配 FAQ 预设答案，无匹配返回 null */
 async function findFaqAnswer(siteId: string, content: string): Promise<string | null> {
-  const faqs = await prisma.faq.findMany({
-    where: { siteId },
-    orderBy: { priority: 'asc' },
-  })
-  const pool = faqs.length > 0 ? faqs : DEFAULT_FAQS
+  const pool = await getFaqPool(siteId)
 
   for (const faq of pool) {
     // 精确匹配优先
