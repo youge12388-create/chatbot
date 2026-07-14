@@ -8,7 +8,7 @@ import { request } from '../api/client'
 import { pushToast } from '../components/toast-bus'
 import type { Lead, LeadStatus, Message } from '../types'
 import { useSiteStore } from '../stores/site'
-import { siteDisplayUrl, siteHref } from '../utils/site'
+import { hasSiteUrl, siteDisplayUrl, siteHref } from '../utils/site'
 
 const route = useRoute()
 const router = useRouter()
@@ -121,14 +121,14 @@ onMounted(fetchDetail)
             <div class="pb-3 border-b border-border">
               <dt class="text-muted">来源站点</dt>
               <dd class="mt-1 text-ink font-medium">{{ lead.conversation?.site?.name || '-' }}</dd>
-              <dd v-if="lead.conversation?.site?.domain" class="mt-0.5">
+              <dd v-if="hasSiteUrl(lead.conversation?.site?.domain, lead.conversation?.siteId)" class="mt-0.5">
                 <a
-                  :href="siteHref(lead.conversation.site.domain)"
+                  :href="siteHref(lead.conversation?.site?.domain, lead.conversation?.siteId)"
                   target="_blank"
                   rel="noopener noreferrer"
                   class="text-xs text-primary underline underline-offset-2"
                 >
-                  {{ siteDisplayUrl(lead.conversation.site.domain) }}
+                  {{ siteDisplayUrl(lead.conversation?.site?.domain, lead.conversation?.siteId) }}
                 </a>
               </dd>
             </div>

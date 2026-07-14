@@ -6,13 +6,14 @@ import { request } from '../api/client'
 import { pushToast } from '../components/toast-bus'
 import type { Site, SiteSettings, FormConfig, CustomFieldType } from '../types'
 import { useSiteStore } from '../stores/site'
+import { hasSiteUrl, siteDisplayUrl } from '../utils/site'
 
 const loading = ref(false)
 const siteStore = useSiteStore()
 const list = ref<Site[]>([])
 const expanded = ref<Record<string, boolean>>({})
 const saving = ref<Record<string, boolean>>({})
-const drafts = ref<Record<string, { name: string; settings: SiteSettings }>>({})
+const drafts = ref<Record<string, { name: string; domain: string; settings: SiteSettings }>>({})
 const displayedSites = computed(() => list.value.filter(
   (site) => site.id === siteStore.selectedSiteId,
 ))
@@ -109,6 +110,7 @@ async function fetchList() {
     for (const s of data) {
       drafts.value[s.id] = {
         name: s.name,
+        domain: hasSiteUrl(s.domain, s.id) ? siteDisplayUrl(s.domain, s.id) : '',
         settings: {
           ...s.settings,
           formConfig: ensureFormConfig(s.settings),
@@ -138,6 +140,7 @@ async function save(site: Site) {
     await request('PATCH', `/api/admin/sites/${site.id}`, {
       name: draft.name,
       settings: draft.settings,
+      ...(draft.domain.trim() ? { domain: draft.domain } : {}),
     })
     pushToast('success', '保存成功')
     await fetchList()
@@ -163,18 +166,30 @@ onMounted(fetchList)
         :key="site.id"
         class="bg-bg rounded-lg border border-border"
       >
-        <!-- 折叠头 -->
-        <div
-          class="flex items-center gap-3 px-5 py-3.5 cursor-pointer hover:bg-surface/60"
+        <button
+          type="button"
+          class="grid w-full grid-cols-[4px_minmax(0,1fr)_auto_auto] items-center gap-4 px-5 py-4 text-left hover:bg-surface-2 focus:bg-primary-soft focus:outline-none"
+          :aria-expanded="!!expanded[site.id]"
           @click="toggle(site.id)"
         >
-          <span class="text-sm">▾</span>
-          <span class="text-sm font-medium text-ink">{{ site.name }}</span>
-          <span class="text-xs text-muted">{{ site.domain }}</span>
-          <span v-if="site._count" class="text-xs text-muted">
-            · {{ site._count.conversations }} 会话 / {{ site._count.faqs }} FAQ
+          <span class="h-10 w-1 bg-primary" aria-hidden="true"></span>
+          <span class="min-w-0">
+            <span class="block truncate text-sm font-semibold text-ink">{{ site.name }}</span>
+            <span
+              class="mt-1 block truncate text-xs"
+              :class="hasSiteUrl(site.domain, site.id) ? 'text-muted' : 'text-ink-3'"
+            >
+              {{ siteDisplayUrl(site.domain, site.id) }}
+            </span>
           </span>
-        </div>
+          <span v-if="site._count" class="hidden text-right text-xs text-muted sm:block">
+            <span class="block tabular-nums text-ink-2">{{ site._count.conversations }} 会话</span>
+            <span class="mt-1 block tabular-nums">{{ site._count.faqs }} FAQ</span>
+          </span>
+          <span class="border-l border-border pl-4 text-xs font-medium text-primary">
+            {{ expanded[site.id] ? '收起配置' : '展开配置' }}
+          </span>
+        </button>
 
         <!-- 展开编辑 -->
         <div v-if="expanded[site.id] && getDraft(site.id)" class="px-5 pb-5 pt-1 border-t border-border">
@@ -188,13 +203,16 @@ onMounted(fetchList)
               />
             </div>
             <div>
-              <label class="text-sm text-muted block mb-1.5">域名（只读）</label>
+              <label class="text-sm text-muted block mb-1.5">网站域名</label>
               <input
-                :value="site.domain"
+                v-model="getDraft(site.id)!.domain"
                 type="text"
-                readonly
-                class="px-3 py-2 rounded border border-border bg-surface text-muted w-full"
+                inputmode="url"
+                spellcheck="false"
+                placeholder="例如 luckyboy.me"
+                class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full"
               />
+              <p class="mt-1.5 text-xs text-muted">只填写域名，不需要输入 https:// 或页面路径。</p>
             </div>
             <div>
               <label class="text-sm text-muted block mb-1.5">API Key（只读）</label>

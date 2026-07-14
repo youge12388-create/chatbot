@@ -8,7 +8,7 @@ import { pushToast } from '../components/toast-bus'
 import { useNotificationStore, type NotificationMessage } from '../stores/notification'
 import type { Conversation, Message, ConversationStatus, InterestLevel, MessageRole, MessageSource } from '../types'
 import { useSiteStore } from '../stores/site'
-import { siteDisplayUrl, siteHref } from '../utils/site'
+import { hasSiteUrl, siteDisplayUrl, siteHref } from '../utils/site'
 
 const route = useRoute()
 const router = useRouter()
@@ -189,13 +189,13 @@ onMounted(async () => {
           <div>
             <span class="text-muted">来源站点：</span>{{ conv.site?.name || '-' }}
             <a
-              v-if="conv.site?.domain"
-              :href="siteHref(conv.site.domain)"
+              v-if="hasSiteUrl(conv.site?.domain, conv.siteId)"
+              :href="siteHref(conv.site?.domain, conv.siteId)"
               target="_blank"
               rel="noopener noreferrer"
               class="block text-xs text-primary underline underline-offset-2"
             >
-              {{ siteDisplayUrl(conv.site.domain) }}
+              {{ siteDisplayUrl(conv.site?.domain, conv.siteId) }}
             </a>
           </div>
           <div><span class="text-muted">兴趣等级：</span>{{ interestLabels[conv.interestLevel] }}</div>
