@@ -10,7 +10,9 @@ COPY packages/widget/package.json packages/widget/tsconfig.json packages/widget/
 COPY packages/admin/package.json packages/admin/tsconfig.json packages/admin/tsconfig.node.json packages/admin/vite.config.ts packages/admin/tailwind.config.js packages/admin/postcss.config.js packages/admin/index.html ./packages/admin/
 COPY packages/server/prisma ./packages/server/prisma
 
-RUN npm ci
+# 安装阶段不执行依赖 postinstall；Prisma Client 会在后续 npm run build 中显式生成。
+# 这避免云构建环境因第三方安装脚本异常而让 npm ci 整体失败。
+RUN npm ci --ignore-scripts
 
 COPY packages/server/src ./packages/server/src
 COPY packages/widget/src ./packages/widget/src
