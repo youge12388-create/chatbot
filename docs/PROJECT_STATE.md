@@ -269,3 +269,18 @@ chatbot/
 - 根目录与 server Dockerfile 的依赖安装统一改为 `npm ci --ignore-scripts`，避免第三方 postinstall 在云构建阶段异常退出。
 - Prisma Client 仍由后续根构建中的 `npm run build:server` → `prisma generate` 显式生成，不改变运行时依赖。
 - 隔离验证：npm 10.8.2 全新安装 239 个包成功；Widget、Admin、Server 完整生产构建通过。
+
+## 2026-07-14 后台站点网址与切换器修复
+- 根因：聊天服务自动创建站点时用站点 ID 临时占位 `domain`；旧后台未校验，直接把该值渲染成网址，形成类似 `cmrgdlbi...` 的错误外链。
+- 后台现在只把有效域名显示为可点击网址；ID 型占位值统一显示“未配置网址”。
+- 左上角原生下拉框改为两行站点切换器，分别展示站点名称和网址状态；长名称自动截断，选中项独立高亮。
+- 站点配置页支持填写真实网站域名；服务端只接受 HTTP(S) 网站域名或本地开发地址，拒绝路径、账号信息和随机 ID。
+- 线索、会话、详情和 FAQ 页面统一复用网址校验，不再生成无效链接。
+- 兼容说明：未自动修改历史数据库记录；管理员可在“站点配置”中填写 `luckyboy.me` 后保存。
+
+### 最近验证
+- `npm run build:admin`：通过（Vue 类型检查 + Vite 生产构建）。
+- `npm run build:server`：通过（Prisma Client 生成 + TypeScript 编译）。
+- 网址识别与域名规范化测试：7/7 通过。
+- `git diff --check`：通过。
+- 本地浏览器已能打开登录页；因当前环境未配置 `DATABASE_URL`，无法登录进入数据页完成截图验收。

@@ -9,7 +9,7 @@ import { request } from '../api/client'
 import { pushToast } from '../components/toast-bus'
 import { useNotificationStore } from '../stores/notification'
 import { useSiteStore } from '../stores/site'
-import { siteDisplayUrl, siteHref } from '../utils/site'
+import { hasSiteUrl, siteDisplayUrl, siteHref } from '../utils/site'
 import type { Conversation, PageResult, ConversationStatus, InterestLevel } from '../types'
 
 const router = useRouter()
@@ -69,7 +69,7 @@ function visitorLabel(c: Conversation): string {
   if (lead?.name) return lead.name
   if (lead?.phone) return lead.phone
   const tail = c.visitorId.replace(/[^a-zA-Z0-9]/g, '').slice(-6).toUpperCase()
-  return `访客 ${tail || '??????'}`
+  return tail ? `访客 ${tail}` : '未知访客'
 }
 
 async function fetchList() {
@@ -171,13 +171,13 @@ onMounted(async () => {
               <td>
                 <div class="font-medium text-ink">{{ c.site?.name || '-' }}</div>
                 <a
-                  v-if="c.site?.domain"
-                  :href="siteHref(c.site.domain)"
+                  v-if="hasSiteUrl(c.site?.domain, c.siteId)"
+                  :href="siteHref(c.site?.domain, c.siteId)"
                   target="_blank"
                   rel="noopener noreferrer"
                   class="text-xs text-primary underline underline-offset-2"
                 >
-                  {{ siteDisplayUrl(c.site.domain) }}
+                  {{ siteDisplayUrl(c.site?.domain, c.siteId) }}
                 </a>
               </td>
               <td><StatusBadge :status="c.status" type="conversation" :timeout="isTimeout(c)" /></td>

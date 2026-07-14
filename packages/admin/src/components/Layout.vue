@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useNotificationStore } from '../stores/notification'
 import { useSiteStore } from '../stores/site'
 import { pushToast } from './toast-bus'
-import { siteDisplayUrl, siteHref } from '../utils/site'
+import { siteDisplayUrl, siteUrlInfo } from '../utils/site'
 
 const route = useRoute()
 const router = useRouter()
@@ -14,6 +14,15 @@ const notification = useNotificationStore()
 const siteStore = useSiteStore()
 
 const title = computed(() => (route.meta.title as string) || '')
+const siteMenuOpen = ref(false)
+const currentSiteUrl = computed(() => siteUrlInfo(
+  siteStore.currentSite?.domain,
+  siteStore.currentSite?.id,
+))
+
+function siteNumber(siteId: string): string {
+  return String(siteStore.sites.findIndex((site) => site.id === siteId) + 1).padStart(2, '0')
+}
 
 const unreadDisplay = computed(() =>
   notification.unreadCount > 99 ? '99+' : String(notification.unreadCount),
@@ -46,14 +55,21 @@ function isActive(to: string): boolean {
   return route.path === to || route.path.startsWith(to + '/')
 }
 
-function onSiteChange(event: Event): void {
-  const siteId = (event.target as HTMLSelectElement).value
+function selectSite(siteId: string): void {
+  siteMenuOpen.value = false
   siteStore.selectSite(siteId)
 
   if (route.name === 'conversation-detail') {
     router.push('/conversations')
   } else if (route.name === 'lead-detail') {
     router.push('/leads')
+  }
+}
+
+function closeSiteMenu(event: FocusEvent): void {
+  const container = event.currentTarget as HTMLElement
+  if (!container.contains(event.relatedTarget as Node | null)) {
+    siteMenuOpen.value = false
   }
 }
 
@@ -79,34 +95,88 @@ onMounted(async () => {
 <template>
   <div class="flex h-screen bg-bg">
     <!-- 左上角固定为全局站点上下文，页面内容随选择同步切换 -->
-    <aside class="w-[260px] shrink-0 bg-surface border-r border-border flex flex-col">
+    <aside class="w-[288px] shrink-0 bg-surface border-r border-border flex flex-col">
       <div class="px-5 py-4 border-b border-border">
         <p class="text-[11px] font-semibold tracking-[0.16em] text-primary uppercase">运营后台</p>
         <p class="mt-1 text-lg font-semibold tracking-tight text-ink">站点工作台</p>
       </div>
-      <div class="px-4 py-4 border-b border-border bg-bg">
-        <label class="block mb-2 text-[11px] font-semibold tracking-wide text-muted">当前站点</label>
-        <select
-          :value="siteStore.selectedSiteId"
-          class="select font-medium"
+      <div
+        class="relative px-4 py-4 border-b border-border bg-bg"
+        @focusout="closeSiteMenu"
+        @keydown.esc.stop="siteMenuOpen = false"
+      >
+        <p class="mb-2 text-[11px] font-semibold tracking-wide text-muted">当前站点</p>
+        <button
+          type="button"
+          class="w-full min-h-[68px] grid grid-cols-[32px_minmax(0,1fr)_12px] items-center gap-3 border border-border bg-bg px-3 py-2.5 text-left hover:border-ink-3 focus:border-primary focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
           :disabled="siteStore.loading || siteStore.sites.length === 0"
-          @change="onSiteChange"
+          aria-haspopup="listbox"
+          :aria-expanded="siteMenuOpen"
+          @click="siteMenuOpen = !siteMenuOpen"
         >
-          <option v-if="siteStore.loading" value="">加载站点...</option>
-          <option v-for="s in siteStore.sites" :key="s.id" :value="s.id">
-            {{ s.name }} — {{ siteDisplayUrl(s.domain) }}
-          </option>
-        </select>
+          <span class="text-[11px] tabular-nums text-primary">
+            {{ siteStore.currentSite ? siteNumber(siteStore.currentSite.id) : '--' }}
+          </span>
+          <span class="min-w-0">
+            <span class="block truncate text-sm font-semibold text-ink">
+              {{ siteStore.loading ? '加载站点...' : (siteStore.currentSite?.name || '暂无可用站点') }}
+            </span>
+            <span
+              class="mt-1 block truncate text-xs"
+              :class="currentSiteUrl.configured ? 'text-muted' : 'text-ink-3'"
+            >
+              {{ currentSiteUrl.display }}
+            </span>
+          </span>
+          <span
+            class="h-2 w-2 border-b border-r border-ink-3 transition-transform"
+            :class="siteMenuOpen ? 'rotate-[225deg]' : 'rotate-45'"
+            aria-hidden="true"
+          ></span>
+        </button>
+
+        <div
+          v-if="siteMenuOpen"
+          role="listbox"
+          aria-label="切换当前站点"
+          class="absolute left-4 right-4 top-[112px] z-30 border border-border bg-bg shadow-[0_12px_30px_rgba(15,23,42,0.12)]"
+        >
+          <button
+            v-for="site in siteStore.sites"
+            :key="site.id"
+            type="button"
+            role="option"
+            :aria-selected="site.id === siteStore.selectedSiteId"
+            class="grid w-full grid-cols-[32px_minmax(0,1fr)] gap-3 border-b border-border px-3 py-3 text-left last:border-b-0 hover:bg-surface-2 focus:bg-primary-soft focus:outline-none"
+            :class="site.id === siteStore.selectedSiteId ? 'bg-primary-soft' : 'bg-bg'"
+            @click="selectSite(site.id)"
+          >
+            <span class="pt-0.5 text-[11px] tabular-nums text-primary">{{ siteNumber(site.id) }}</span>
+            <span class="min-w-0">
+              <span class="block truncate text-sm font-medium text-ink">{{ site.name }}</span>
+              <span class="mt-0.5 block truncate text-xs text-muted">
+                {{ siteDisplayUrl(site.domain, site.id) }}
+              </span>
+            </span>
+          </button>
+        </div>
+
         <a
-          v-if="siteStore.currentSite"
-          :href="siteHref(siteStore.currentSite.domain)"
+          v-if="siteStore.currentSite && currentSiteUrl.configured"
+          :href="currentSiteUrl.href || undefined"
           target="_blank"
           rel="noopener noreferrer"
-          class="block mt-2 text-xs text-primary underline underline-offset-2 truncate"
+          class="mt-2 inline-block text-xs text-primary underline underline-offset-2"
         >
-          {{ siteDisplayUrl(siteStore.currentSite.domain) }}
+          打开网站
         </a>
-        <p v-else class="mt-2 text-xs text-muted">暂无可用站点</p>
+        <router-link
+          v-else-if="siteStore.currentSite"
+          to="/sites"
+          class="mt-2 inline-block text-xs text-primary underline underline-offset-2"
+        >
+          去配置网址
+        </router-link>
       </div>
       <nav class="flex-1 py-4 px-3">
         <router-link
