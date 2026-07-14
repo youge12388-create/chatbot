@@ -117,6 +117,40 @@ const DEFAULT_FAQS = [
   { id: 'default-3', question: '有奖学金吗？', answer: '部分项目提供奖学金，欢迎留下联系方式获取详情。', priority: 3 },
 ]
 
+const DEFAULT_SITE_API_KEY = 'demo-api-key-001'
+
+type FaqLookupClient = Pick<typeof prisma, 'faq' | 'site'>
+
+/**
+ * FAQ 读取顺序：当前站点配置 -> 默认站点配置 -> 代码兜底。
+ * 空站点也能复用后台可编辑的默认 FAQ，同时保留最终可用性兜底。
+ */
+export async function getFaqPool(
+  siteId: string,
+  take?: number,
+  client: FaqLookupClient = prisma,
+) {
+  const findBySiteId = (targetSiteId: string) => client.faq.findMany({
+    where: { siteId: targetSiteId },
+    orderBy: { priority: 'asc' },
+    ...(take === undefined ? {} : { take }),
+  })
+
+  const siteFaqs = await findBySiteId(siteId)
+  if (siteFaqs.length > 0) return siteFaqs
+
+  const defaultSite = await client.site.findUnique({
+    where: { apiKey: DEFAULT_SITE_API_KEY },
+    select: { id: true },
+  })
+  if (defaultSite && defaultSite.id !== siteId) {
+    const defaultSiteFaqs = await findBySiteId(defaultSite.id)
+    if (defaultSiteFaqs.length > 0) return defaultSiteFaqs
+  }
+
+  return take === undefined ? DEFAULT_FAQS : DEFAULT_FAQS.slice(0, take)
+}
+
 async function createSession(siteId: string, visitorId: string, metadata?: any) {
   // 确保站点存在（不存在则自动创建，避免外键报错）
   let site = await prisma.site.findUnique({
@@ -257,7 +291,6 @@ export function shouldResetDifyConversation(
   )
 }
 
-
 export function buildDifyRequestBody(
   query: string,
   difyConversationId: string | null,
@@ -370,7 +403,6 @@ async function askDify(conversationId: string, query: string, questionType?: str
       errorBody = response.ok ? '' : await response.text().catch(() => '')
     }
 
-
     if (!response.ok) {
       console.error(`[chat-api] Dify 返回 ${response.status}: ${response.statusText}`, errorBody)
       return '抱歉，AI 服务暂时不可用，请稍后重试。'
@@ -423,12 +455,7 @@ async function transferToHuman(conversationId: string) {
 // ---- 预设问题 ----
 
 async function getFaqs(siteId: string) {
-  const faqs = await prisma.faq.findMany({
-    where: { siteId },
-    orderBy: { priority: 'asc' },
-    take: 10,
-  })
-  return faqs.length > 0 ? faqs : DEFAULT_FAQS
+  return getFaqPool(siteId, 10)
 }
 
 /**
@@ -442,12 +469,7 @@ async function getSuggestedQuestions(
   userContent?: string,
   excludeQuestions: string[] = [],
 ): Promise<string[]> {
-  const faqs = await prisma.faq.findMany({
-    where: { siteId },
-    orderBy: { priority: 'asc' },
-    take: 20,
-  })
-  const pool = faqs.length > 0 ? faqs : DEFAULT_FAQS
+  const pool = await getFaqPool(siteId, 20)
 
   const excludeSet = new Set(excludeQuestions.map(q => q.trim()))
   const available = pool.filter(f => !excludeSet.has(f.question.trim()))
@@ -523,11 +545,7 @@ async function findSiteByApiKey(apiKey: string) {
 
 /** 根据用户消息匹配 FAQ 预设答案，无匹配返回 null */
 async function findFaqAnswer(siteId: string, content: string): Promise<string | null> {
-  const faqs = await prisma.faq.findMany({
-    where: { siteId },
-    orderBy: { priority: 'asc' },
-  })
-  const pool = faqs.length > 0 ? faqs : DEFAULT_FAQS
+  const pool = await getFaqPool(siteId)
 
   for (const faq of pool) {
     // 精确匹配优先
