@@ -318,6 +318,9 @@ onMounted(fetchList)
                 placeholder="https://api.dify.ai/v1/chat-messages"
                 class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full font-mono text-xs"
               />
+              <p class="text-xs text-muted mt-1">
+                填 API 域名、/v1 基础地址或完整 chat-messages 地址；不要填写智能体访问页面链接。
+              </p>
             </div>
             <div class="col-span-2">
               <label class="text-sm text-muted block mb-1.5">Dify API Key</label>

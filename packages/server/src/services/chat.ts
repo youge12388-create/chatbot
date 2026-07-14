@@ -224,6 +224,40 @@ async function saveMessage(
 
 const DIFY_TIMEOUT_MS = 15_000
 
+/**
+ * 后台既可填写完整接口，也可填写 Dify API 域名或 /v1 基础地址。
+ * 应用访问页（如 /chat/...）不是 API 地址，不能在这里自动转换。
+ */
+export function normalizeDifyApiUrl(rawUrl: string): string {
+  const value = rawUrl.trim()
+  const url = new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`)
+  const path = url.pathname.replace(/\/+$/, '')
+
+  if (!path) {
+    url.pathname = '/v1/chat-messages'
+  } else if (path.endsWith('/v1')) {
+    url.pathname = `${path}/chat-messages`
+  } else {
+    url.pathname = path
+  }
+
+  url.hash = ''
+  return url.toString()
+}
+
+export function shouldResetDifyConversation(
+  status: number,
+  errorBody: string,
+  difyConversationId: string | null,
+): boolean {
+  return Boolean(
+    difyConversationId &&
+    (status === 400 || status === 404) &&
+    /conversation(?:_id)?[^\n]*(?:not[ _-]?found|not[^\n]*exist|invalid)/i.test(errorBody),
+  )
+}
+
+
 export function buildDifyRequestBody(
   query: string,
   difyConversationId: string | null,
@@ -288,6 +322,12 @@ async function askDify(conversationId: string, query: string, questionType?: str
     console.warn('[chat-api] Dify 未配置，返回兜底回复')
     return '抱歉，AI 服务暂未配置，请联系管理员。'
   }
+  try {
+    url = normalizeDifyApiUrl(url)
+  } catch {
+    console.error('[chat-api] Dify API 地址无效，请填写 API 域名或 /v1/chat-messages 接口地址')
+    return '抱歉，AI 服务暂时不可用，请稍后重试。'
+  }
   const metadata = (
     conversation?.metadata &&
     typeof conversation.metadata === 'object' &&
@@ -303,7 +343,7 @@ async function askDify(conversationId: string, query: string, questionType?: str
   const timer = setTimeout(() => controller.abort(), DIFY_TIMEOUT_MS)
 
   try {
-    const response = await fetch(url, {
+    const requestDify = (currentDifyConversationId: string | null) => fetch(url, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${key}`,
@@ -311,7 +351,7 @@ async function askDify(conversationId: string, query: string, questionType?: str
       },
       body: JSON.stringify(buildDifyRequestBody(
         query,
-        difyConversationId,
+        currentDifyConversationId,
         conversationId,
         {
           conversation_history: history || '',
@@ -321,14 +361,23 @@ async function askDify(conversationId: string, query: string, questionType?: str
       signal: controller.signal,
     })
 
+    let response = await requestDify(difyConversationId)
+    let errorBody = response.ok ? '' : await response.text().catch(() => '')
+
+    if (shouldResetDifyConversation(response.status, errorBody, difyConversationId)) {
+      console.warn('[chat-api] Dify 智能体已更换，旧会话失效，正在创建新会话')
+      response = await requestDify(null)
+      errorBody = response.ok ? '' : await response.text().catch(() => '')
+    }
+
+
     if (!response.ok) {
-      const errorBody = await response.text().catch(() => '')
       console.error(`[chat-api] Dify 返回 ${response.status}: ${response.statusText}`, errorBody)
       return '抱歉，AI 服务暂时不可用，请稍后重试。'
     }
 
     const data = await response.json() as any
-    if (!difyConversationId && data.conversation_id) {
+    if (data.conversation_id && data.conversation_id !== difyConversationId) {
       await prisma.conversation.update({
         where: { id: conversationId },
         data: {

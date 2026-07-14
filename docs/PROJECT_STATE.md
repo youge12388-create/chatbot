@@ -133,6 +133,13 @@ chatbot/
 
 ## 最近完成
 - 2026-07-13: **FAQ 点击仍走 AI 修复 + 气泡按钮自由拖动**
+
+- 2026-07-14: **Dify 智能体切换兼容修复**
+  - Dify API 地址支持填写 API 域名、`/v1` 基础地址或完整 `/v1/chat-messages` 地址，服务端统一规范化。
+  - 站点更换 Dify 智能体后，若旧 `conversation_id` 已失效，自动创建新会话并保存新的会话 ID。
+  - 后台明确提示不能填写智能体访问页面链接；不修改或输出已有 API Key。
+  - 回归测试覆盖地址补全、旧会话重建判定和非会话错误不重试。
+  - 验证：`npm test` 12/12 通过；`npm run build:server`、`npm run build:admin`、`git diff --check` 通过。
   - 问题 1：站点无 FAQ 记录时点击 3 个默认问题仍显示"思考中"。根因：`getFaqs` 有 `DEFAULT_FAQS` 兜底所以按钮能显示，但 `findFaqAnswer` 只查数据库，空数据返回 null → 走 AI
   - 修复：`findFaqAnswer` 加 `const pool = faqs.length > 0 ? faqs : DEFAULT_FAQS` 兜底，并改为精确匹配优先 + 双向模糊匹配兜底
   - 问题 2：气泡按钮不能自由拖动
