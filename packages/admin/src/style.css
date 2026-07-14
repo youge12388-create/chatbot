@@ -3,28 +3,28 @@
 @tailwind utilities;
 
 :root {
-  /* 基础层 —— Google 中性灰，带极轻蓝调保持与主色同源 */
-  --bg: oklch(1 0 0);
-  --surface: oklch(0.98 0.002 255);          /* #f8f9fa 侧边栏/工具栏 */
-  --surface-2: oklch(0.96 0.003 255);        /* 表头、骨架屏 */
-  --ink: oklch(0.22 0.003 255);              /* #202124 主文字 */
-  --ink-2: oklch(0.38 0.004 255);            /* 次级文字 */
-  --muted: oklch(0.48 0.005 255);            /* #5f6368 辅助文字，满足 4.5:1 */
+  /* Swiss 信息界面：纯白/中性灰网格，以单一蓝色标记当前上下文 */
+  --bg: #ffffff;
+  --surface: #f7f7f8;
+  --surface-2: #efeff1;
+  --ink: #161616;
+  --ink-2: #404044;
+  --muted: #66666c;
 
-  /* 主色 —— Google Blue #1a73e8，承担主操作/选中/链接 */
-  --primary: oklch(0.55 0.20 255);
-  --primary-hover: oklch(0.48 0.20 255);
-  --primary-soft: oklch(0.95 0.03 255);      /* 选中态淡蓝底 */
+  /* Yves Klein Blue：仅用于选中态、链接与主操作 */
+  --primary: #002fa7;
+  --primary-hover: #00267f;
+  --primary-soft: #e9eeff;
 
-  /* 语义色 —— Google 标准语义色 */
-  --accent: oklch(0.56 0.22 28);             /* Google Red #ea4335，通知/未读 */
-  --success: oklch(0.52 0.15 144);           /* #1e8e3e */
-  --warning: oklch(0.70 0.16 81);            /* #f9ab00，降到 0.70 保证白字对比 */
-  --danger: oklch(0.52 0.22 28);             /* #d93025 */
-  --info: oklch(0.55 0.20 255);              /* 同 primary */
+  /* 语义色只表达状态，不参与页面装饰 */
+  --accent: #e4002b;
+  --success: #18794e;
+  --warning: #9a6700;
+  --danger: #c1122f;
+  --info: #002fa7;
 
-  --border: oklch(0.90 0.003 255);           /* #dadce0 */
-  --border-strong: oklch(0.82 0.004 255);    /* hover/focus 边框 */
+  --border: #dedee1;
+  --border-strong: #b8b8be;
 }
 
 html,
@@ -62,7 +62,7 @@ select {
 
 /* ===== 全局控件语汇 ===== */
 
-/* 按钮：基础 + 主色 + 次级 + 危险 —— Material 圆角 6px */
+/* 按钮：基础 + 主色 + 次级 + 危险 */
 @layer components {
   .btn {
     @apply inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-[6px]
@@ -92,7 +92,7 @@ select {
     @apply px-3 py-1 text-xs;
   }
 
-  /* 输入控件 —— Material 文本框圆角 4px */
+  /* 输入控件 */
   .input,
   .select,
   .textarea {
@@ -128,12 +128,12 @@ select {
     @apply px-4 py-3 text-ink-2;
   }
 
-  /* 卡片/面板 —— Material 圆角 8px */
+  /* 卡片/面板 */
   .panel {
     @apply bg-bg rounded-[8px] border border-border;
   }
 
-  /* 标签/徽章基类 —— Material chip 圆角 4px */
+  /* 标签/徽章基类 */
   .badge {
     @apply inline-flex items-center px-2 py-0.5 rounded-[4px] text-xs font-medium whitespace-nowrap;
   }

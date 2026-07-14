@@ -232,12 +232,28 @@ chatbot/
 - AI 对话: 待最终验收（Dify API Key 已配置，需发消息测试）
 
 ## 已知问题
-- **后端 admin SSE 当前只推 `user_message`，未推 `agent_reply`**：`chat.ts` 的 `publishAdmin` 只发 user_message；`agent_reply` 仅经 `publish()` 推到 widget 通道（admin.ts:283）。因此 ConversationDetail 的 agent_reply 实时追加分支目前不会触发（前端已防御性实现，后端补 `publishAdmin({event:'agent_reply',...})` 后即生效；自身回复已由 sendReply 本地追加，不影响使用）
 - Zeabur 市场 PostgreSQL 不可用（postgres:18 镜像不存在），已改用 Neon 外部数据库
 - 已泄露的企微 webhook 仍存在于 Git 历史，必须在企微后台作废并轮换
 - 尚未完成线上 Dify 端到端验收（发消息 → AI 回复）
 - 尚未完成线索提交 → n8n / 企微通知验收
 - `/api/health` 只验证进程存活，不代表数据库、Dify、n8n 都可用
+
+## 2026-07-14 后台站点上下文改造
+- 左上角新增全局站点切换器，固定显示当前站点名称和可点击网址；选择结果保存在本地，页面切换后保持。
+- 线索、会话、FAQ、站点配置统一读取全局 `siteId`，切换站点后自动刷新当前页面；账号管理仍是全局数据。
+- 线索和会话列表、线索详情、会话详情明确展示来源站点名称及网址，避免跨站点消息混淆。
+- 后端线索列表和 CSV 导出支持 `siteId` 过滤，并返回站点信息；修复 `/leads/export` 被 `/leads/:id` 截获的问题。
+- admin SSE 的 `user_message` / `agent_reply` 均携带 `siteId`，未读消息按当前站点统计。
+- 后台视觉统一为 Swiss 信息界面：白/中性灰网格、Yves Klein Blue 单一主强调色、左对齐信息层级。
+
+### 关键文件
+- `packages/admin/src/stores/site.ts`
+- `packages/admin/src/components/Layout.vue`
+- `packages/admin/src/views/{Leads,Conversations,Faqs,Sites}.vue`
+- `packages/server/src/routes/{admin,chat}.ts`
+
+### 最近验证
+- `npx vue-tsc --noEmit`：通过。
 
 ## 下一步
 1. **验收 AI 对话**: 在 luckyboy.me 发送消息，确认 Dify 正常回复

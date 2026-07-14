@@ -112,6 +112,7 @@ export interface Lead {
   updatedAt: string
   conversation?: {
     id: string
+    siteId?: string
     interestLevel: InterestLevel
     status: ConversationStatus
     createdAt: string

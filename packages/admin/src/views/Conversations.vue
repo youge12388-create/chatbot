@@ -8,15 +8,20 @@ import EmptyState from '../components/EmptyState.vue'
 import { request } from '../api/client'
 import { pushToast } from '../components/toast-bus'
 import { useNotificationStore } from '../stores/notification'
-import type { Conversation, PageResult, ConversationStatus, Site, InterestLevel } from '../types'
+import { useSiteStore } from '../stores/site'
+import { siteDisplayUrl, siteHref } from '../utils/site'
+import type { Conversation, PageResult, ConversationStatus, InterestLevel } from '../types'
 
 const router = useRouter()
 const route = useRoute()
 const notification = useNotificationStore()
+const siteStore = useSiteStore()
 
 // 有实时新消息（未读）的会话 ID 集合，用于列表高亮
 const unreadConvIds = computed(
-  () => new Set(notification.latestMessages.map((m) => m.conversationId)),
+  () => new Set(notification.latestMessages
+    .filter((message) => message.siteId === siteStore.selectedSiteId)
+    .map((message) => message.conversationId)),
 )
 
 function hasUnread(convId: string): boolean {
@@ -32,8 +37,6 @@ const size = ref(20)
 // 筛选状态从 URL query 初始化，返回页面不丢失
 const page = ref(Number(route.query.page) || 1)
 const statusFilter = ref((route.query.status as 'all' | ConversationStatus) || 'all')
-const siteFilter = ref((route.query.siteId as string) || '')
-const sites = ref<Site[]>([])
 
 const interestLabels: Record<InterestLevel, string> = {
   unknown: '未知',
@@ -69,15 +72,6 @@ function visitorLabel(c: Conversation): string {
   return `访客 ${tail || '??????'}`
 }
 
-async function fetchSites() {
-  try {
-    const data = await request<Site[]>('GET', '/api/admin/sites')
-    sites.value = data
-  } catch (e) {
-    pushToast('error', (e as Error).message)
-  }
-}
-
 async function fetchList() {
   loading.value = true
   try {
@@ -85,7 +79,7 @@ async function fetchList() {
       page: page.value,
       size: size.value,
       status: statusFilter.value,
-      siteId: siteFilter.value,
+      siteId: siteStore.selectedSiteId,
     })
     list.value = data.list
     total.value = data.total
@@ -119,20 +113,19 @@ function syncQueryToUrl() {
       ...route.query,
       page: page.value > 1 ? String(page.value) : undefined,
       status: statusFilter.value !== 'all' ? statusFilter.value : undefined,
-      siteId: siteFilter.value || undefined,
     },
   })
 }
 
-watch([statusFilter, siteFilter], () => {
+watch([statusFilter, () => siteStore.selectedSiteId], () => {
   page.value = 1
   syncQueryToUrl()
   fetchList()
 })
 
-onMounted(() => {
-  fetchSites()
-  fetchList()
+onMounted(async () => {
+  await siteStore.loadSites()
+  await fetchList()
 })
 </script>
 
@@ -142,10 +135,6 @@ onMounted(() => {
     <div class="flex items-center gap-3 mb-4">
       <select v-model="statusFilter" class="select w-auto">
         <option v-for="o in statusOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
-      </select>
-      <select v-model="siteFilter" class="select w-auto">
-        <option value="">全部站点</option>
-        <option v-for="s in sites" :key="s.id" :value="s.id">{{ s.name }}</option>
       </select>
     </div>
 
@@ -179,7 +168,18 @@ onMounted(() => {
               :class="hasUnread(c.id) ? 'bg-accent/10' : ''"
             >
               <td class="text-ink font-medium">{{ visitorLabel(c) }}</td>
-              <td class="text-ink-2">{{ c.site?.name || '-' }}</td>
+              <td>
+                <div class="font-medium text-ink">{{ c.site?.name || '-' }}</div>
+                <a
+                  v-if="c.site?.domain"
+                  :href="siteHref(c.site.domain)"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-xs text-primary underline underline-offset-2"
+                >
+                  {{ siteDisplayUrl(c.site.domain) }}
+                </a>
+              </td>
               <td><StatusBadge :status="c.status" type="conversation" :timeout="isTimeout(c)" /></td>
               <td class="text-muted">{{ interestLabels[c.interestLevel] || c.interestLevel }}</td>
               <td class="text-muted tabular-nums">{{ c._count?.messages ?? '-' }}</td>

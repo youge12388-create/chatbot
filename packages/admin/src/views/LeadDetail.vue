@@ -7,9 +7,12 @@ import EmptyState from '../components/EmptyState.vue'
 import { request } from '../api/client'
 import { pushToast } from '../components/toast-bus'
 import type { Lead, LeadStatus, Message } from '../types'
+import { useSiteStore } from '../stores/site'
+import { siteDisplayUrl, siteHref } from '../utils/site'
 
 const route = useRoute()
 const router = useRouter()
+const siteStore = useSiteStore()
 
 const loading = ref(false)
 const saving = ref(false)
@@ -33,6 +36,7 @@ async function fetchDetail() {
   try {
     const data = await request<Lead>('GET', `/api/admin/leads/${route.params.id}`)
     lead.value = data
+    if (data.conversation?.siteId) siteStore.selectSite(data.conversation.siteId)
     status.value = data.status
     note.value = data.note || ''
     assignedTo.value = data.assignedTo || ''
@@ -114,6 +118,20 @@ onMounted(fetchDetail)
         <div class="col-span-1 bg-bg rounded-lg border border-border p-6">
           <h3 class="text-sm font-semibold text-muted mb-4">线索基本信息</h3>
           <dl class="text-sm flex flex-col gap-3">
+            <div class="pb-3 border-b border-border">
+              <dt class="text-muted">来源站点</dt>
+              <dd class="mt-1 text-ink font-medium">{{ lead.conversation?.site?.name || '-' }}</dd>
+              <dd v-if="lead.conversation?.site?.domain" class="mt-0.5">
+                <a
+                  :href="siteHref(lead.conversation.site.domain)"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-xs text-primary underline underline-offset-2"
+                >
+                  {{ siteDisplayUrl(lead.conversation.site.domain) }}
+                </a>
+              </dd>
+            </div>
             <div class="flex justify-between"><dt class="text-muted">姓名</dt><dd class="text-ink">{{ lead.name || '-' }}</dd></div>
             <div class="flex justify-between"><dt class="text-muted">电话</dt><dd class="text-ink">{{ lead.phone || '-' }}</dd></div>
             <div class="flex justify-between"><dt class="text-muted">邮箱</dt><dd class="text-ink">{{ lead.email || '-' }}</dd></div>
