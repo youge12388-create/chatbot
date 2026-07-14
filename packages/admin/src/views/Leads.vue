@@ -7,9 +7,12 @@ import StatusBadge from '../components/StatusBadge.vue'
 import EmptyState from '../components/EmptyState.vue'
 import { request } from '../api/client'
 import { pushToast } from '../components/toast-bus'
+import { useSiteStore } from '../stores/site'
+import { siteDisplayUrl, siteHref } from '../utils/site'
 import type { Lead, PageResult, LeadStatus, InterestLevel } from '../types'
 
 const router = useRouter()
+const siteStore = useSiteStore()
 
 const loading = ref(false)
 const list = ref<Lead[]>([])
@@ -47,6 +50,7 @@ async function fetchList() {
       size: size.value,
       status: statusFilter.value,
       search: search.value,
+      siteId: siteStore.selectedSiteId,
     })
     list.value = data.list
     total.value = data.total
@@ -89,12 +93,14 @@ function fmtInterest(level: InterestLevel | undefined): string {
 
 async function exportCsv() {
   try {
-    const csv = await request<string>('GET', '/api/admin/leads/export')
+    const csv = await request<string>('GET', '/api/admin/leads/export', {
+      siteId: siteStore.selectedSiteId,
+    })
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'leads.csv'
+    a.download = `leads-${siteStore.currentSite?.domain || 'site'}.csv`
     a.click()
     URL.revokeObjectURL(url)
     pushToast('success', '导出成功')
@@ -103,9 +109,12 @@ async function exportCsv() {
   }
 }
 
-watch(statusFilter, onStatusChange)
+watch([statusFilter, () => siteStore.selectedSiteId], onStatusChange)
 
-onMounted(fetchList)
+onMounted(async () => {
+  await siteStore.loadSites()
+  await fetchList()
+})
 </script>
 
 <template>
@@ -135,6 +144,7 @@ onMounted(fetchList)
             <th>姓名</th>
             <th>电话</th>
             <th>邮箱</th>
+            <th>来源站点</th>
             <th>兴趣等级</th>
             <th>状态</th>
             <th>提交时间</th>
@@ -145,7 +155,7 @@ onMounted(fetchList)
           <!-- 骨架屏 -->
           <template v-if="loading">
             <tr v-for="i in 8" :key="`sk-${i}`">
-              <td v-for="j in 7" :key="j">
+              <td v-for="j in 8" :key="j">
                 <div class="h-4 bg-surface-2 rounded animate-pulse"></div>
               </td>
             </tr>
@@ -156,6 +166,18 @@ onMounted(fetchList)
               <td class="text-ink font-medium">{{ lead.name || '-' }}</td>
               <td class="text-ink-2">{{ lead.phone || '-' }}</td>
               <td class="text-ink-2">{{ lead.email || '-' }}</td>
+              <td>
+                <div class="font-medium text-ink">{{ lead.conversation?.site?.name || '-' }}</div>
+                <a
+                  v-if="lead.conversation?.site?.domain"
+                  :href="siteHref(lead.conversation.site.domain)"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-xs text-primary underline underline-offset-2"
+                >
+                  {{ siteDisplayUrl(lead.conversation.site.domain) }}
+                </a>
+              </td>
               <td class="text-muted">{{ fmtInterest(lead.conversation?.interestLevel) }}</td>
               <td><StatusBadge :status="lead.status" type="lead" /></td>
               <td class="text-muted tabular-nums">{{ fmtTime(lead.createdAt) }}</td>

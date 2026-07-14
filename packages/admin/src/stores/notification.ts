@@ -12,10 +12,12 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { adminSseUrl } from '../api/client'
+import { useSiteStore } from './site'
 
 export interface NotificationMessage {
   id: string
   conversationId: string
+  siteId: string
   content: string
   createdAt: string
 }
@@ -23,12 +25,15 @@ export interface NotificationMessage {
 const MAX_KEPT = 50
 
 export const useNotificationStore = defineStore('notification', () => {
-  const unreadCount = ref(0)
   const latestMessages = ref<NotificationMessage[]>([])
   const latestAgentReplies = ref<NotificationMessage[]>([])
+  const siteStore = useSiteStore()
 
   let es: EventSource | null = null
 
+  const unreadCount = computed(() => latestMessages.value.filter(
+    (message) => message.siteId === siteStore.selectedSiteId,
+  ).length)
   const hasUnread = computed(() => unreadCount.value > 0)
 
   function pushCapped(list: NotificationMessage[], item: NotificationMessage): NotificationMessage[] {
@@ -51,11 +56,11 @@ export const useNotificationStore = defineStore('notification', () => {
           const item: NotificationMessage = {
             id: String(d.id ?? ''),
             conversationId: String(d.conversationId ?? ''),
+            siteId: String(d.siteId ?? ''),
             content: String(d.content ?? ''),
             createdAt: String(d.createdAt ?? ''),
           }
           if (payload.event === 'user_message') {
-            unreadCount.value++
             latestMessages.value = pushCapped(latestMessages.value, item)
           } else if (payload.event === 'agent_reply') {
             latestAgentReplies.value = pushCapped(latestAgentReplies.value, item)
@@ -77,10 +82,6 @@ export const useNotificationStore = defineStore('notification', () => {
     es = null
   }
 
-  function clearUnread(): void {
-    unreadCount.value = 0
-  }
-
   function markConversationRead(conversationId: string): void {
     latestMessages.value = latestMessages.value.filter(
       (m) => m.conversationId !== conversationId,
@@ -94,7 +95,6 @@ export const useNotificationStore = defineStore('notification', () => {
     hasUnread,
     connect,
     disconnect,
-    clearUnread,
     markConversationRead,
   }
 })

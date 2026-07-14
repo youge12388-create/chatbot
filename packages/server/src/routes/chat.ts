@@ -64,6 +64,7 @@ router.post('/message', wrap(async (req, res) => {
 
   // 1. 保存用户消息
   const userMsg = await chatService.saveMessage(conversationId, 'user', content, 'user')
+  const siteId = await chatService.getConversationSiteId(conversationId)
 
   // 1.1 推到后台 admin 通道（后台实时显示客户消息）
   publishAdmin({
@@ -71,6 +72,7 @@ router.post('/message', wrap(async (req, res) => {
     data: {
       id: userMsg.id,
       conversationId,
+      siteId,
       role: 'user',
       content,
       source: 'user',
@@ -89,7 +91,6 @@ router.post('/message', wrap(async (req, res) => {
   }
 
   // 3. 优先匹配 FAQ 预设答案（用户点 FAQ 按钮时文本与 FAQ 问题一致，直接返回预设）
-  const siteId = await chatService.getConversationSiteId(conversationId)
   const faqAnswer = await chatService.findFaqAnswer(siteId, content)
   const category = chatService.classifyQuestion(content)
 
