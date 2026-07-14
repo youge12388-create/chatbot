@@ -151,28 +151,21 @@ export async function getFaqPool(
   return take === undefined ? DEFAULT_FAQS : DEFAULT_FAQS.slice(0, take)
 }
 
-async function createSession(siteId: string, visitorId: string, metadata?: any) {
-  // 确保站点存在（不存在则自动创建，避免外键报错）
-  let site = await prisma.site.findUnique({
+async function createSession(
+  siteId: string,
+  visitorId: string,
+  metadata?: any,
+  siteKey?: string,
+) {
+  const site = await prisma.site.findUnique({
     where: { id: siteId },
-    select: { settings: true },
+    select: { apiKey: true, settings: true },
   })
 
-  if (!site) {
-    site = await prisma.site.create({
-      data: {
-        id: siteId,
-        name: '站点 ' + siteId.slice(-6),
-        domain: siteId,
-        apiKey: 'auto-' + siteId,
-        settings: DEFAULT_SITE_SETTINGS,
-      },
-      select: { settings: true },
-    })
-    console.log(`[chat-api] 自动创建站点: ${siteId}`)
-  }
+  // 站点标识错误时拒绝创建隐式站点，避免聊天落到没有配置的站点。
+  if (!site || (siteKey && site.apiKey !== siteKey)) return null
 
-  const settings = mergeSettings(site?.settings)
+  const settings = getPublicSiteSettings(site.settings)
   const session = await prisma.conversation.create({
     data: {
       siteId,
@@ -182,8 +175,6 @@ async function createSession(siteId: string, visitorId: string, metadata?: any) 
   })
   return { ...session, siteSettings: settings }
 }
-
-/** 合并站点配置与默认值，并兼容旧的 bubbleMessage 字符串字段 */
 function mergeSettings(raw: any): Record<string, any> {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ...DEFAULT_SITE_SETTINGS }
   const merged = { ...DEFAULT_SITE_SETTINGS, ...raw }
@@ -227,14 +218,26 @@ function mergeSettings(raw: any): Record<string, any> {
   return merged
 }
 
-/** 获取站点配置（供 widget 初始化使用） */
+/** 公开给 Widget 的配置白名单，永不返回服务端密钥和通知 Webhook。 */
+export function getPublicSiteSettings(raw: any): Record<string, any> {
+  const settings = mergeSettings(raw)
+  return {
+    welcomeMessage: settings.welcomeMessage,
+    guideMessage: settings.guideMessage,
+    bubbleMessages: settings.bubbleMessages,
+    primaryColor: settings.primaryColor,
+    formConfig: settings.formConfig,
+    contactWhatsApp: settings.contactWhatsApp,
+    contactWecomQrUrl: settings.contactWecomQrUrl,
+  }
+}
 async function getSiteSettings(siteId: string) {
   const site = await prisma.site.findUnique({
     where: { id: siteId },
     select: { settings: true, name: true },
   })
   if (!site) return null
-  return { name: site.name, settings: mergeSettings(site.settings) }
+  return { id: siteId, name: site.name, settings: getPublicSiteSettings(site.settings) }
 }
 
 async function saveMessage(
@@ -279,6 +282,13 @@ export function normalizeDifyApiUrl(rawUrl: string): string {
   return url.toString()
 }
 
+/** 由聊天接口地址推导 Dify 应用信息接口，用于后台连接测试。 */
+export function getDifyInfoUrl(rawUrl: string): string {
+  const url = new URL(normalizeDifyApiUrl(rawUrl))
+  url.pathname = url.pathname.replace(/\/chat-messages$/, '/info')
+  return url.toString()
+}
+
 export function shouldResetDifyConversation(
   status: number,
   errorBody: string,
@@ -303,8 +313,49 @@ export function buildDifyRequestBody(
     // Dify 首次请求必须为空，后续使用它返回的 conversation_id
     conversation_id: difyConversationId || '',
     user,
-    response_mode: 'blocking',
+    response_mode: 'streaming',
   }
+}
+
+export interface DifyStreamResult {
+  answer: string
+  conversationId: string | null
+}
+
+/** 解析 Dify streaming 响应，兼容 message、agent_message 和错误事件。 */
+export function parseDifySse(text: string): DifyStreamResult {
+  let answer = ''
+  let conversationId: string | null = null
+
+  for (const block of text.split(/\r?\n\r?\n/)) {
+    const data = block
+      .split(/\r?\n/)
+      .find(line => line.startsWith('data:'))
+      ?.slice(5)
+      .trim()
+    if (!data || data === '[DONE]') continue
+
+    let payload: any
+    try {
+      payload = JSON.parse(data)
+    } catch {
+      continue
+    }
+
+    if (payload.conversation_id) conversationId = payload.conversation_id
+    if (payload.event === 'error') {
+      throw new Error(payload.message || payload.code || 'Dify streaming error')
+    }
+    if (payload.event === 'message' || payload.event === 'agent_message') {
+      if (typeof payload.answer === 'string') answer += payload.answer
+    }
+  }
+
+  return { answer, conversationId }
+}
+
+async function readDifyStream(response: Response): Promise<DifyStreamResult> {
+  return parseDifySse(await response.text())
 }
 
 /** 获取最近 N 条对话历史（用于传给 Dify 作为上下文） */
@@ -408,16 +459,16 @@ async function askDify(conversationId: string, query: string, questionType?: str
       return '抱歉，AI 服务暂时不可用，请稍后重试。'
     }
 
-    const data = await response.json() as any
-    if (data.conversation_id && data.conversation_id !== difyConversationId) {
+    const stream = await readDifyStream(response)
+    if (stream.conversationId && stream.conversationId !== difyConversationId) {
       await prisma.conversation.update({
         where: { id: conversationId },
         data: {
-          metadata: { ...metadata, difyConversationId: data.conversation_id },
+          metadata: { ...metadata, difyConversationId: stream.conversationId },
         },
       })
     }
-    let answer = data.answer || '抱歉，我暂时无法回答这个问题，请稍后重试。'
+    let answer = stream.answer || '抱歉，我暂时无法回答这个问题，请稍后重试。'
     // 过滤推理模型的 <think>...</think> 标签
     answer = answer.replace(/<think>[\s\S]*?<\/think>/gi, '').trim()
     return answer

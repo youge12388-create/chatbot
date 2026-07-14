@@ -14,7 +14,7 @@
 
 import { Router, Request, Response, NextFunction } from 'express'
 import { prisma } from '../db/client'
-import { chatService } from '../services/chat'
+import { chatService, getDifyInfoUrl } from '../services/chat'
 import { authService } from '../services/auth'
 import { requireAuth, requireAdmin } from '../middleware/auth'
 import { publish, publishAdmin, subscribeAdmin } from '../services/pubsub'
@@ -392,6 +392,71 @@ router.patch('/sites/:id', requireAuth, wrap(async (req, res) => {
     data,
   })
   res.json({ code: 0, data: site })
+}))
+
+/** POST /api/admin/sites/:id/test-dify - 使用已保存配置测试 Dify 连接 */
+router.post('/sites/:id/test-dify', requireAuth, wrap(async (req, res) => {
+  const site = await prisma.site.findUnique({
+    where: { id: req.params.id },
+    select: { settings: true },
+  })
+  if (!site) {
+    res.status(404).json({ code: 1, message: '站点不存在' })
+    return
+  }
+
+  const settings = (
+    site.settings && typeof site.settings === 'object' && !Array.isArray(site.settings)
+  ) ? site.settings as Record<string, unknown> : {}
+  const rawUrl = typeof settings.difyApiUrl === 'string' && settings.difyApiUrl.trim()
+    ? settings.difyApiUrl.trim() : process.env.DIFY_API_URL
+  const apiKey = typeof settings.difyApiKey === 'string' && settings.difyApiKey.trim()
+    ? settings.difyApiKey.trim() : process.env.DIFY_API_KEY
+
+  if (!rawUrl || !apiKey) {
+    res.status(400).json({ code: 1, message: '请先保存 Dify API 地址和 API Key' })
+    return
+  }
+
+  let infoUrl: string
+  try {
+    infoUrl = getDifyInfoUrl(rawUrl)
+  } catch {
+    res.status(400).json({ code: 1, message: 'Dify API 地址无效' })
+    return
+  }
+
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 8_000)
+  try {
+    const response = await fetch(infoUrl, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal: controller.signal,
+    })
+    if (!response.ok) {
+      const message = response.status === 401 || response.status === 403
+        ? 'Dify API Key 无效或无权访问该应用'
+        : `Dify 连接失败（HTTP ${response.status}）`
+      res.status(response.status >= 500 ? 502 : 400).json({ code: 1, message })
+      return
+    }
+
+    const data = await response.json().catch(() => ({})) as Record<string, unknown>
+    res.json({
+      code: 0,
+      data: {
+        name: typeof data.name === 'string' ? data.name : 'Dify 应用',
+        mode: typeof data.mode === 'string' ? data.mode : '',
+      },
+    })
+  } catch (error) {
+    const message = (error as Error).name === 'AbortError'
+      ? 'Dify 连接超时，请检查 API 地址'
+      : '无法连接 Dify，请检查网络和 API 地址'
+    res.status(502).json({ code: 1, message })
+  } finally {
+    clearTimeout(timer)
+  }
 }))
 
 // ========================

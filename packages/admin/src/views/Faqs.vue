@@ -2,6 +2,7 @@
 import { ref, onMounted, watch } from 'vue'
 import Layout from '../components/Layout.vue'
 import EmptyState from '../components/EmptyState.vue'
+import AppIcon from '../components/AppIcon.vue'
 import { request } from '../api/client'
 import { pushToast } from '../components/toast-bus'
 import { useSiteStore } from '../stores/site'
@@ -128,7 +129,7 @@ onMounted(async () => {
 <template>
   <Layout>
     <!-- FAQ 始终属于左上角选中的站点 -->
-    <div class="flex items-center gap-3 mb-4">
+    <div class="page-toolbar">
       <div>
         <p class="font-semibold text-ink">{{ siteStore.currentSite?.name || '未选择站点' }}</p>
         <a
@@ -142,15 +143,16 @@ onMounted(async () => {
         </a>
       </div>
       <button
-        class="ml-auto px-3 py-2 rounded bg-primary text-white text-sm hover:bg-primary-hover"
+        class="btn btn-primary ml-auto"
         @click="openCreate"
       >
-        + 新增常见问题
+        <AppIcon name="plus" :size="16" />
+        新增常见问题
       </button>
     </div>
 
     <!-- 新增表单 -->
-    <div v-if="creating" class="bg-bg rounded-lg border border-border p-4 mb-3">
+    <div v-if="creating" class="panel p-4 mb-3">
       <div class="grid grid-cols-3 gap-3">
         <input
           v-model="form.question"
@@ -184,8 +186,8 @@ onMounted(async () => {
     </div>
 
     <!-- 列表 -->
-    <div class="bg-bg rounded-lg border border-border overflow-hidden">
-      <table class="w-full text-sm">
+    <div class="panel overflow-hidden">
+      <table class="table-base">
         <thead>
           <tr class="bg-surface text-muted text-left">
             <th class="px-4 py-3 font-medium">问题</th>
@@ -256,7 +258,7 @@ onMounted(async () => {
           </template>
         </tbody>
       </table>
-      <EmptyState v-if="!loading && list.length === 0" message="暂无常见问题" icon="◇" />
+      <EmptyState v-if="!loading && list.length === 0" message="暂无常见问题" icon="help" />
     </div>
   </Layout>
 </template>
