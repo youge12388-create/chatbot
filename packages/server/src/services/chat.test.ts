@@ -3,6 +3,8 @@ import test from 'node:test'
 import {
   buildDifyRequestBody,
   getDifyInfoUrl,
+  isAiFailureReply,
+  nextAiFailureCount,
   getFaqPool,
   getPublicSiteSettings,
   normalizeDifyApiUrl,
@@ -10,6 +12,15 @@ import {
   shouldResetDifyConversation,
 } from './chat'
 
+test('AI 连续失败计数达到两次并在成功后重置', () => {
+  const fallback = '抱歉，AI 服务暂时不可用，请稍后重试。'
+
+  assert.equal(isAiFailureReply(fallback), true)
+  assert.equal(isAiFailureReply('这是一次正常的 AI 回复。'), false)
+  assert.equal(nextAiFailureCount(0, true), 1)
+  assert.equal(nextAiFailureCount(1, true), 2)
+  assert.equal(nextAiFailureCount(2, false), 0)
+})
 test('Dify streaming 请求会拼接 Agent 消息并保存会话 ID', () => {
   const result = parseDifySse(
     'data: {"event":"agent_message","conversation_id":"dify-1","answer":"你好"}\n\n' +

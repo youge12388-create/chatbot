@@ -261,6 +261,51 @@ async function saveMessage(
 
 const DIFY_TIMEOUT_MS = 15_000
 
+const AI_FAILURE_REPLIES = new Set([
+  '抱歉，AI 服务暂未配置，请联系管理员。',
+  '抱歉，AI 服务暂时不可用，请稍后重试。',
+  '抱歉，AI 响应超时，请稍后重试。',
+  '抱歉，我暂时无法回答这个问题，请稍后重试。',
+])
+
+export function isAiFailureReply(reply: string): boolean {
+  return AI_FAILURE_REPLIES.has(reply.trim())
+}
+
+export function nextAiFailureCount(current: unknown, failed: boolean): number {
+  if (!failed) return 0
+  const count = Number.isFinite(Number(current)) ? Math.max(0, Math.floor(Number(current))) : 0
+  return count + 1
+}
+
+function getConversationMetadata(raw: unknown): Record<string, any> {
+  return raw && typeof raw === 'object' && !Array.isArray(raw)
+    ? raw as Record<string, any>
+    : {}
+}
+
+/** 记录连续 AI 失败；达到两次后把会话交给人工，并返回是否刚刚触发转人工。 */
+async function recordAiReplyOutcome(conversationId: string, failed: boolean): Promise<boolean> {
+  const conversation = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+    select: { status: true, metadata: true },
+  })
+  if (!conversation || conversation.status !== 'active') return false
+
+  const metadata = getConversationMetadata(conversation.metadata)
+  const failureCount = nextAiFailureCount(metadata.aiFailureCount, failed)
+  const nextMetadata = { ...metadata, aiFailureCount: failureCount }
+  const shouldTransfer = failed && failureCount >= 2
+
+  await prisma.conversation.update({
+    where: { id: conversationId },
+    data: {
+      metadata: nextMetadata,
+      ...(shouldTransfer ? { status: 'taken_over' } : {}),
+    },
+  })
+  return shouldTransfer
+}
 /**
  * 后台既可填写完整接口，也可填写 Dify API 域名或 /v1 基础地址。
  * 应用访问页（如 /chat/...）不是 API 地址，不能在这里自动转换。
@@ -579,12 +624,16 @@ async function takeOver(conversationId: string): Promise<void> {
 async function releaseTakeOver(conversationId: string): Promise<void> {
   const conv = await prisma.conversation.findUnique({
     where: { id: conversationId },
-    select: { status: true },
+    select: { status: true, metadata: true },
   })
   if (conv?.status === 'taken_over') {
+    const metadata = getConversationMetadata(conv.metadata)
     await prisma.conversation.update({
       where: { id: conversationId },
-      data: { status: 'active' },
+      data: {
+        status: 'active',
+        metadata: { ...metadata, aiFailureCount: 0 },
+      },
     })
   }
 }
@@ -620,6 +669,9 @@ export const chatService = {
   classifyQuestion,
   shouldShowForm,
   askDify,
+  isAiFailureReply,
+  nextAiFailureCount,
+  recordAiReplyOutcome,
   getTransferReply,
   transferToHuman,
   getFaqs,
