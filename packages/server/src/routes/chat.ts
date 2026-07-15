@@ -140,13 +140,28 @@ router.post('/message', wrap(async (req, res) => {
     }
   }
 
-  // 4. 保存 AI 回复
+  // 4. 连续两次 AI 失败后自动转人工，并复用现有企微通知链路
+  if (source === 'ai') {
+    const failed = chatService.isAiFailureReply(reply)
+    const autoTransferred = await chatService.recordAiReplyOutcome(conversationId, failed)
+    if (autoTransferred) {
+      reply = chatService.getTransferReply(lang || 'zh-CN')
+      source = 'human'
+      needForm = true
+      leadService.notifyTransfer(conversationId).catch(() => {})
+    }
+  } else if (source === 'preset') {
+    // FAQ 预设正常命中，清除之前的连续失败计数
+    await chatService.recordAiReplyOutcome(conversationId, false)
+  }
+
+  // 5. 保存 AI / 人工回复
   await chatService.saveMessage(conversationId, 'assistant', reply, source)
 
-  // 5. 更新兴趣评分（不阻塞响应）
+  // 6. 更新兴趣评分（不阻塞响应）
   leadService.updateInterestScore(conversationId, content, category.type).catch(() => {})
 
-  // 6. 获取动态推荐问题（基于用户当前问题 + 排除已问过的）
+  // 7. 获取动态推荐问题（基于用户当前问题 + 排除已问过的）
   const { prisma } = require('../db/client')
   const askedMsgs = await prisma.message.findMany({
     where: { conversationId, role: 'user' },
