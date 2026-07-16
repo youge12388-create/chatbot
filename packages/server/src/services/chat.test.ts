@@ -8,6 +8,7 @@ import {
   normalizeDifyApiUrl,
   parseDifySse,
   shouldResetDifyConversation,
+  isNoAnswerReply,
 } from './chat'
 
 test('Dify streaming 请求会拼接 Agent 消息并保存会话 ID', () => {
@@ -119,4 +120,9 @@ test('当前站点有 FAQ 时不读取默认站点', async () => {
 
   assert.deepEqual(faqs, siteFaqs)
   assert.equal(defaultSiteQueried, false)
+})
+
+test('AI 无法回答文案应触发计数', () => {
+  assert.equal(isNoAnswerReply('抱歉，我暂时无法回答这个问题'), true)
+  assert.equal(isNoAnswerReply('这是一个正常的课程费用说明'), false)
 })

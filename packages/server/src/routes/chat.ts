@@ -131,7 +131,7 @@ router.post('/message', wrap(async (req, res) => {
         needForm = true
         await chatService.transferToHuman(conversationId)
         // 转人工自动推通知（不阻塞响应）
-        leadService.notifyTransfer(conversationId).catch(() => {})
+        await leadService.notifyTransfer(conversationId)
         break
 
       default:
@@ -140,6 +140,18 @@ router.post('/message', wrap(async (req, res) => {
     }
   }
 
+  // AI 连续两次无法回答时自动转人工
+  const noAnswerCount = await chatService.updateNoAnswerCount(
+    conversationId,
+    source === 'ai' && chatService.isNoAnswerReply(reply),
+  )
+  if (source === 'ai' && noAnswerCount >= 2) {
+    reply = chatService.getTransferReply(lang || 'zh-CN')
+    source = 'human'
+    needForm = true
+    await chatService.transferToHuman(conversationId)
+    await leadService.notifyTransfer(conversationId)
+  }
   // 4. 保存 AI 回复
   await chatService.saveMessage(conversationId, 'assistant', reply, source)
 

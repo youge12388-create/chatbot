@@ -14,6 +14,7 @@ const list = ref<Site[]>([])
 const expanded = ref<Record<string, boolean>>({})
 const saving = ref<Record<string, boolean>>({})
 const testing = ref<Record<string, boolean>>({})
+const testingWecom = ref<Record<string, boolean>>({})
 const drafts = ref<Record<string, { name: string; domain: string; settings: SiteSettings }>>({})
 const displayedSites = computed(() => list.value.filter(
   (site) => site.id === siteStore.selectedSiteId,
@@ -169,6 +170,23 @@ async function testDify(site: Site) {
   }
 }
 
+async function testWecom(site: Site) {
+  const draft = drafts.value[site.id]
+  const webhookUrl = draft?.settings.webhookUrl?.trim()
+  if (!webhookUrl) {
+    pushToast('error', '请先填写并保存企业微信机器人 Webhook')
+    return
+  }
+  testingWecom.value[site.id] = true
+  try {
+    await request('POST', `/api/admin/sites/${site.id}/test-wecom`, {})
+    pushToast('success', '测试消息已发送到企业微信群')
+  } catch (e) {
+    pushToast('error', (e as Error).message)
+  } finally {
+    testingWecom.value[site.id] = false
+  }
+}
 onMounted(fetchList)
 </script>
 
@@ -283,24 +301,25 @@ onMounted(fetchList)
               ></textarea>
             </div>
             <div class="col-span-2">
-              <label class="text-sm text-muted block mb-1.5">企微 Webhook 地址</label>
-              <input
-                v-model="getDraft(site.id)!.settings.webhookUrl"
-                type="text"
-                placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx"
-                class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full font-mono text-xs"
-              />
+              <label class="text-sm text-muted block mb-1.5">企业微信群机器人 Webhook（人工接管通知）</label>
+              <div class="flex gap-2">
+                <input
+                  v-model="getDraft(site.id)!.settings.webhookUrl"
+                  type="text"
+                  placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx"
+                  class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none flex-1 font-mono text-xs"
+                />
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-sm whitespace-nowrap"
+                  :disabled="testingWecom[site.id]"
+                  @click="testWecom(site)"
+                >
+                  {{ testingWecom[site.id] ? '发送中...' : '测试推送' }}
+                </button>
+              </div>
+              <p class="mt-1.5 text-xs text-muted">保存后，客户请求人工客服时会直接推送到这个企业微信群。</p>
             </div>
-            <div class="col-span-2">
-              <label class="text-sm text-muted block mb-1.5">n8n Webhook 地址</label>
-              <input
-                v-model="getDraft(site.id)!.settings.n8nWebhookUrl"
-                type="text"
-                placeholder="https://n8n.example.com/webhook/xxx"
-                class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full font-mono text-xs"
-              />
-            </div>
-
             <!-- 联系顾问配置 -->
             <div class="col-span-2 mt-2 pt-4 border-t border-border">
               <h4 class="text-sm font-semibold text-ink mb-3">联系顾问配置（聊天窗口头部按钮，留空不显示）</h4>

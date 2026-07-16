@@ -170,8 +170,8 @@ async function notifyNewLead(conversationId: string) {
 
   // 优先走 n8n
   if (n8nUrl) {
-    const ok = await postJson(n8nUrl, payload)
-    if (ok) return
+    const result = await postJson(n8nUrl, payload)
+    if (result.ok) return
   }
 
   // 降级：直连企微机器人
@@ -209,7 +209,13 @@ function formatWecomText(data: any): string {
 }
 
 /** POST JSON，吞异常，返回是否成功 */
-async function postJson(url: string, body: any): Promise<boolean> {
+export interface WebhookResult {
+  ok: boolean
+  status: number
+  message: string
+}
+
+export async function postJson(url: string, body: any): Promise<WebhookResult> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 10_000)
 
@@ -220,45 +226,56 @@ async function postJson(url: string, body: any): Promise<boolean> {
       body: JSON.stringify(body),
       signal: controller.signal,
     })
+    const responseBody = await response.text().catch(() => '')
 
     if (!response.ok) {
       console.error(`[chat-api] 通知返回 ${response.status}: ${response.statusText}`)
-      return false
+      return { ok: false, status: response.status, message: responseBody || response.statusText }
     }
-    return true
+
+    try {
+      const result = JSON.parse(responseBody) as { errcode?: number; errmsg?: string }
+      if (typeof result.errcode === 'number' && result.errcode !== 0) {
+        return { ok: false, status: response.status, message: result.errmsg || `errcode=${result.errcode}` }
+      }
+    } catch {
+      // n8n 等 Webhook 可能返回纯文本，HTTP 2xx 即视为成功。
+    }
+
+    return { ok: true, status: response.status, message: 'ok' }
   } catch (err: any) {
     console.error('[chat-api] 通知发送失败:', err.message)
-    return false
+    return { ok: false, status: 0, message: err.message || 'network error' }
   } finally {
     clearTimeout(timer)
   }
 }
-
 /**
  * 转人工通知：即使用户未留资，也推送一条通知
  * webhook 地址优先从 site.settings.webhookUrl 读，兼容环境变量
  */
-async function notifyTransfer(conversationId: string) {
+async function notifyTransfer(conversationId: string): Promise<boolean> {
   const conv = await prisma.conversation.findUnique({
     where: { id: conversationId },
     include: {
       messages: { orderBy: { createdAt: 'asc' }, take: 20 },
       leads: true,
-      site: { select: { settings: true } },
+      site: { select: { name: true, domain: true, settings: true } },
     },
   })
-  if (!conv) return
+  if (!conv) return false
 
   const lead = conv.leads[0]
   const interestLabel: Record<string, string> = {
     unknown: '未知', low: '低', normal: '一般',
     medium: '中等', high: '高', strong: '极高',
   }
-
   const payload = {
     event: 'transfer_request',
     data: {
       conversationId,
+      siteName: conv.site?.name || '未命名站点',
+      siteDomain: conv.site?.domain || '',
       name: lead?.name || '未填写',
       phone: lead?.phone || '未填写',
       interestLevel: conv.interestLevel,
@@ -269,42 +286,44 @@ async function notifyTransfer(conversationId: string) {
     },
   }
 
-  // webhook 地址：站点配置优先，环境变量兜底
   const siteSettings = (conv.site?.settings as any) || {}
-  const n8nUrl = siteSettings.n8nWebhookUrl || process.env.N8N_WEBHOOK_URL
   const wecomUrl = siteSettings.webhookUrl || process.env.WECOM_WEBHOOK_URL
-
-  // 优先走 n8n
-  if (n8nUrl) {
-    const ok = await postJson(n8nUrl, payload)
-    if (ok) return
+  if (!wecomUrl) {
+    console.error('[chat-api] 企业微信通知未配置 Webhook')
+    return false
   }
 
-  // 降级：直连企微机器人
-  if (wecomUrl) {
-    const chatHistory = (payload.data.messages || [])
-      .slice(-6)
-      .map((m: any) => `${m.role === 'user' ? '用户' : 'AI'}：${m.content}`)
-      .join('\n')
+  const chatHistory = payload.data.messages
+    .slice(-6)
+    .map((m: { role: string; content: string }) => `${m.role === 'user' ? '客户' : 'AI'}：${m.content}`)
+    .join('\n')
+  const text = [
+    '🔴 转人工请求',
+    `站点：${payload.data.siteName}${payload.data.siteDomain ? `（${payload.data.siteDomain}）` : ''}`,
+    `会话：${conversationId}`,
+    '',
+    `姓名：${payload.data.name}`,
+    `电话：${payload.data.phone}`,
+    `兴趣等级：${interestLabel[payload.data.interestLevel] || '未知'}`,
+    '',
+    '--- 最近对话 ---',
+    chatHistory || '（无对话记录）',
+  ].join('\n')
 
-    const text = [
-      '🔴 转人工请求',
-      '',
-      `姓名：${payload.data.name}`,
-      `电话：${payload.data.phone}`,
-      `兴趣等级：${interestLabel[payload.data.interestLevel] || '未知'}`,
-      '',
-      '--- 最近对话 ---',
-      chatHistory || '（无对话记录）',
-    ].join('\n')
-
-    await postJson(wecomUrl, {
-      msgtype: 'text',
-      text: { content: text },
-    })
-  }
+  const result = await postJson(wecomUrl, {
+    msgtype: 'text',
+    text: { content: text },
+  })
+  if (!result.ok) console.error(`[chat-api] 企业微信转人工通知失败: ${result.message}`)
+  return result.ok
 }
 
+export async function sendWecomTest(webhookUrl: string): Promise<WebhookResult> {
+  return postJson(webhookUrl, {
+    msgtype: 'text',
+    text: { content: '✅ Chatbot 企业微信机器人连接测试成功' },
+  })
+}
 export const leadService = {
   updateInterestScore,
   upsertLead,
