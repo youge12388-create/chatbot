@@ -139,6 +139,18 @@ async function release() {
   }
 }
 
+async function markProcessed() {
+  acting.value = true
+  try {
+    await request('POST', `/api/admin/conversations/${route.params.id}/resolve`)
+    if (conv.value) conv.value.status = 'closed' as ConversationStatus
+    pushToast('success', '会话已标记为已处理')
+  } catch (e) {
+    pushToast('error', (e as Error).message)
+  } finally {
+    acting.value = false
+  }
+}
 function back() {
   // 优先用浏览器历史返回（保留列表页的筛选 query）
   if (window.history.length > 1) {
@@ -182,6 +194,14 @@ onMounted(async () => {
             @click="release"
           >
             释放给 AI
+          </button>
+          <button
+            v-if="conv.status !== 'closed'"
+            :disabled="acting"
+            class="rounded-lg border border-success/40 px-3 py-2 text-sm text-success hover:border-success disabled:opacity-50"
+            @click="markProcessed"
+          >
+            标记已处理
           </button>
         </template>
       </div>
