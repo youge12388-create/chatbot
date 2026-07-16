@@ -15,6 +15,7 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import { prisma } from '../db/client'
 import { chatService, getDifyInfoUrl } from '../services/chat'
+import { sendWecomTest } from '../services/lead'
 import { authService } from '../services/auth'
 import { requireAuth, requireAdmin } from '../middleware/auth'
 import { publish, publishAdmin, subscribeAdmin } from '../services/pubsub'
@@ -310,7 +311,7 @@ router.post('/conversations/:id/reply', requireAuth, wrap(async (req, res) => {
   }
 
   // 自动接管（首次回复时）
-  if (conv.status === 'active') {
+  if (conv.status !== 'taken_over' && conv.status !== 'closed') {
     await chatService.takeOver(conversationId)
   }
 
@@ -394,6 +395,33 @@ router.patch('/sites/:id', requireAuth, wrap(async (req, res) => {
   res.json({ code: 0, data: site })
 }))
 
+/** POST /api/admin/sites/:id/test-wecom - 测试站点企业微信机器人 */
+router.post('/sites/:id/test-wecom', requireAuth, wrap(async (req, res) => {
+  const site = await prisma.site.findUnique({
+    where: { id: req.params.id },
+    select: { settings: true },
+  })
+  if (!site) {
+    res.status(404).json({ code: 1, message: '站点不存在' })
+    return
+  }
+
+  const settings = (
+    site.settings && typeof site.settings === 'object' && !Array.isArray(site.settings)
+  ) ? site.settings as Record<string, unknown> : {}
+  const webhookUrl = typeof settings.webhookUrl === 'string' ? settings.webhookUrl.trim() : ''
+  if (!webhookUrl) {
+    res.status(400).json({ code: 1, message: '请先填写并保存企业微信机器人 Webhook' })
+    return
+  }
+
+  const result = await sendWecomTest(webhookUrl)
+  if (!result.ok) {
+    res.status(502).json({ code: 1, message: `企业微信测试失败：${result.message}` })
+    return
+  }
+  res.json({ code: 0, data: { status: result.status }, message: '测试消息已发送到企业微信群' })
+}))
 /** POST /api/admin/sites/:id/test-dify - 使用已保存配置测试 Dify 连接 */
 router.post('/sites/:id/test-dify', requireAuth, wrap(async (req, res) => {
   const site = await prisma.site.findUnique({

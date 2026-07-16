@@ -51,7 +51,7 @@ const statusOptions: { value: 'all' | ConversationStatus; label: string }[] = [
   { value: 'all', label: '全部状态' },
   { value: 'active', label: '进行中' },
   { value: 'taken_over', label: '人工接管中' },
-  { value: 'transferred', label: '已转接' },
+  { value: 'transferred', label: '待人工' },
   { value: 'closed', label: '已关闭' },
 ]
 
@@ -132,10 +132,24 @@ onMounted(async () => {
 <template>
   <Layout>
     <!-- 筛选栏 -->
-    <div class="page-toolbar">
-      <select v-model="statusFilter" class="select w-auto">
-        <option v-for="o in statusOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
-      </select>
+    <div class="mb-5 flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-primary">会话工作台</p>
+        <h2 class="mt-1 text-xl font-semibold text-ink">先处理待人工，再开始回复</h2>
+        <p class="mt-1 text-sm text-muted">打开会话后，点击“接管并回复”，客户就会进入人工服务。</p>
+      </div>
+      <div class="flex flex-wrap gap-2" aria-label="会话筛选">
+        <button
+          v-for="o in statusOptions"
+          :key="o.value"
+          type="button"
+          class="rounded-full border px-3 py-1.5 text-sm transition-colors"
+          :class="statusFilter === o.value ? 'border-primary bg-primary text-white' : 'border-border bg-surface text-muted hover:border-primary hover:text-primary'"
+          @click="statusFilter = o.value"
+        >
+          {{ o.label }}
+        </button>
+      </div>
     </div>
 
     <!-- 表格 -->
@@ -165,7 +179,7 @@ onMounted(async () => {
             <tr
               v-for="c in list"
               :key="c.id"
-              :class="hasUnread(c.id) ? 'bg-accent/10' : ''"
+              :class="hasUnread(c.id) || c.status === 'transferred' ? 'bg-accent/10' : ''"
             >
               <td class="text-ink font-medium">{{ visitorLabel(c) }}</td>
               <td>

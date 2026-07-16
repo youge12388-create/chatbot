@@ -314,3 +314,20 @@ chatbot/
 - 网址识别与域名规范化测试：7/7 通过。
 - `git diff --check`：通过。
 - 本地浏览器已能打开登录页；因当前环境未配置 `DATABASE_URL`，无法登录进入数据页完成截图验收。
+## 2026-07-16 后台侧边栏线上资源核验
+- 源码已改为固定两列 CSS Grid：展开侧栏 304px、收起侧栏 86px，右侧使用 `minmax(0, 1fr)`，并限制页面整体高度与溢出滚动。
+- 本地 `npm run build:admin` 已通过，生成新资源 `index-DTKrHFMa.css`。
+- 线上 `https://canhuo.site/admin/index.html` 仍加载旧资源 `index-DqxtYjCA.css` / `index-F-Qpitj1.js`；`packages/server/public/admin` 是构建产物且被 `.gitignore` 排除，需要 Zeabur 重新构建发布后才会生效。
+
+## 2026-07-16 会话接管与企业微信通知问题核验
+- 后台会话当前把 `active`、`taken_over`、`transferred`、`closed` 直接暴露给客服，但列表缺少“待接管”任务队列、负责人、触发原因和下一步动作，新客服无法快速判断该做什么。
+- 会话详情页把“接管”和“回复”拆成两个弱按钮，没有明确提示接管后 AI 已暂停，也没有把接管、回复、结束组织成任务流。
+- 人工通知链路存在可靠性问题：`packages/server/src/routes/chat.ts` 以 `catch(() => {})` 静默吞掉通知失败；`notifyTransfer` 在 n8n 返回成功时直接 `return`，因此不会继续发送企业微信；`postJson` 只检查 HTTP 状态，不检查企业微信响应体的 `errcode`。
+- 当前人工通知仅在关键词路由命中时触发，AI 连续两次无法回答尚未形成可观测、可配置的转人工任务机制。
+## 2026-07-16 会话工作台状态流调整
+- 客户触发人工后会话状态改为 `transferred`（待人工），客服点击“接管并回复”后才进入 `taken_over`（人工处理中）；待人工状态下 AI 仍保持暂停。
+- 会话列表新增工作台引导和状态快捷筛选；详情页新增“客户已请求人工客服”提示，待人工时禁用回复框，避免新人绕过接管流程。
+- 后台人工回复接口会把 `transferred` 自动接管为 `taken_over`，保持旧客服操作兼容。
+## 2026-07-16 AI 无法回答自动转人工
+- `chatService` 会在会话 metadata 中记录 `aiNoAnswerCount`；AI 连续两次返回明确的无法回答/服务不可用文案后，自动转为 `transferred`，并复用企业微信转人工通知。
+- 一次正常回答或 FAQ 预设答案会把计数清零；无需数据库迁移。

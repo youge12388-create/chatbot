@@ -35,7 +35,7 @@ const leadLabels: Record<LeadStatus, string> = {
 const convLabels: Record<ConversationStatus, string> = {
   active: '进行中',
   taken_over: '人工接管中',
-  transferred: '已转接',
+  transferred: '待人工',
   closed: '已关闭',
 }
 
