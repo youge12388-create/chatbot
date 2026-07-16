@@ -10,7 +10,7 @@ import { pushToast } from '../components/toast-bus'
 import { useNotificationStore } from '../stores/notification'
 import { useSiteStore } from '../stores/site'
 import { hasSiteUrl, siteDisplayUrl, siteHref } from '../utils/site'
-import type { Conversation, PageResult, ConversationStatus, InterestLevel } from '../types'
+import type { Conversation, PageResult, InterestLevel } from '../types'
 
 const router = useRouter()
 const route = useRoute()
@@ -34,9 +34,23 @@ const total = ref(0)
 const totalPages = ref(1)
 const size = ref(20)
 
+function conversationTime(c: Conversation): number {
+  const value = c.lastMessageAt || c.updatedAt || c.createdAt
+  const timestamp = new Date(value).getTime()
+  return Number.isNaN(timestamp) ? 0 : timestamp
+}
+
+const sortedList = computed(() => [...list.value].sort(
+  (a, b) => conversationTime(b) - conversationTime(a),
+))
+
 // 筛选状态从 URL query 初始化，返回页面不丢失
 const page = ref(Number(route.query.page) || 1)
-const statusFilter = ref((route.query.status as 'all' | ConversationStatus) || 'all')
+type ConversationFilter = 'all' | 'pending' | 'processed'
+const requestedFilter = String(route.query.status || '')
+const statusFilter = ref<ConversationFilter>(
+  requestedFilter === 'pending' || requestedFilter === 'processed' ? requestedFilter : 'all',
+)
 
 const interestLabels: Record<InterestLevel, string> = {
   unknown: '未知',
@@ -47,21 +61,11 @@ const interestLabels: Record<InterestLevel, string> = {
   strong: '极高',
 }
 
-const statusOptions: { value: 'all' | ConversationStatus; label: string }[] = [
+const statusOptions: { value: ConversationFilter; label: string }[] = [
   { value: 'all', label: '全部状态' },
-  { value: 'active', label: '进行中' },
-  { value: 'taken_over', label: '人工接管中' },
-  { value: 'transferred', label: '待人工' },
-  { value: 'closed', label: '已关闭' },
+  { value: 'pending', label: '待处理' },
+  { value: 'processed', label: '已处理' },
 ]
-
-/** active 会话超过 2 小时无消息，视为超时 */
-const TIMEOUT_MS = 2 * 60 * 60 * 1000
-function isTimeout(c: Conversation): boolean {
-  if (c.status !== 'active') return false
-  const last = c.lastMessageAt ? new Date(c.lastMessageAt).getTime() : 0
-  return Date.now() - last > TIMEOUT_MS
-}
 
 /** 访客显示名：有线索显示姓名，无线索显示"访客 + 后6位大写" */
 function visitorLabel(c: Conversation): string {
@@ -127,6 +131,15 @@ onMounted(async () => {
   await siteStore.loadSites()
   await fetchList()
 })
+
+watch(
+  () => notification.latestMessages[notification.latestMessages.length - 1],
+  (message) => {
+    if (!message || message.siteId !== siteStore.selectedSiteId) return
+    const conversation = list.value.find((item) => item.id === message.conversationId)
+    if (conversation) conversation.lastMessageAt = message.createdAt
+  },
+)
 </script>
 
 <template>
@@ -177,7 +190,7 @@ onMounted(async () => {
           </template>
           <template v-else>
             <tr
-              v-for="c in list"
+              v-for="c in sortedList"
               :key="c.id"
               :class="hasUnread(c.id) || c.status === 'transferred' ? 'bg-accent/10' : ''"
             >
@@ -194,7 +207,7 @@ onMounted(async () => {
                   {{ siteDisplayUrl(c.site?.domain, c.siteId) }}
                 </a>
               </td>
-              <td><StatusBadge :status="c.status" type="conversation" :timeout="isTimeout(c)" /></td>
+              <td><StatusBadge :status="c.status" type="conversation" /></td>
               <td class="text-muted">{{ interestLabels[c.interestLevel] || c.interestLevel }}</td>
               <td class="text-muted tabular-nums">{{ c._count?.messages ?? '-' }}</td>
               <td class="text-muted tabular-nums">{{ c._count?.leads ?? '-' }}</td>

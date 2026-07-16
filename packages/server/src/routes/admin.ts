@@ -248,7 +248,13 @@ router.get('/conversations', requireAuth, wrap(async (req, res) => {
   const { status, siteId } = req.query
 
   const where: any = {}
-  if (status && status !== 'all') where.status = status
+  if (status === 'pending') {
+    where.status = { in: ['active', 'taken_over', 'transferred'] }
+  } else if (status === 'processed') {
+    where.status = 'closed'
+  } else if (status && status !== 'all') {
+    where.status = status
+  }
   if (siteId) where.siteId = siteId
 
   const [total, conversations] = await Promise.all([
@@ -260,7 +266,11 @@ router.get('/conversations', requireAuth, wrap(async (req, res) => {
         _count: { select: { messages: true, leads: true } },
         leads: { select: { name: true, phone: true }, take: 1 },
       },
-      orderBy: { lastMessageAt: 'desc' },
+      orderBy: [
+        { lastMessageAt: 'desc' },
+        { updatedAt: 'desc' },
+        { createdAt: 'desc' },
+      ],
       skip: (page - 1) * size,
       take: size,
     }),
@@ -363,6 +373,20 @@ router.post('/conversations/:id/release', requireAuth, wrap(async (req, res) => 
 // ========================
 // 站点管理
 // ========================
+
+/** POST /api/admin/conversations/:id/resolve - 手动标记会话已处理 */
+router.post('/conversations/:id/resolve', requireAuth, wrap(async (req, res) => {
+  const conversation = await prisma.conversation.findUnique({ where: { id: req.params.id }, select: { id: true } })
+  if (!conversation) {
+    res.status(404).json({ code: 1, message: '会话不存在' })
+    return
+  }
+  await prisma.conversation.update({
+    where: { id: req.params.id },
+    data: { status: 'closed', closedAt: new Date() },
+  })
+  res.json({ code: 0, message: '会话已标记为已处理' })
+}))
 
 /** GET /api/admin/sites */
 router.get('/sites', requireAuth, wrap(async (_req, res) => {
