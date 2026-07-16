@@ -5,8 +5,6 @@ import type { LeadStatus, ConversationStatus } from '../types'
 const props = defineProps<{
   status: LeadStatus | ConversationStatus
   type: 'lead' | 'conversation'
-  /** 会话超时标记：active 但长时间无消息时，前端传 true 显示"已超时" */
-  timeout?: boolean
 }>()
 
 const leadColors: Record<LeadStatus, string> = {
@@ -33,17 +31,13 @@ const leadLabels: Record<LeadStatus, string> = {
 }
 
 const convLabels: Record<ConversationStatus, string> = {
-  active: '进行中',
-  taken_over: '人工接管中',
-  transferred: '待人工',
-  closed: '已关闭',
+  active: '待处理',
+  taken_over: '待处理',
+  transferred: '待处理',
+  closed: '已处理',
 }
 
 const colorClass = computed(() => {
-  // 会话超时：active 但长时间无消息，覆盖显示
-  if (props.type === 'conversation' && props.timeout && props.status === 'active') {
-    return 'bg-warning/15 text-warning'
-  }
   if (props.type === 'lead') {
     return leadColors[props.status as LeadStatus] || 'bg-muted/15 text-muted'
   }
@@ -51,10 +45,6 @@ const colorClass = computed(() => {
 })
 
 const label = computed(() => {
-  // 会话超时覆盖文案
-  if (props.type === 'conversation' && props.timeout && props.status === 'active') {
-    return '已超时'
-  }
   if (props.type === 'lead') {
     return leadLabels[props.status as LeadStatus] || props.status
   }
