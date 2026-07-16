@@ -67,7 +67,11 @@ function closeSiteMenu(event: FocusEvent): void {
 }
 
 function goConversations(): void {
-  router.push('/conversations')
+  notification.markSiteRead(siteStore.selectedSiteId)
+  router.push({
+    path: '/conversations',
+    query: { status: undefined, page: undefined },
+  })
 }
 
 function onLogout(): void {

@@ -4,6 +4,7 @@ import {
   buildDifyRequestBody,
   getDifyInfoUrl,
   getFaqPool,
+  normalizeLang,
   getPublicSiteSettings,
   normalizeDifyApiUrl,
   parseDifySse,
@@ -120,6 +121,30 @@ test('当前站点有 FAQ 时不读取默认站点', async () => {
 
   assert.deepEqual(faqs, siteFaqs)
   assert.equal(defaultSiteQueried, false)
+})
+
+test('FAQ 按请求语言读取，并在缺少翻译时回退中文', async () => {
+  const requestedLanguages: string[] = []
+  const client = {
+    faq: {
+      findMany: async ({ where }: { where: { siteId: string; language: string } }) => {
+        requestedLanguages.push(`${where.siteId}:${where.language}`)
+        if (where.language === 'zh-CN') {
+          return [{ id: 'faq-zh', language: 'zh-CN', question: '中文问题', answer: '中文答案', priority: 1 }]
+        }
+        return []
+      },
+    },
+    site: {
+      findUnique: async () => ({ id: 'default-site' }),
+    },
+  } as unknown as Parameters<typeof getFaqPool>[2]
+
+  const faqs = await getFaqPool('custom-site', 'en', 10, client)
+
+  assert.equal(normalizeLang('pt-BR'), 'zh-CN')
+  assert.deepEqual(requestedLanguages, ['custom-site:en', 'custom-site:zh-CN'])
+  assert.equal(faqs[0].language, 'zh-CN')
 })
 
 test('AI 无法回答文案应触发计数', () => {

@@ -5,7 +5,7 @@
  */
 
 import { Router, Request, Response, NextFunction } from 'express'
-import { chatService } from '../services/chat'
+import { chatService, normalizeLang } from '../services/chat'
 import { leadService } from '../services/lead'
 import { publish, publishAdmin } from '../services/pubsub'
 
@@ -65,6 +65,7 @@ router.post('/message', wrap(async (req, res) => {
     return
   }
   const { conversationId, content, lang } = req.body
+  const requestLang = normalizeLang(lang)
 
   // 1. 保存用户消息
   const userMsg = await chatService.saveMessage(conversationId, 'user', content, 'user')
@@ -95,7 +96,7 @@ router.post('/message', wrap(async (req, res) => {
   }
 
   // 3. 优先匹配 FAQ 预设答案（用户点 FAQ 按钮时文本与 FAQ 问题一致，直接返回预设）
-  const faqAnswer = await chatService.findFaqAnswer(siteId, content)
+  const faqAnswer = await chatService.findFaqAnswer(siteId, content, requestLang)
   const category = chatService.classifyQuestion(content)
 
   let reply: string
@@ -109,24 +110,24 @@ router.post('/message', wrap(async (req, res) => {
     switch (category.type) {
       case 'faq':
         // FAQ 关键词匹配但无对应预设答案，降级走 Dify
-        reply = await chatService.askDify(conversationId, content, 'faq')
+        reply = await chatService.askDify(conversationId, content, 'faq', requestLang)
         source = 'ai'
         break
 
       case 'knowledge':
-        reply = await chatService.askDify(conversationId, content, 'knowledge')
+        reply = await chatService.askDify(conversationId, content, 'knowledge', requestLang)
         source = 'ai'
         needForm = await chatService.shouldShowForm(conversationId)
         break
 
       case 'personalized':
-        reply = await chatService.askDify(conversationId, content, 'personalized')
+        reply = await chatService.askDify(conversationId, content, 'personalized', requestLang)
         source = 'ai'
         needForm = true
         break
 
       case 'transfer':
-        reply = chatService.getTransferReply(lang || 'zh-CN')
+        reply = chatService.getTransferReply(requestLang)
         source = 'human'
         needForm = true
         await chatService.transferToHuman(conversationId)
@@ -135,7 +136,7 @@ router.post('/message', wrap(async (req, res) => {
         break
 
       default:
-        reply = await chatService.askDify(conversationId, content)
+        reply = await chatService.askDify(conversationId, content, undefined, requestLang)
         source = 'ai'
     }
   }
@@ -146,7 +147,7 @@ router.post('/message', wrap(async (req, res) => {
     source === 'ai' && chatService.isNoAnswerReply(reply),
   )
   if (source === 'ai' && noAnswerCount >= 2) {
-    reply = chatService.getTransferReply(lang || 'zh-CN')
+    reply = chatService.getTransferReply(requestLang)
     source = 'human'
     needForm = true
     await chatService.transferToHuman(conversationId)
@@ -171,6 +172,7 @@ router.post('/message', wrap(async (req, res) => {
     siteId,
     content,
     askedQuestions,
+    requestLang,
   )
 
   res.json({
@@ -217,12 +219,12 @@ router.get('/site', wrap(async (req, res) => {
 
 /** GET /api/chat/faqs?siteId=xxx - 获取站点预设问题 */
 router.get('/faqs', wrap(async (req, res) => {
-  const { siteId } = req.query
+  const { siteId, lang } = req.query
   if (!siteId) {
     res.status(400).json({ code: 1, message: '缺少必填参数: siteId' })
     return
   }
-  const faqs = await chatService.getFaqs(siteId as string)
+  const faqs = await chatService.getFaqs(siteId as string, normalizeLang(lang))
   res.json({ code: 0, data: faqs })
 }))
 
@@ -351,7 +353,7 @@ router.get('/stream', (req, res) => {
     'Connection': 'keep-alive',
     'X-Accel-Buffering': 'no', // 关闭 Nginx/网关缓冲
   })
-  res.write('\n')
+  res.write('\n\n')
 
   // 心跳保活（每 25 秒）
   const heartbeat = setInterval(() => {

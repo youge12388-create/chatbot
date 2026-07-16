@@ -4,7 +4,7 @@
 
 import { ChatApi, FaqItem, SiteSettings } from './api'
 import { renderForm } from './form'
-import { Lang, t } from './i18n'
+import { Lang, resolveList, resolveText, t } from './i18n'
 
 const CSS = `
 .chat-widget-container {
@@ -577,7 +577,7 @@ export function createWidget(config: WidgetConfig) {
         <div style="display:flex;align-items:center;">
           <div class="chat-widget-contact-btn" style="display:none;">
             <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
-            <span>${lang === 'en' ? 'Contact' : lang === 'ru' ? 'Связаться' : '联系顾问'}</span>
+            <span>${t(lang, 'contact.button')}</span>
           </div>
           <div class="chat-widget-close">
             <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
@@ -597,19 +597,19 @@ export function createWidget(config: WidgetConfig) {
       </div>
       <div class="chat-widget-contact-modal">
         <div class="chat-widget-contact-card">
-          <h4>${lang === 'en' ? 'Contact Consultant' : lang === 'ru' ? 'Связаться с консультантом' : '联系顾问'}</h4>
+          <h4>${t(lang, 'contact.title')}</h4>
           <div class="chat-widget-contact-options"></div>
-          <button class="chat-widget-contact-close">${lang === 'en' ? 'Close' : lang === 'ru' ? 'Закрыть' : '关闭'}</button>
+          <button class="chat-widget-contact-close">${t(lang, 'contact.close')}</button>
         </div>
       </div>
       <div class="chat-widget-retain-modal">
         <div class="chat-widget-retain-card">
-          <h4>${lang === 'en' ? 'Wait!' : lang === 'ru' ? 'Подождите!' : '等一下！'}</h4>
-          <p>${lang === 'en' ? 'Leave your phone, we will help you with a study plan.' : lang === 'ru' ? 'Оставьте телефон, поможем с планом обучения.' : '留个手机号，我们帮您看具体方案'}</p>
-          <input type="tel" placeholder="${lang === 'en' ? 'Your phone number' : lang === 'ru' ? 'Ваш номер телефона' : '您的手机号码'}" />
+          <h4>${t(lang, 'retain.title')}</h4>
+          <p>${t(lang, 'retain.description')}</p>
+          <input type="tel" placeholder="${t(lang, 'retain.phonePlaceholder')}" />
           <div class="chat-widget-retain-actions">
-            <button class="chat-widget-retain-skip">${lang === 'en' ? 'Still close' : lang === 'ru' ? 'Всё равно закрыть' : '仍要关闭'}</button>
-            <button class="chat-widget-retain-submit">${lang === 'en' ? 'Submit' : lang === 'ru' ? 'Отправить' : '提交'}</button>
+            <button class="chat-widget-retain-skip">${t(lang, 'retain.stillClose')}</button>
+            <button class="chat-widget-retain-submit">${t(lang, 'retain.submit')}</button>
           </div>
         </div>
       </div>
@@ -724,13 +724,13 @@ export function createWidget(config: WidgetConfig) {
       const btn = document.createElement('div')
       btn.className = 'chat-widget-contact-option'
       btn.style.cursor = 'pointer'
-      btn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M3 3h18v18H3V3zm2 2v14h14V5H5zm2 2h4v4H7V7zm6 0h4v4h-4V7zM7 13h4v4H7v-4zm6 0h4v4h-4v-4z"/></svg><span>${lang === 'en' ? 'WeChat QR' : lang === 'ru' ? 'WeChat QR' : '企微二维码'}</span>`
+      btn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M3 3h18v18H3V3zm2 2v14h14V5H5zm2 2h4v4H7V7zm6 0h4v4h-4V7zM7 13h4v4H7v-4zm6 0h4v4h-4v-4z"/></svg><span>${t(lang, 'contact.wechatQr')}</span>`
       btn.addEventListener('click', () => {
         contactOptions.innerHTML = ''
         const img = document.createElement('img')
         img.className = 'chat-widget-contact-qr'
         img.src = qr
-        img.alt = 'WeChat QR'
+        img.alt = t(lang, 'contact.wechatQr')
         contactOptions.appendChild(img)
       })
       contactOptions.appendChild(btn)
@@ -773,7 +773,7 @@ export function createWidget(config: WidgetConfig) {
         // 忽略，不影响关闭
       }
     }
-    addMessage({ role: 'assistant', content: lang === 'en' ? 'Got it, we will contact you soon.' : lang === 'ru' ? 'Понятно, скоро свяжемся.' : '收到，我们会尽快联系您。' }, true)
+    addMessage({ role: 'assistant', content: t(lang, 'retain.success') }, true)
   })
 
   // 仍要关闭
@@ -784,8 +784,8 @@ export function createWidget(config: WidgetConfig) {
 
   // 当前气泡文案列表
   function getBubbleMessages(): string[] {
-    const list = siteSettings?.bubbleMessages
-    if (Array.isArray(list) && list.length > 0) return list
+    const list = resolveList(siteSettings?.bubbleMessages, lang)
+    if (list.length > 0) return list
     return [t(lang, 'header.welcome')]
   }
 
@@ -1014,10 +1014,10 @@ export function createWidget(config: WidgetConfig) {
       updateContactButton()
     }
     // 显示欢迎消息
-    const welcome = settings?.welcomeMessage || t(lang, 'header.welcome')
+    const welcome = resolveText(settings?.welcomeMessage, lang, t(lang, 'header.welcome'))
     addMessage({ role: 'assistant', content: welcome }, true)
     // 显示引导语
-    const guide = settings?.guideMessage
+    const guide = resolveText(settings?.guideMessage, lang)
     if (guide) {
       setTimeout(() => addMessage({ role: 'assistant', content: guide }, true), 1500)
     }
