@@ -248,13 +248,7 @@ router.get('/conversations', requireAuth, wrap(async (req, res) => {
   const { status, siteId } = req.query
 
   const where: any = {}
-  if (status === 'pending') {
-    where.status = { in: ['active', 'taken_over', 'transferred'] }
-  } else if (status === 'processed') {
-    where.status = 'closed'
-  } else if (status && status !== 'all') {
-    where.status = status
-  }
+  if (status && status !== 'all') where.status = status
   if (siteId) where.siteId = siteId
 
   const [total, conversations] = await Promise.all([
