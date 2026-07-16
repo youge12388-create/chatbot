@@ -76,6 +76,41 @@ async function shouldShowForm(conversationId: string): Promise<boolean> {
 // ---- 会话管理 ----
 
 /** 默认站点配置（数据库未配置时兜底） */
+const NO_ANSWER_PATTERNS = [
+  'AI 服务尚未配置',
+  'AI 服务暂时不可用',
+  '暂时无法回答',
+  '无法回答这个问题',
+  '响应超时',
+  '抱歉，我不清楚',
+  '抱歉，无法',
+]
+
+export function isNoAnswerReply(reply: string): boolean {
+  const text = reply.trim()
+  return !text || NO_ANSWER_PATTERNS.some((pattern) => text.includes(pattern))
+}
+
+async function updateNoAnswerCount(conversationId: string, unanswered: boolean): Promise<number> {
+  const conversation = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+    select: { metadata: true },
+  })
+  if (!conversation) return 0
+
+  const metadata = (
+    conversation.metadata &&
+    typeof conversation.metadata === 'object' &&
+    !Array.isArray(conversation.metadata)
+  ) ? conversation.metadata as Record<string, unknown> : {}
+  const previous = typeof metadata.aiNoAnswerCount === 'number' ? metadata.aiNoAnswerCount : 0
+  const count = unanswered ? previous + 1 : 0
+  await prisma.conversation.update({
+    where: { id: conversationId },
+    data: { metadata: { ...metadata, aiNoAnswerCount: count } },
+  })
+  return count
+}
 const DEFAULT_SITE_SETTINGS = {
   welcomeMessage: '您好！我是留学顾问助手，可以帮您解答院校申请、专业选择、学费奖学金等问题。有什么可以帮您的？',
   guideMessage: '您可以直接输入问题，或点击下方常见问题快速咨询。',
@@ -499,7 +534,7 @@ function getTransferReply(lang: string): string {
 async function transferToHuman(conversationId: string) {
   await prisma.conversation.update({
     where: { id: conversationId },
-    data: { status: 'taken_over' },
+    data: { status: 'transferred' },
   })
 }
 
@@ -564,7 +599,7 @@ async function isTakenOver(conversationId: string): Promise<boolean> {
     where: { id: conversationId },
     select: { status: true },
   })
-  return conv?.status === 'taken_over'
+  return conv?.status === 'taken_over' || conv?.status === 'transferred'
 }
 
 /** 人工接管：把会话状态改为 taken_over */
@@ -629,6 +664,8 @@ export const chatService = {
   getConversationSiteId,
   getSiteSettings,
   isTakenOver,
+  isNoAnswerReply,
+  updateNoAnswerCount,
   takeOver,
   releaseTakeOver,
 }
