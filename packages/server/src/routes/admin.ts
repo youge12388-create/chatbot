@@ -257,8 +257,14 @@ router.get('/conversations', requireAuth, wrap(async (req, res) => {
       where,
       include: {
         site: { select: { name: true, domain: true } },
+        assignee: { select: { id: true, username: true, name: true, role: true } },
         _count: { select: { messages: true, leads: true } },
         leads: { select: { name: true, phone: true }, take: 1 },
+        messages: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { id: true, conversationId: true, role: true, content: true, source: true, createdAt: true },
+        },
       },
       orderBy: [
         { lastMessageAt: 'desc' },
@@ -289,6 +295,7 @@ router.get('/conversations/:id', requireAuth, wrap(async (req, res) => {
     include: {
       messages: { orderBy: { createdAt: 'asc' } },
       site: { select: { name: true, domain: true } },
+      assignee: { select: { id: true, username: true, name: true, role: true } },
       leads: true,
     },
   })
@@ -317,6 +324,9 @@ router.post('/conversations/:id/reply', requireAuth, wrap(async (req, res) => {
   // 自动接管（首次回复时）
   if (conv.status !== 'taken_over' && conv.status !== 'closed') {
     await chatService.takeOver(conversationId)
+    if (req.user?.id) {
+      await prisma.conversation.updateMany({ where: { id: conversationId, assigneeId: null }, data: { assigneeId: req.user.id } })
+    }
   }
 
   // 存消息
@@ -355,6 +365,9 @@ router.post('/conversations/:id/reply', requireAuth, wrap(async (req, res) => {
 /** POST /api/admin/conversations/:id/takeover - 人工接管 */
 router.post('/conversations/:id/takeover', requireAuth, wrap(async (req, res) => {
   await chatService.takeOver(req.params.id)
+  if (req.user?.id) {
+    await prisma.conversation.updateMany({ where: { id: req.params.id, assigneeId: null }, data: { assigneeId: req.user.id } })
+  }
   res.json({ code: 0, message: '已接管' })
 }))
 
@@ -380,6 +393,69 @@ router.post('/conversations/:id/resolve', requireAuth, wrap(async (req, res) => 
     data: { status: 'closed', closedAt: new Date() },
   })
   res.json({ code: 0, message: '会话已标记为已处理' })
+}))
+
+/** POST /api/admin/conversations/:id/reopen - 重新打开已处理会话 */
+router.post('/conversations/:id/reopen', requireAuth, requireAdmin, wrap(async (req, res) => {
+  const conversation = await prisma.conversation.findUnique({ where: { id: req.params.id }, select: { id: true } })
+  if (!conversation) {
+    res.status(404).json({ code: 1, message: '会话不存在' })
+    return
+  }
+  await prisma.conversation.update({
+    where: { id: req.params.id },
+    data: { status: 'active', closedAt: null },
+  })
+  res.json({ code: 0, message: '会话已重新打开' })
+}))
+
+/** GET /api/admin/conversation-assignees - 可分配的客服账号 */
+router.get('/conversation-assignees', requireAuth, wrap(async (_req, res) => {
+  const users = await prisma.adminUser.findMany({
+    where: { role: { in: ['admin', 'staff'] } },
+    select: { id: true, username: true, name: true, role: true },
+    orderBy: [{ name: 'asc' }, { username: 'asc' }],
+  })
+  res.json({ code: 0, data: users })
+}))
+
+/** PATCH /api/admin/conversations/:id/assignee - 管理员设置负责人 */
+router.patch('/conversations/:id/assignee', requireAuth, requireAdmin, wrap(async (req, res) => {
+  const { assigneeId } = req.body || {}
+  if (assigneeId !== null && typeof assigneeId !== 'string') {
+    res.status(400).json({ code: 1, message: '负责人参数无效' })
+    return
+  }
+  if (assigneeId) {
+    const user = await prisma.adminUser.findUnique({ where: { id: assigneeId }, select: { id: true } })
+    if (!user) {
+      res.status(404).json({ code: 1, message: '负责人不存在' })
+      return
+    }
+  }
+  const conversation = await prisma.conversation.update({
+    where: { id: req.params.id },
+    data: { assigneeId: assigneeId || null },
+    include: { assignee: { select: { id: true, username: true, name: true, role: true } } },
+  })
+  res.json({ code: 0, data: { assignee: conversation.assignee } })
+}))
+
+/** POST /api/admin/conversations/bulk-resolve - 管理员批量标记已处理 */
+router.post('/conversations/bulk-resolve', requireAuth, requireAdmin, wrap(async (req, res) => {
+  const rawIds: unknown[] = Array.isArray(req.body?.ids) ? req.body.ids : []
+  const ids = Array.from(new Set(
+    rawIds.filter((id): id is string => typeof id === 'string' && id.trim().length > 0),
+  ))
+  if (ids.length === 0 || ids.length > 100) {
+    res.status(400).json({ code: 1, message: '请选择 1-100 个会话' })
+    return
+  }
+  const result = await prisma.conversation.updateMany({
+    where: { id: { in: ids }, status: { not: 'closed' } },
+    data: { status: 'closed', closedAt: new Date() },
+  })
+  res.json({ code: 0, data: { count: result.count } })
 }))
 
 /** GET /api/admin/sites */
@@ -523,24 +599,25 @@ router.get('/faqs', requireAuth, wrap(async (req, res) => {
 
 /** POST /api/admin/faqs */
 router.post('/faqs', requireAuth, wrap(async (req, res) => {
-  const { siteId, question, answer, priority } = req.body
+  const { siteId, question, answer, priority, language } = req.body
   if (!siteId || !question || !answer) {
     res.status(400).json({ code: 1, message: '缺少必填字段: siteId, question, answer' })
     return
   }
   const faq = await prisma.faq.create({
-    data: { siteId, question, answer, priority: priority || 0 },
+    data: { siteId, question, answer, language: language || 'zh-CN', priority: priority || 0 },
   })
   res.json({ code: 0, data: faq })
 }))
 
 /** PATCH /api/admin/faqs/:id */
 router.patch('/faqs/:id', requireAuth, wrap(async (req, res) => {
-  const { question, answer, priority } = req.body
+  const { question, answer, priority, language } = req.body
   const data: any = {}
   if (question !== undefined) data.question = question
   if (answer !== undefined) data.answer = answer
   if (priority !== undefined) data.priority = priority
+  if (language !== undefined) data.language = language
 
   const faq = await prisma.faq.update({
     where: { id: req.params.id },

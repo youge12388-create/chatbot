@@ -6,7 +6,7 @@
  * - 必填字段前端校验
  */
 
-import { Lang, t } from './i18n'
+import { Lang, LocalizedList, resolveList, resolveText, t } from './i18n'
 import { FormConfig } from './api'
 
 /** 默认表单配置（站点未配置时兜底） */
@@ -25,7 +25,12 @@ const DEFAULT_FORM_CONFIG: FormConfig = {
 }
 
 /** 申请学历层次选项 */
-const APPLYING_LEVEL_OPTIONS = ['本科', '硕士', '博士', '预科', '语言班']
+const APPLYING_LEVEL_OPTIONS: LocalizedList = {
+  'zh-CN': ['本科', '硕士', '博士', '预科', '语言班'],
+  en: ['Bachelor', 'Master', 'PhD', 'Foundation', 'Language course'],
+  ko: ['학사', '석사', '박사', '파운데이션', '어학 과정'],
+  ru: ['Бакалавриат', 'Магистратура', 'Докторантура', 'Подготовительный курс', 'Языковой курс'],
+}
 
 /** 预设字段顺序与多语言 label。select 类型用 options 渲染下拉 */
 const PRESET_FIELDS: Array<{
@@ -33,18 +38,17 @@ const PRESET_FIELDS: Array<{
   labels: Record<Lang, string>
   placeholder: Record<Lang, string>
   type?: 'text' | 'tel' | 'email' | 'select'
-  options?: string[]
+  options?: string[] | LocalizedList
 }> = [
-  { key: 'name',          labels: { 'zh-CN': '姓名',       en: 'Name',           ru: 'Имя' },            placeholder: { 'zh-CN': '您的称呼',          en: 'Your name',            ru: 'Ваше имя' } },
-  { key: 'phone',         labels: { 'zh-CN': '手机号',     en: 'Phone',          ru: 'Телефон' },        placeholder: { 'zh-CN': '您的手机号码',      en: 'Your phone number',    ru: 'Ваш номер телефона' }, type: 'tel' },
-  { key: 'applyingLevel', labels: { 'zh-CN': '申请学历',   en: 'Applying Level', ru: 'Уровень' },        placeholder: { 'zh-CN': '请选择',            en: 'Please select',        ru: 'Выберите' },           type: 'select', options: APPLYING_LEVEL_OPTIONS },
-  { key: 'email',          labels: { 'zh-CN': '邮箱',       en: 'Email',          ru: 'Email' },          placeholder: { 'zh-CN': '您的邮箱',          en: 'Your email',           ru: 'Ваш email' },           type: 'email' },
-  { key: 'wechat',         labels: { 'zh-CN': '微信号',     en: 'WeChat',         ru: 'WeChat' },         placeholder: { 'zh-CN': '微信号',            en: 'WeChat ID',            ru: 'WeChat ID' } },
-  { key: 'education',      labels: { 'zh-CN': '学历',       en: 'Education',      ru: 'Образование' },   placeholder: { 'zh-CN': '如：本科、大专、高中', en: 'e.g. Bachelor',       ru: 'напр. Бакалавр' } },
-  { key: 'targetMajor',    labels: { 'zh-CN': '意向专业',   en: 'Intended Major', ru: 'Специальность' }, placeholder: { 'zh-CN': '您想申请的专业',    en: 'Intended major',       ru: 'Ваша специальность' } },
-  { key: 'budget',         labels: { 'zh-CN': '预算',       en: 'Budget',         ru: 'Бюджет' },         placeholder: { 'zh-CN': '如：30万/年',       en: 'e.g. 300k/year',       ru: 'напр. 300k/год' } },
+  { key: 'name', labels: { 'zh-CN': '姓名', en: 'Name', ko: '이름', ru: 'Имя' }, placeholder: { 'zh-CN': '您的称呼', en: 'Your name', ko: '이름을 입력하세요', ru: 'Ваше имя' } },
+  { key: 'phone', labels: { 'zh-CN': '手机号', en: 'Phone', ko: '전화번호', ru: 'Телефон' }, placeholder: { 'zh-CN': '您的手机号码', en: 'Your phone number', ko: '전화번호를 입력하세요', ru: 'Ваш номер телефона' }, type: 'tel' },
+  { key: 'applyingLevel', labels: { 'zh-CN': '申请学历', en: 'Applying level', ko: '지원 학력', ru: 'Уровень обучения' }, placeholder: { 'zh-CN': '请选择', en: 'Please select', ko: '선택해 주세요', ru: 'Выберите' }, type: 'select', options: APPLYING_LEVEL_OPTIONS },
+  { key: 'email', labels: { 'zh-CN': '邮箱', en: 'Email', ko: '이메일', ru: 'Email' }, placeholder: { 'zh-CN': '您的邮箱', en: 'Your email', ko: '이메일을 입력하세요', ru: 'Ваш email' }, type: 'email' },
+  { key: 'wechat', labels: { 'zh-CN': '微信号', en: 'WeChat', ko: 'WeChat', ru: 'WeChat' }, placeholder: { 'zh-CN': '微信号', en: 'WeChat ID', ko: 'WeChat ID', ru: 'WeChat ID' } },
+  { key: 'education', labels: { 'zh-CN': '学历', en: 'Education', ko: '학력', ru: 'Образование' }, placeholder: { 'zh-CN': '如：本科、大专、高中', en: 'e.g. Bachelor', ko: '예: 학사, 석사, 고등학교', ru: 'напр. Бакалавр' } },
+  { key: 'targetMajor', labels: { 'zh-CN': '意向专业', en: 'Intended major', ko: '희망 전공', ru: 'Специальность' }, placeholder: { 'zh-CN': '您想申请的专业', en: 'Your intended major', ko: '희망 전공을 입력하세요', ru: 'Ваша специальность' } },
+  { key: 'budget', labels: { 'zh-CN': '预算', en: 'Budget', ko: '예산', ru: 'Бюджет' }, placeholder: { 'zh-CN': '如：30万/年', en: 'e.g. 300k/year', ko: '예: 연간 300,000', ru: 'напр. 300k/год' } },
 ]
-
 /** 校验手机号（中国11位或国际格式） */
 function isValidPhone(phone: string): boolean {
   const trimmed = phone.trim()
@@ -81,23 +85,17 @@ function clearError(input: HTMLElement) {
 
 /** 必填项错误提示本地化 */
 function requiredMsg(lang: Lang): string {
-  if (lang === 'en') return 'This field is required'
-  if (lang === 'ru') return 'Поле обязательно для заполнения'
-  return '请填写完整信息'
+  return t(lang, 'form.required')
 }
 
 /** 手机号格式错误提示本地化 */
 function invalidPhoneMsg(lang: Lang): string {
-  if (lang === 'en') return 'Invalid phone format'
-  if (lang === 'ru') return 'Неверный формат телефона'
-  return '手机号格式不正确'
+  return t(lang, 'form.invalidPhone')
 }
 
 /** 邮箱格式错误提示本地化 */
 function invalidEmailMsg(lang: Lang): string {
-  if (lang === 'en') return 'Invalid email format'
-  if (lang === 'ru') return 'Неверный формат email'
-  return '邮箱格式不正确'
+  return t(lang, 'form.invalidEmail')
 }
 
 /** 兜底 formConfig：补全缺失预设字段，customFields 缺失则空数组 */
@@ -112,7 +110,7 @@ function normalizeFormConfig(fc?: FormConfig): FormConfig {
     }
   }
   const customFields = Array.isArray(fc.customFields)
-    ? fc.customFields.filter(f => f && typeof f.id === 'string' && typeof f.label === 'string')
+    ? fc.customFields.filter(f => f && typeof f.id === 'string' && (typeof f.label === 'string' || (f.label && typeof f.label === 'object')))
     : []
   return { presetFields, customFields }
 }
@@ -180,7 +178,7 @@ export function renderForm(
       placeholderOpt.disabled = true
       placeholderOpt.selected = true
       sel.appendChild(placeholderOpt)
-      for (const opt of preset.options || []) {
+      for (const opt of resolveList(preset.options, lang)) {
         const o = document.createElement('option')
         o.value = opt
         o.textContent = opt
@@ -213,7 +211,7 @@ export function renderForm(
 
   // 2. 渲染自定义字段（值提交到 extra，name 用字段 id）
   for (const custom of fc.customFields) {
-    const row = createRow(custom.label, custom.required)
+    const row = createRow(resolveText(custom.label, lang), custom.required)
     let input: HTMLElement
     if (custom.type === 'textarea') {
       const ta = document.createElement('textarea')
@@ -227,11 +225,11 @@ export function renderForm(
       sel.style.cssText = 'width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 14px; background: #fff;'
       const placeholderOpt = document.createElement('option')
       placeholderOpt.value = ''
-      placeholderOpt.textContent = lang === 'en' ? 'Please select' : lang === 'ru' ? 'Выберите' : '请选择'
+      placeholderOpt.textContent = t(lang, 'form.selectPlaceholder')
       placeholderOpt.disabled = true
       placeholderOpt.selected = true
       sel.appendChild(placeholderOpt)
-      for (const opt of custom.options || []) {
+      for (const opt of resolveList(custom.options, lang)) {
         const o = document.createElement('option')
         o.value = opt
         o.textContent = opt
@@ -242,6 +240,7 @@ export function renderForm(
       const inp = document.createElement('input')
       inp.type = custom.type === 'tel' ? 'tel' : (custom.type === 'email' ? 'email' : 'text')
       inp.name = custom.id
+      inp.placeholder = resolveText(custom.placeholder, lang)
       input = inp
     }
     row.appendChild(input)

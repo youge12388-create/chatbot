@@ -4,7 +4,7 @@ import Layout from '../components/Layout.vue'
 import EmptyState from '../components/EmptyState.vue'
 import { request } from '../api/client'
 import { pushToast } from '../components/toast-bus'
-import type { Site, SiteSettings, FormConfig, CustomFieldType } from '../types'
+import type { CustomField, Site, SiteSettings, FormConfig, CustomFieldType, LocalizedList, LocalizedText, SupportedLang } from '../types'
 import { useSiteStore } from '../stores/site'
 import { hasSiteUrl, siteDisplayUrl } from '../utils/site'
 
@@ -16,6 +16,59 @@ const saving = ref<Record<string, boolean>>({})
 const testing = ref<Record<string, boolean>>({})
 const testingWecom = ref<Record<string, boolean>>({})
 const drafts = ref<Record<string, { name: string; domain: string; settings: SiteSettings }>>({})
+const SUPPORTED_LANGS: Array<{ value: SupportedLang; label: string }> = [
+  { value: 'zh-CN', label: '中文' },
+  { value: 'en', label: 'English' },
+  { value: 'ko', label: '한국어' },
+  { value: 'ru', label: 'Русский' },
+]
+
+type LocalizedTextKey = 'welcomeMessage' | 'guideMessage'
+
+function getLocalizedText(siteId: string, key: LocalizedTextKey, lang: SupportedLang): string {
+  const settings = drafts.value[siteId]?.settings
+  const value = settings?.[key]
+  if (typeof value === 'string') return lang === 'zh-CN' ? value : ''
+  return value?.[lang] || ''
+}
+
+function setLocalizedText(siteId: string, key: LocalizedTextKey, lang: SupportedLang, value: string) {
+  const settings = drafts.value[siteId]?.settings
+  if (!settings) return
+  const current = settings[key]
+  const localized: LocalizedText = typeof current === 'string' ? { 'zh-CN': current } : { ...(current || {}) }
+  localized[lang] = value
+  settings[key] = localized
+}
+
+function getLocalizedMessages(siteId: string, lang: SupportedLang): string {
+  const value = drafts.value[siteId]?.settings.bubbleMessages
+  if (Array.isArray(value)) return lang === 'zh-CN' ? value.join('\n') : ''
+  return (value?.[lang] || []).join('\n')
+}
+
+function setLocalizedMessages(siteId: string, lang: SupportedLang, value: string) {
+  const settings = drafts.value[siteId]?.settings
+  if (!settings) return
+  const current = settings.bubbleMessages
+  const localized: LocalizedList = Array.isArray(current) ? { 'zh-CN': current } : { ...(current || {}) }
+  localized[lang] = value.split('\n').map(item => item.trim()).filter(Boolean)
+  settings.bubbleMessages = localized
+}
+
+function getCustomFieldOptions(field: CustomField): string {
+  if (Array.isArray(field.options)) return field.options.join(',')
+  return (field.options?.['zh-CN'] || []).join(',')
+}
+
+function setCustomFieldOptions(field: CustomField, value: string) {
+  const options = value.split(',').map(item => item.trim()).filter(Boolean)
+  if (Array.isArray(field.options)) {
+    field.options = options
+    return
+  }
+  field.options = { ...(field.options || {}), 'zh-CN': options }
+}
 const displayedSites = computed(() => list.value.filter(
   (site) => site.id === siteStore.selectedSiteId,
 ))
@@ -274,33 +327,41 @@ onMounted(fetchList)
                 />
               </div>
             </div>
-            <div>
-              <label class="text-sm text-muted block mb-1.5">欢迎语</label>
-              <textarea
-                v-model="getDraft(site.id)!.settings.welcomeMessage"
-                rows="2"
-                class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full resize-none"
-              ></textarea>
-            </div>
-            <div>
-              <label class="text-sm text-muted block mb-1.5">引导语</label>
-              <textarea
-                v-model="getDraft(site.id)!.settings.guideMessage"
-                rows="2"
-                class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full resize-none"
-              ></textarea>
-            </div>
-            <div class="col-span-2">
-              <label class="text-sm text-muted block mb-1.5">气泡文案（每行一条，轮播展示）</label>
-              <textarea
-                :value="(getDraft(site.id)!.settings.bubbleMessages || []).join('\n')"
-                @input="(e) => { getDraft(site.id)!.settings.bubbleMessages = (e.target as HTMLTextAreaElement).value.split('\n').map((s: string) => s.trim()).filter(Boolean) }"
-                rows="4"
-                placeholder="每行一条气泡文案，留空则使用默认"
-                class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full resize-none font-sans"
-              ></textarea>
+            <div class="col-span-2 grid grid-cols-2 gap-3">
+              <div v-for="language in SUPPORTED_LANGS" :key="`welcome-${language.value}`">
+                <label class="text-sm text-muted block mb-1.5">欢迎语 · {{ language.label }}</label>
+                <textarea
+                  :value="getLocalizedText(site.id, 'welcomeMessage', language.value)"
+                  rows="2"
+                  class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full resize-none"
+                  @input="setLocalizedText(site.id, 'welcomeMessage', language.value, ($event.target as HTMLTextAreaElement).value)"
+                ></textarea>
+              </div>
+              <div v-for="language in SUPPORTED_LANGS" :key="`guide-${language.value}`">
+                <label class="text-sm text-muted block mb-1.5">引导语 · {{ language.label }}</label>
+                <textarea
+                  :value="getLocalizedText(site.id, 'guideMessage', language.value)"
+                  rows="2"
+                  class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full resize-none"
+                  @input="setLocalizedText(site.id, 'guideMessage', language.value, ($event.target as HTMLTextAreaElement).value)"
+                ></textarea>
+              </div>
             </div>
             <div class="col-span-2">
+              <label class="text-sm text-muted block mb-1.5">气泡文案 · 每种语言每行一条</label>
+              <div class="grid grid-cols-2 gap-3">
+                <div v-for="language in SUPPORTED_LANGS" :key="`bubble-${language.value}`">
+                  <label class="text-xs text-muted block mb-1">{{ language.label }}</label>
+                  <textarea
+                    :value="getLocalizedMessages(site.id, language.value)"
+                    @input="setLocalizedMessages(site.id, language.value, ($event.target as HTMLTextAreaElement).value)"
+                    rows="4"
+                    placeholder="每行一条气泡文案"
+                    class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full resize-none font-sans"
+                  ></textarea>
+                </div>
+              </div>
+            </div>            <div class="col-span-2">
               <label class="text-sm text-muted block mb-1.5">企业微信群机器人 Webhook（人工接管通知）</label>
               <div class="flex gap-2">
                 <input
@@ -469,8 +530,8 @@ onMounted(fetchList)
                   <div v-if="field.type === 'select'" class="col-span-2">
                     <label class="text-xs text-muted block mb-1">选项（逗号分隔）</label>
                     <input
-                      :value="(field.options || []).join(',')"
-                      @input="(e) => { field.options = (e.target as HTMLInputElement).value.split(',').map((s: string) => s.trim()).filter(Boolean) }"
+                      :value="getCustomFieldOptions(field)"
+                      @input="(e) => setCustomFieldOptions(field, (e.target as HTMLInputElement).value)"
                       type="text"
                       placeholder="如：英国,美国,澳洲"
                       class="px-2.5 py-1.5 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full text-sm"

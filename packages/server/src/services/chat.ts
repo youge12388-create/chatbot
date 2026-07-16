@@ -76,6 +76,36 @@ async function shouldShowForm(conversationId: string): Promise<boolean> {
 // ---- 会话管理 ----
 
 /** 默认站点配置（数据库未配置时兜底） */
+const AI_FALLBACK_REPLIES: Record<SupportedLang, Record<'unconfigured' | 'unavailable' | 'noAnswer' | 'timeout', string>> = {
+  'zh-CN': {
+    unconfigured: '抱歉，AI 服务暂未配置，请联系管理员。',
+    unavailable: '抱歉，AI 服务暂时不可用，请稍后重试。',
+    noAnswer: '抱歉，我暂时无法回答这个问题，请稍后重试。',
+    timeout: '抱歉，AI 响应超时，请稍后重试。',
+  },
+  en: {
+    unconfigured: 'Sorry, the AI service is not configured yet. Please contact the administrator.',
+    unavailable: 'Sorry, the AI service is temporarily unavailable. Please try again later.',
+    noAnswer: 'Sorry, I cannot answer this question right now. Please try again later.',
+    timeout: 'Sorry, the AI response timed out. Please try again later.',
+  },
+  ko: {
+    unconfigured: '죄송합니다. AI 서비스가 아직 설정되지 않았습니다. 관리자에게 문의해 주세요.',
+    unavailable: '죄송합니다. AI 서비스를 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.',
+    noAnswer: '죄송합니다. 지금은 이 질문에 답변하기 어렵습니다. 잠시 후 다시 시도해 주세요.',
+    timeout: '죄송합니다. AI 응답 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.',
+  },
+  ru: {
+    unconfigured: 'Извините, сервис AI ещё не настроен. Обратитесь к администратору.',
+    unavailable: 'Извините, сервис AI временно недоступен. Попробуйте позже.',
+    noAnswer: 'Извините, сейчас я не могу ответить на этот вопрос. Попробуйте позже.',
+    timeout: 'Извините, время ожидания ответа AI истекло. Попробуйте позже.',
+  },
+}
+
+function getAiFallbackReply(lang: unknown, type: keyof typeof AI_FALLBACK_REPLIES['zh-CN']): string {
+  return AI_FALLBACK_REPLIES[normalizeLang(lang)][type]
+}
 const NO_ANSWER_PATTERNS = [
   'AI 服务尚未配置',
   'AI 服务暂时不可用',
@@ -111,24 +141,48 @@ async function updateNoAnswerCount(conversationId: string, unanswered: boolean):
   })
   return count
 }
+export type SupportedLang = 'zh-CN' | 'en' | 'ko' | 'ru'
+
+const SUPPORTED_LANGS: SupportedLang[] = ['zh-CN', 'en', 'ko', 'ru']
+
+export function normalizeLang(value: unknown, fallback: SupportedLang = 'zh-CN'): SupportedLang {
+  if (typeof value !== 'string') return fallback
+  if (SUPPORTED_LANGS.includes(value as SupportedLang)) return value as SupportedLang
+  const normalized = value.toLowerCase()
+  if (normalized.startsWith('zh')) return 'zh-CN'
+  if (normalized.startsWith('en')) return 'en'
+  if (normalized.startsWith('ko')) return 'ko'
+  if (normalized.startsWith('ru')) return 'ru'
+  return fallback
+}
+
 const DEFAULT_SITE_SETTINGS = {
-  welcomeMessage: '您好！我是留学顾问助手，可以帮您解答院校申请、专业选择、学费奖学金等问题。有什么可以帮您的？',
-  guideMessage: '您可以直接输入问题，或点击下方常见问题快速咨询。',
-  bubbleMessages: [
-    '有问题？点击这里随时咨询 👋',
-    '免费咨询院校申请、专业选择',
-    '点击聊聊，专属顾问为您服务',
-  ],
+  welcomeMessage: {
+    'zh-CN': '您好！我是留学顾问助手，可以帮您解答院校申请、专业选择、学费奖学金等问题。有什么可以帮您的？',
+    en: 'Hello! I can help with school applications, majors, tuition and scholarships. How can I help?',
+    ko: '안녕하세요! 학교 지원, 전공 선택, 학비와 장학금에 대해 도와드리겠습니다. 무엇을 도와드릴까요?',
+    ru: 'Здравствуйте! Я помогу с поступлением, выбором специальности, оплатой обучения и стипендиями. Чем могу помочь?',
+  },
+  guideMessage: {
+    'zh-CN': '您可以直接输入问题，或点击下方常见问题快速咨询。',
+    en: 'Type your question or choose a common question below.',
+    ko: '질문을 입력하거나 아래의 자주 묻는 질문을 선택해 주세요.',
+    ru: 'Введите вопрос или выберите один из частых вопросов ниже.',
+  },
+  bubbleMessages: {
+    'zh-CN': ['有问题？点击这里随时咨询 👋', '免费咨询院校申请、专业选择', '点击聊聊，专属顾问为您服务'],
+    en: ['Have a question? Ask us anytime 👋', 'Free advice on applications and majors', 'Chat with a dedicated consultant'],
+    ko: ['궁금한 점이 있나요? 언제든 문의해 주세요 👋', '학교 지원과 전공 선택을 무료로 상담해 드립니다', '전문 상담원과 상담해 보세요'],
+    ru: ['Есть вопросы? Напишите нам 👋', 'Бесплатная консультация по поступлению и специальностям', 'Получите консультацию специалиста'],
+  },
   primaryColor: '#165DFF',
-  // 联系顾问配置：未配置则不显示联系顾问按钮
-  contactWhatsApp: '',    // 国际格式号码，如 8613800138000，前端拼 wa.me/链接
-  contactWecomQrUrl: '',  // 企微二维码图片 URL
-  // 表单配置：预设字段开关 + 自定义字段
+  contactWhatsApp: '',
+  contactWecomQrUrl: '',
   formConfig: {
     presetFields: {
       name:          { enabled: true,  required: true },
       phone:         { enabled: true,  required: true },
-      applyingLevel: { enabled: true,  required: false }, // 申请学历层次：本科/硕士/博士/预科/语言班
+      applyingLevel: { enabled: true,  required: false },
       email:         { enabled: false, required: false },
       wechat:        { enabled: false, required: false },
       education:     { enabled: false, required: false },
@@ -137,41 +191,86 @@ const DEFAULT_SITE_SETTINGS = {
     },
     customFields: [] as Array<{
       id: string
-      label: string
+      label: string | Record<string, string>
+      placeholder?: string | Record<string, string>
       type: 'text' | 'tel' | 'email' | 'select' | 'textarea'
-      options?: string[]
+      options?: string[] | Record<string, string[]>
       required: boolean
     }>,
   },
 }
 
-/** 默认 FAQ（站点无 FAQ 时兜底，不入库，保证引导入口始终存在） */
-const DEFAULT_FAQS = [
-  { id: 'default-1', question: '学费大概多少？', answer: '请咨询具体项目，不同课程费用不同。', priority: 1 },
-  { id: 'default-2', question: '申请条件是什么？', answer: '一般需要学历证明和语言成绩，具体视项目而定。', priority: 2 },
-  { id: 'default-3', question: '有奖学金吗？', answer: '部分项目提供奖学金，欢迎留下联系方式获取详情。', priority: 3 },
+const DEFAULT_FAQS: Array<{ id: string; language: SupportedLang; question: string; answer: string; priority: number }> = [
+  { id: 'default-1', language: 'zh-CN', question: '学费大概多少？', answer: '请咨询具体项目，不同课程费用不同。', priority: 1 },
+  { id: 'default-2', language: 'zh-CN', question: '申请条件是什么？', answer: '一般需要学历证明和语言成绩，具体视项目而定。', priority: 2 },
+  { id: 'default-3', language: 'zh-CN', question: '有奖学金吗？', answer: '部分项目提供奖学金，欢迎留下联系方式获取详情。', priority: 3 },
 ]
 
+const DEFAULT_FAQ_TRANSLATIONS: Record<SupportedLang, Array<{ id: string; language: SupportedLang; question: string; answer: string; priority: number }>> = {
+  'zh-CN': DEFAULT_FAQS,
+  en: [
+    { id: 'default-1', language: 'en', question: 'How much is the tuition?', answer: 'Please ask about the specific programme, as fees vary by course.', priority: 1 },
+    { id: 'default-2', language: 'en', question: 'What are the admission requirements?', answer: 'Academic documents and language scores are usually required. Requirements vary by programme.', priority: 2 },
+    { id: 'default-3', language: 'en', question: 'Are scholarships available?', answer: 'Some programmes offer scholarships. Leave your contact details for more information.', priority: 3 },
+  ],
+  ko: [
+    { id: 'default-1', language: 'ko', question: '학비는 얼마인가요?', answer: '과정에 따라 학비가 다르므로 희망 과정을 알려 주세요.', priority: 1 },
+    { id: 'default-2', language: 'ko', question: '지원 조건은 무엇인가요?', answer: '일반적으로 학력 증명서와 어학 성적이 필요하며 과정에 따라 달라집니다.', priority: 2 },
+    { id: 'default-3', language: 'ko', question: '장학금이 있나요?', answer: '일부 과정은 장학금을 제공합니다. 자세한 내용은 연락처를 남겨 주세요.', priority: 3 },
+  ],
+  ru: [
+    { id: 'default-1', language: 'ru', question: 'Сколько стоит обучение?', answer: 'Стоимость зависит от конкретной программы. Уточните интересующий курс.', priority: 1 },
+    { id: 'default-2', language: 'ru', question: 'Каковы требования для поступления?', answer: 'Обычно нужны документы об образовании и языковой сертификат. Требования зависят от программы.', priority: 2 },
+    { id: 'default-3', language: 'ru', question: 'Есть ли стипендии?', answer: 'Некоторые программы предлагают стипендии. Оставьте контакты, чтобы узнать подробности.', priority: 3 },
+  ],
+}
 const DEFAULT_SITE_API_KEY = 'demo-api-key-001'
 
 type FaqLookupClient = Pick<typeof prisma, 'faq' | 'site'>
 
+function isFaqLookupClient(value: unknown): value is FaqLookupClient {
+  return !!value && typeof value === 'object' && 'faq' in value && 'site' in value
+}
+
 /**
- * FAQ 读取顺序：当前站点配置 -> 默认站点配置 -> 代码兜底。
- * 空站点也能复用后台可编辑的默认 FAQ，同时保留最终可用性兜底。
+ * FAQ 读取顺序：当前站点语言 -> 当前站点中文 -> 默认站点语言 -> 默认站点中文 -> 代码兜底。
+ * 第二、三个参数兼容旧调用：getFaqPool(siteId, take, client)。
  */
+export function getFaqPool(siteId: string, lang: SupportedLang, take?: number, client?: FaqLookupClient): Promise<any[]>
+export function getFaqPool(siteId: string, take?: number, client?: FaqLookupClient): Promise<any[]>
 export async function getFaqPool(
   siteId: string,
-  take?: number,
-  client: FaqLookupClient = prisma,
+  langOrTake: SupportedLang | number = 'zh-CN',
+  takeOrClient?: number | FaqLookupClient,
+  maybeClient?: FaqLookupClient,
 ) {
-  const findBySiteId = (targetSiteId: string) => client.faq.findMany({
-    where: { siteId: targetSiteId },
+  let lang: SupportedLang = 'zh-CN'
+  let take: number | undefined
+  let client: FaqLookupClient = prisma
+
+  if (typeof langOrTake === 'number') {
+    take = langOrTake
+    if (isFaqLookupClient(takeOrClient)) client = takeOrClient
+  } else {
+    lang = normalizeLang(langOrTake)
+    if (typeof takeOrClient === 'number') take = takeOrClient
+    if (isFaqLookupClient(takeOrClient)) client = takeOrClient
+    if (isFaqLookupClient(maybeClient)) client = maybeClient
+  }
+
+  const findByLanguage = async (targetSiteId: string, targetLang: SupportedLang) => client.faq.findMany({
+    where: { siteId: targetSiteId, language: targetLang },
     orderBy: { priority: 'asc' },
     ...(take === undefined ? {} : { take }),
   })
 
-  const siteFaqs = await findBySiteId(siteId)
+  const findWithFallback = async (targetSiteId: string) => {
+    const localized = await findByLanguage(targetSiteId, lang)
+    if (localized.length > 0 || lang === 'zh-CN') return localized
+    return findByLanguage(targetSiteId, 'zh-CN')
+  }
+
+  const siteFaqs = await findWithFallback(siteId)
   if (siteFaqs.length > 0) return siteFaqs
 
   const defaultSite = await client.site.findUnique({
@@ -179,13 +278,12 @@ export async function getFaqPool(
     select: { id: true },
   })
   if (defaultSite && defaultSite.id !== siteId) {
-    const defaultSiteFaqs = await findBySiteId(defaultSite.id)
+    const defaultSiteFaqs = await findWithFallback(defaultSite.id)
     if (defaultSiteFaqs.length > 0) return defaultSiteFaqs
   }
 
-  return take === undefined ? DEFAULT_FAQS : DEFAULT_FAQS.slice(0, take)
+  return take === undefined ? DEFAULT_FAQ_TRANSLATIONS[lang] : DEFAULT_FAQ_TRANSLATIONS[lang].slice(0, take)
 }
-
 async function createSession(
   siteId: string,
   visitorId: string,
@@ -210,49 +308,67 @@ async function createSession(
   })
   return { ...session, siteSettings: settings }
 }
+function isLocalizedObject(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+function cleanLocalizedLists(value: Record<string, unknown>): Record<string, string[]> {
+  const result: Record<string, string[]> = {}
+  for (const lang of SUPPORTED_LANGS) {
+    const list = value[lang]
+    if (Array.isArray(list)) {
+      result[lang] = list.filter(item => typeof item === 'string' && item.trim()).map(item => item.trim())
+    }
+  }
+  return result
+}
+
 function mergeSettings(raw: any): Record<string, any> {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ...DEFAULT_SITE_SETTINGS }
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return JSON.parse(JSON.stringify(DEFAULT_SITE_SETTINGS))
   const merged = { ...DEFAULT_SITE_SETTINGS, ...raw }
-  // 兼容旧版单个 bubbleMessage 字符串：转成数组
+
+  // 兼容旧版单个 bubbleMessage 字符串：转成旧数组格式。
   if (
-    (!Array.isArray(merged.bubbleMessages) || merged.bubbleMessages.length === 0) &&
-    typeof merged.bubbleMessage === 'string' && merged.bubbleMessage.trim()
+    merged.bubbleMessages === undefined &&
+    typeof merged.bubbleMessage === 'string' &&
+    merged.bubbleMessage.trim()
   ) {
     merged.bubbleMessages = [merged.bubbleMessage.trim()]
   }
-  if (!Array.isArray(merged.bubbleMessages) || merged.bubbleMessages.length === 0) {
-    merged.bubbleMessages = [...DEFAULT_SITE_SETTINGS.bubbleMessages]
+  if (Array.isArray(merged.bubbleMessages)) {
+    merged.bubbleMessages = merged.bubbleMessages
+      .filter((item: unknown) => typeof item === 'string' && item.trim())
+      .map((item: string) => item.trim())
+  } else if (isLocalizedObject(merged.bubbleMessages)) {
+    merged.bubbleMessages = cleanLocalizedLists(merged.bubbleMessages)
+  } else {
+    merged.bubbleMessages = JSON.parse(JSON.stringify(DEFAULT_SITE_SETTINGS.bubbleMessages))
   }
-  // 清理空字符串项
-  merged.bubbleMessages = merged.bubbleMessages
-    .map((s: any) => (typeof s === 'string' ? s.trim() : ''))
-    .filter(Boolean)
-  if (merged.bubbleMessages.length === 0) {
-    merged.bubbleMessages = [...DEFAULT_SITE_SETTINGS.bubbleMessages]
+  if (Array.isArray(merged.bubbleMessages) && merged.bubbleMessages.length === 0) {
+    merged.bubbleMessages = JSON.parse(JSON.stringify(DEFAULT_SITE_SETTINGS.bubbleMessages))
   }
-  // 移除已废弃的旧字段，避免回写时混淆
+  if (isLocalizedObject(merged.bubbleMessages) && Object.keys(merged.bubbleMessages).length === 0) {
+    merged.bubbleMessages = JSON.parse(JSON.stringify(DEFAULT_SITE_SETTINGS.bubbleMessages))
+  }
   delete merged.bubbleMessage
-  // 兜底 formConfig
-  if (!merged.formConfig || typeof merged.formConfig !== 'object') {
+
+  // 兜底 formConfig，并保留站点已经配置的自定义字段。
+  if (!merged.formConfig || typeof merged.formConfig !== 'object' || Array.isArray(merged.formConfig)) {
     merged.formConfig = JSON.parse(JSON.stringify(DEFAULT_SITE_SETTINGS.formConfig))
   } else {
     const fc = merged.formConfig
-    if (!fc.presetFields || typeof fc.presetFields !== 'object') {
+    if (!fc.presetFields || typeof fc.presetFields !== 'object' || Array.isArray(fc.presetFields)) {
       fc.presetFields = JSON.parse(JSON.stringify(DEFAULT_SITE_SETTINGS.formConfig.presetFields))
     } else {
-      // 补全缺失的预设字段
       const defaults = DEFAULT_SITE_SETTINGS.formConfig.presetFields as Record<string, any>
       for (const key of Object.keys(defaults)) {
-        if (!fc.presetFields[key]) {
-          fc.presetFields[key] = { ...defaults[key] }
-        }
+        if (!fc.presetFields[key]) fc.presetFields[key] = { ...defaults[key] }
       }
     }
     if (!Array.isArray(fc.customFields)) fc.customFields = []
   }
   return merged
 }
-
 /** 公开给 Widget 的配置白名单，永不返回服务端密钥和通知 Webhook。 */
 export function getPublicSiteSettings(raw: any): Record<string, any> {
   const settings = mergeSettings(raw)
@@ -415,7 +531,7 @@ async function getRecentHistory(conversationId: string, limit = 6): Promise<stri
     .join('\n')
 }
 
-async function askDify(conversationId: string, query: string, questionType?: string): Promise<string> {
+async function askDify(conversationId: string, query: string, questionType?: string, lang: SupportedLang = 'zh-CN'): Promise<string> {
   const conversation = await prisma.conversation.findUnique({
     where: { id: conversationId },
     select: { metadata: true, siteId: true },
@@ -446,13 +562,13 @@ async function askDify(conversationId: string, query: string, questionType?: str
 
   if (!url || !key) {
     console.warn('[chat-api] Dify 未配置，返回兜底回复')
-    return '抱歉，AI 服务暂未配置，请联系管理员。'
+    return getAiFallbackReply(lang, 'unconfigured')
   }
   try {
     url = normalizeDifyApiUrl(url)
   } catch {
     console.error('[chat-api] Dify API 地址无效，请填写 API 域名或 /v1/chat-messages 接口地址')
-    return '抱歉，AI 服务暂时不可用，请稍后重试。'
+    return getAiFallbackReply(lang, 'unavailable')
   }
   const metadata = (
     conversation?.metadata &&
@@ -498,7 +614,7 @@ async function askDify(conversationId: string, query: string, questionType?: str
 
     if (!response.ok) {
       console.error(`[chat-api] Dify 返回 ${response.status}: ${response.statusText}`, errorBody)
-      return '抱歉，AI 服务暂时不可用，请稍后重试。'
+      return getAiFallbackReply(lang, 'unavailable')
     }
 
     const stream = await readDifyStream(response)
@@ -510,17 +626,17 @@ async function askDify(conversationId: string, query: string, questionType?: str
         },
       })
     }
-    let answer = stream.answer || '抱歉，我暂时无法回答这个问题，请稍后重试。'
+    let answer = stream.answer || getAiFallbackReply(lang, 'noAnswer')
     // 过滤推理模型的 <think>...</think> 标签
     answer = answer.replace(/<think>[\s\S]*?<\/think>/gi, '').trim()
     return answer
   } catch (err: any) {
     if (err.name === 'AbortError') {
       console.error('[chat-api] Dify 请求超时')
-      return '抱歉，AI 响应超时，请稍后重试。'
+      return getAiFallbackReply(lang, 'timeout')
     }
     console.error('[chat-api] Dify 请求失败:', err.message)
-    return '抱歉，AI 服务暂时不可用，请稍后重试。'
+    return getAiFallbackReply(lang, 'unavailable')
   } finally {
     clearTimeout(timer)
   }
@@ -531,7 +647,7 @@ async function askDify(conversationId: string, query: string, questionType?: str
 const TRANSFER_REPLIES: Record<string, string> = {
   'zh-CN': '已将您的需求转给专业顾问，稍后会联系您。',
   'en': 'Your request has been forwarded to a consultant. We will contact you shortly.',
-  'ru': 'Ваш запрос передан консультанту. Мы свяжемся с вами в ближайшее время.',
+    'ko': '요청을 전문 상담원에게 전달했습니다. 곧 연락드리겠습니다.',
 }
 
 function getTransferReply(lang: string): string {
@@ -547,8 +663,8 @@ async function transferToHuman(conversationId: string) {
 
 // ---- 预设问题 ----
 
-async function getFaqs(siteId: string) {
-  return getFaqPool(siteId, 10)
+async function getFaqs(siteId: string, lang: SupportedLang = 'zh-CN') {
+  return getFaqPool(siteId, lang, 10)
 }
 
 /**
@@ -561,8 +677,9 @@ async function getSuggestedQuestions(
   siteId: string,
   userContent?: string,
   excludeQuestions: string[] = [],
+  lang: SupportedLang = 'zh-CN',
 ): Promise<string[]> {
-  const pool = await getFaqPool(siteId, 20)
+  const pool = await getFaqPool(siteId, lang, 20)
 
   const excludeSet = new Set(excludeQuestions.map(q => q.trim()))
   const available = pool.filter(f => !excludeSet.has(f.question.trim()))
@@ -637,8 +754,8 @@ async function findSiteByApiKey(apiKey: string) {
 }
 
 /** 根据用户消息匹配 FAQ 预设答案，无匹配返回 null */
-async function findFaqAnswer(siteId: string, content: string): Promise<string | null> {
-  const pool = await getFaqPool(siteId)
+async function findFaqAnswer(siteId: string, content: string, lang: SupportedLang = 'zh-CN'): Promise<string | null> {
+  const pool = await getFaqPool(siteId, lang)
 
   for (const faq of pool) {
     // 精确匹配优先

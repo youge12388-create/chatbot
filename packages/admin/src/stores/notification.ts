@@ -88,6 +88,11 @@ export const useNotificationStore = defineStore('notification', () => {
     )
   }
 
+  function markSiteRead(siteId: string): void {
+    latestMessages.value = latestMessages.value.filter(
+      (message) => message.siteId !== siteId,
+    )
+  }
   return {
     unreadCount,
     latestMessages,
@@ -96,5 +101,6 @@ export const useNotificationStore = defineStore('notification', () => {
     connect,
     disconnect,
     markConversationRead,
+    markSiteRead,
   }
 })
