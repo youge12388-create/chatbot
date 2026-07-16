@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, nextTick, watch } from 'vue'
+import { computed, ref, onMounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Layout from '../components/Layout.vue'
 import StatusBadge from '../components/StatusBadge.vue'
@@ -22,6 +22,9 @@ const replyText = ref('')
 
 const notification = useNotificationStore()
 const siteStore = useSiteStore()
+
+const waitingForHuman = computed(() => conv.value?.status === 'transferred')
+const humanHandling = computed(() => conv.value?.status === 'taken_over')
 
 const interestLabels: Record<InterestLevel, string> = {
   unknown: '未知',
@@ -100,7 +103,7 @@ async function sendReply() {
     await nextTick()
     scrollToBottom()
     // 首次回复会自动接管，刷新状态
-    if (conv.value && conv.value.status === 'active') {
+    if (conv.value && conv.value.status !== 'closed') {
       conv.value.status = 'taken_over' as ConversationStatus
     }
   } catch (e) {
@@ -158,31 +161,40 @@ onMounted(async () => {
       <!-- 顶部信息卡 -->
       <div class="flex items-center gap-4 mb-4">
         <button class="text-sm text-muted hover:text-ink" @click="back">← 返回会话列表</button>
-        <div class="flex-1"></div>
+        <div class="flex-1">
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-primary">客户会话</p>
+          <h2 class="mt-1 text-xl font-semibold text-ink">跟进客户问题</h2>
+        </div>
         <template v-if="conv">
           <StatusBadge :status="conv.status" type="conversation" />
           <button
-            v-if="conv.status !== 'taken_over' && conv.status !== 'closed'"
+            v-if="waitingForHuman"
             :disabled="acting"
-            class="px-3 py-1.5 rounded border border-primary text-primary hover:bg-primary/5 disabled:opacity-50 text-sm"
+            class="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-hover disabled:opacity-50"
             @click="takeOver"
           >
-            接管
+            {{ acting ? '处理中...' : '接管并回复' }}
           </button>
           <button
-            v-else-if="conv.status === 'taken_over'"
+            v-else-if="humanHandling"
             :disabled="acting"
-            class="px-3 py-1.5 rounded border border-border text-muted hover:text-danger hover:border-danger/50 disabled:opacity-50 text-sm"
+            class="rounded-lg border border-border px-3 py-2 text-sm text-muted hover:border-danger hover:text-danger disabled:opacity-50"
             @click="release"
           >
-            释放
+            释放给 AI
           </button>
         </template>
       </div>
-
       <div v-if="loading" class="text-muted py-16 text-center">加载中...</div>
 
       <template v-else-if="conv">
+        <div
+          v-if="waitingForHuman"
+          class="mb-4 rounded-xl border border-accent/30 bg-accent/10 px-4 py-3"
+        >
+          <div class="text-sm font-semibold text-ink">客户已请求人工客服</div>
+          <p class="mt-1 text-xs text-muted">接管后 AI 会暂停，客户只会收到你的人工回复。点击右上角“接管并回复”即可开始处理。</p>
+        </div>
         <!-- 会话信息 -->
         <div class="bg-bg rounded-lg border border-border p-4 mb-4 grid grid-cols-4 gap-4 text-sm">
           <div><span class="text-muted">访客 ID：</span><span class="font-mono text-xs">{{ conv.visitorId }}</span></div>
@@ -238,13 +250,13 @@ onMounted(async () => {
           <textarea
             v-model="replyText"
             rows="2"
-            :disabled="sending || conv.status === 'closed'"
+            :disabled="sending || conv.status === 'closed' || conv.status === 'transferred'"
             class="flex-1 px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none resize-none"
-            :placeholder="conv.status === 'closed' ? '会话已关闭' : '输入回复内容，Enter 发送，Shift+Enter 换行'"
+            :placeholder="conv.status === 'closed' ? '会话已关闭' : conv.status === 'transferred' ? '请先点击“接管并回复”' : '输入回复内容，Enter 发送，Shift+Enter 换行'"
             @keydown.enter.exact.prevent="sendReply"
           ></textarea>
           <button
-            :disabled="sending || !replyText.trim() || conv.status === 'closed'"
+            :disabled="sending || !replyText.trim() || conv.status === 'closed' || conv.status === 'transferred'"
             class="px-5 rounded bg-primary text-white font-medium hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
             @click="sendReply"
           >
