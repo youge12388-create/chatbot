@@ -5,6 +5,8 @@ import type { LeadStatus, ConversationStatus } from '../types'
 const props = defineProps<{
   status: LeadStatus | ConversationStatus
   type: 'lead' | 'conversation'
+  /** active 长时间无消息时，仍显示为待处理 */
+  timeout?: boolean
 }>()
 
 const leadColors: Record<LeadStatus, string> = {
@@ -38,6 +40,9 @@ const convLabels: Record<ConversationStatus, string> = {
 }
 
 const colorClass = computed(() => {
+  if (props.type === 'conversation' && props.timeout && props.status === 'active') {
+    return 'bg-warning/15 text-warning'
+  }
   if (props.type === 'lead') {
     return leadColors[props.status as LeadStatus] || 'bg-muted/15 text-muted'
   }
@@ -45,6 +50,9 @@ const colorClass = computed(() => {
 })
 
 const label = computed(() => {
+  if (props.type === 'conversation' && props.timeout && props.status === 'active') {
+    return '待处理'
+  }
   if (props.type === 'lead') {
     return leadLabels[props.status as LeadStatus] || props.status
   }
