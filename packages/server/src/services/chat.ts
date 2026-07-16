@@ -285,8 +285,15 @@ async function saveMessage(
     data: { conversationId, role, content, source },
   })
   // 同步更新会话最后消息时间,供后台列表排序
-  await prisma.conversation.update({
-    where: { id: conversationId },
+  // 并发消息写入时，只允许更新为更晚的消息时间，避免旧请求覆盖新时间。
+  await prisma.conversation.updateMany({
+    where: {
+      id: conversationId,
+      OR: [
+        { lastMessageAt: null },
+        { lastMessageAt: { lt: msg.createdAt } },
+      ],
+    },
     data: { lastMessageAt: msg.createdAt },
   })
   return msg
