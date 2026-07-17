@@ -372,3 +372,14 @@ chatbot/
 - `npm run build -w packages/widget`：通过。
 - `npm run build -w packages/admin`：通过。
 - `git diff --check`：通过。
+
+## 2026-07-17 后台新增站点
+- 新增 `POST /api/admin/sites`，仅管理员可创建站点；服务端校验名称和域名，并生成随机 Site API Key。
+- 后台站点配置页新增“新增站点”表单；创建成功后自动切换到新站点，并展示可复制的 Site ID/API Key。
+- 新网站使用对应 `data-site-id` 和 `data-site-key` 后，会自动归档到该站点；不会根据域名隐式创建站点。
+
+### 最近验证
+- `npm run build -w packages/server`：通过。
+- `npm test -w packages/server`：19/19 通过。
+- `npm run build -w packages/admin`：通过。
+- `git diff --check`：通过。

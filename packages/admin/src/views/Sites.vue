@@ -6,16 +6,22 @@ import { request } from '../api/client'
 import { pushToast } from '../components/toast-bus'
 import type { CustomField, Site, SiteSettings, FormConfig, CustomFieldType, LocalizedList, LocalizedText, SupportedLang } from '../types'
 import { useSiteStore } from '../stores/site'
+import { useAuthStore } from '../stores/auth'
 import { hasSiteUrl, siteDisplayUrl } from '../utils/site'
 
 const loading = ref(false)
 const siteStore = useSiteStore()
+const auth = useAuthStore()
 const list = ref<Site[]>([])
 const expanded = ref<Record<string, boolean>>({})
 const saving = ref<Record<string, boolean>>({})
 const testing = ref<Record<string, boolean>>({})
 const testingWecom = ref<Record<string, boolean>>({})
 const drafts = ref<Record<string, { name: string; domain: string; settings: SiteSettings }>>({})
+const showCreateForm = ref(false)
+const creating = ref(false)
+const newSite = ref({ name: '', domain: '' })
+const createdSite = ref<Pick<Site, 'id' | 'name' | 'domain' | 'apiKey'> | null>(null)
 const SUPPORTED_LANGS: Array<{ value: SupportedLang; label: string }> = [
   { value: 'zh-CN', label: '中文' },
   { value: 'en', label: 'English' },
@@ -69,6 +75,7 @@ function setCustomFieldOptions(field: CustomField, value: string) {
   }
   field.options = { ...(field.options || {}), 'zh-CN': options }
 }
+const canCreateSite = computed(() => auth.user?.role === 'admin')
 const displayedSites = computed(() => list.value.filter(
   (site) => site.id === siteStore.selectedSiteId,
 ))
@@ -179,6 +186,44 @@ async function fetchList() {
   }
 }
 
+
+async function createSite() {
+  const name = newSite.value.name.trim()
+  const domain = newSite.value.domain.trim()
+  if (!name) {
+    pushToast('error', '请输入站点名称')
+    return
+  }
+  if (!domain) {
+    pushToast('error', '请输入网站域名')
+    return
+  }
+
+  creating.value = true
+  try {
+    const site = await request<Site>('POST', '/api/admin/sites', { name, domain })
+    createdSite.value = { id: site.id, name: site.name, domain: site.domain, apiKey: site.apiKey }
+    newSite.value = { name: '', domain: '' }
+    showCreateForm.value = false
+    await fetchList()
+    siteStore.selectSite(site.id)
+    expanded.value[site.id] = true
+    pushToast('success', '站点创建成功，请保存植入凭据')
+  } catch (e) {
+    pushToast('error', (e as Error).message)
+  } finally {
+    creating.value = false
+  }
+}
+
+async function copySiteValue(value: string, label: string) {
+  try {
+    await navigator.clipboard.writeText(value)
+    pushToast('success', `${label}已复制`)
+  } catch {
+    pushToast('error', '复制失败，请手动复制')
+  }
+}
 function toggle(id: string) {
   expanded.value[id] = !expanded.value[id]
 }
@@ -245,6 +290,88 @@ onMounted(fetchList)
 
 <template>
   <Layout>
+    <div class="mb-4 flex items-center justify-between gap-3">
+      <div>
+        <p class="text-sm font-semibold text-ink">站点管理</p>
+        <p class="mt-1 text-xs text-muted">每个站点都有独立的 ID、API Key 和配置。</p>
+      </div>
+      <button
+        v-if="canCreateSite"
+        type="button"
+        class="btn btn-primary btn-sm whitespace-nowrap"
+        @click="showCreateForm = !showCreateForm"
+      >
+        {{ showCreateForm ? '取消新增' : '+ 新增站点' }}
+      </button>
+    </div>
+
+    <div v-if="canCreateSite && showCreateForm" class="panel mb-4 border-primary">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <h2 class="text-sm font-semibold text-ink">新增站点</h2>
+          <p class="mt-1 text-xs text-muted">创建后会生成独立凭据，用于新网站植入。</p>
+        </div>
+      </div>
+      <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div>
+          <label class="text-sm text-muted block mb-1.5">站点名称</label>
+          <input
+            v-model="newSite.name"
+            type="text"
+            placeholder="例如：英国留学官网"
+            class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full"
+          />
+        </div>
+        <div>
+          <label class="text-sm text-muted block mb-1.5">网站域名</label>
+          <input
+            v-model="newSite.domain"
+            type="text"
+            inputmode="url"
+            spellcheck="false"
+            placeholder="例如：uk.example.com"
+            class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full"
+          />
+        </div>
+      </div>
+      <div class="mt-4 flex justify-end">
+        <button
+          type="button"
+          class="btn btn-primary"
+          :disabled="creating"
+          @click="createSite"
+        >
+          {{ creating ? '创建中...' : '创建站点' }}
+        </button>
+      </div>
+    </div>
+
+    <div v-if="createdSite" class="panel mb-4 border-primary bg-primary-soft">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <h2 class="text-sm font-semibold text-ink">站点已创建</h2>
+          <p class="mt-1 text-xs text-muted">请将下面的 Site ID 和 API Key 用于新网站植入。</p>
+        </div>
+        <button type="button" class="text-xs text-muted hover:text-ink" @click="createdSite = null">关闭</button>
+      </div>
+      <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div>
+          <label class="text-xs text-muted block mb-1">Site ID</label>
+          <div class="flex gap-2">
+            <code class="min-w-0 flex-1 truncate rounded border border-border bg-bg px-3 py-2 text-xs text-ink">{{ createdSite.id }}</code>
+            <button type="button" class="btn btn-ghost btn-sm" @click="copySiteValue(createdSite.id, 'Site ID')">复制</button>
+          </div>
+        </div>
+        <div>
+          <label class="text-xs text-muted block mb-1">API Key</label>
+          <div class="flex gap-2">
+            <code class="min-w-0 flex-1 truncate rounded border border-border bg-bg px-3 py-2 text-xs text-ink">{{ createdSite.apiKey }}</code>
+            <button type="button" class="btn btn-ghost btn-sm" @click="copySiteValue(createdSite.apiKey, 'API Key')">复制</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div v-if="loading" class="text-muted py-16 text-center">加载中...</div>
 
     <EmptyState v-else-if="list.length === 0" message="暂无站点" icon="settings" />
