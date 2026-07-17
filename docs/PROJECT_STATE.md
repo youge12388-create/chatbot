@@ -383,3 +383,17 @@ chatbot/
 - `npm test -w packages/server`：19/19 通过。
 - `npm run build -w packages/admin`：通过。
 - `git diff --check`：通过。
+## 2026-07-17 FAQ 展示与答案格式修复
+- Widget FAQ 按钮最多展示 5 条；后台 FAQ 仍可自由增删改，后端接口未增加数量限制。
+- 后台新增和编辑 FAQ 的答案改为多行输入；Widget 回复渲染保留换行与空行段落。
+- 本次未执行数据库变更。
+
+### 最近验证
+- `npm run build -w packages/widget`：通过。
+- `npm run build -w packages/admin`：通过。
+- `npm test -w packages/server`：19/19 通过。
+- `git diff --check`：通过。
+
+## 2026-07-17 后台二维码缩略图可编辑
+- 站点配置支持直接上传 PNG/JPG/WebP 二维码并在保存前预览，也保留公网图片 URL 输入方式。
+- 上传图片限制 256KB，保存到站点设置后由聊天窗口直接展示；服务端 JSON 请求体上限调整为 512KB。
