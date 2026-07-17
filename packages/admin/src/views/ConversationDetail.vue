@@ -6,8 +6,9 @@ import StatusBadge from '../components/StatusBadge.vue'
 import { request } from '../api/client'
 import { pushToast } from '../components/toast-bus'
 import { useNotificationStore, type NotificationMessage } from '../stores/notification'
-import type { Conversation, Message, ConversationStatus, InterestLevel, MessageRole, MessageSource } from '../types'
+import type { AdminUser, Conversation, Message, ConversationStatus, InterestLevel, MessageRole, MessageSource } from '../types'
 import { useSiteStore } from '../stores/site'
+import { useAuthStore } from '../stores/auth'
 import { hasSiteUrl, siteDisplayUrl, siteHref } from '../utils/site'
 
 const route = useRoute()
@@ -19,9 +20,12 @@ const acting = ref(false)
 const conv = ref<Conversation | null>(null)
 const messages = ref<Message[]>([])
 const replyText = ref('')
+const assigneeOptions = ref<AdminUser[]>([])
+const assigneeValue = ref('')
 
 const notification = useNotificationStore()
 const siteStore = useSiteStore()
+const auth = useAuthStore()
 
 const waitingForHuman = computed(() => conv.value?.status === 'transferred')
 const humanHandling = computed(() => conv.value?.status === 'taken_over')
@@ -49,6 +53,7 @@ async function fetchDetail() {
     conv.value = data
     siteStore.selectSite(data.siteId)
     messages.value = data.messages || []
+    assigneeValue.value = data.assigneeId || ''
     await nextTick()
     scrollToBottom()
   } catch (e) {
@@ -58,6 +63,31 @@ async function fetchDetail() {
   }
 }
 
+async function fetchAssignees(): Promise<void> {
+  if (auth.user?.role !== 'admin') return
+  try {
+    assigneeOptions.value = await request<AdminUser[]>('GET', '/api/admin/conversation-assignees')
+  } catch (e) {
+    pushToast('error', (e as Error).message)
+  }
+}
+
+async function saveAssignee(): Promise<void> {
+  if (!conv.value || auth.user?.role !== 'admin') return
+  try {
+    const result = await request<{ assignee: Conversation['assignee'] }>(
+      'PATCH',
+      `/api/admin/conversations/${route.params.id}/assignee`,
+      { assigneeId: assigneeValue.value || null },
+    )
+    conv.value.assigneeId = assigneeValue.value || null
+    conv.value.assignee = result.assignee
+    pushToast('success', assigneeValue.value ? '负责人已更新' : '已取消负责人')
+  } catch (e) {
+    assigneeValue.value = conv.value.assigneeId || ''
+    pushToast('error', (e as Error).message)
+  }
+}
 function scrollToBottom() {
   if (messagesEl.value) {
     messagesEl.value.scrollTop = messagesEl.value.scrollHeight
@@ -140,11 +170,27 @@ async function release() {
 }
 
 async function markProcessed() {
+  if (!window.confirm('确认将此会话标记为已处理吗？')) return
   acting.value = true
   try {
     await request('POST', `/api/admin/conversations/${route.params.id}/resolve`)
     if (conv.value) conv.value.status = 'closed' as ConversationStatus
     pushToast('success', '会话已标记为已处理')
+  } catch (e) {
+    pushToast('error', (e as Error).message)
+  } finally {
+    acting.value = false
+  }
+}
+async function reopen() {
+  acting.value = true
+  try {
+    await request('POST', `/api/admin/conversations/${route.params.id}/reopen`)
+    if (conv.value) {
+      conv.value.status = 'active' as ConversationStatus
+      conv.value.closedAt = null
+    }
+    pushToast('success', '会话已重新打开')
   } catch (e) {
     pushToast('error', (e as Error).message)
   } finally {
@@ -162,6 +208,8 @@ function back() {
 
 onMounted(async () => {
   await fetchDetail()
+  if (!auth.user) await auth.fetchMe()
+  await fetchAssignees()
   // 处理挂载前已到达 store 的实时消息（按 id 去重，已在列表中的不会重复追加）
   drainStore()
 })
@@ -203,6 +251,14 @@ onMounted(async () => {
           >
             标记已处理
           </button>
+          <button
+            v-else-if="auth.user?.role === 'admin'"
+            :disabled="acting"
+            class="rounded-lg border border-border px-3 py-2 text-sm text-muted hover:border-primary hover:text-primary disabled:opacity-50"
+            @click="reopen"
+          >
+            重新打开
+          </button>
         </template>
       </div>
       <div v-if="loading" class="text-muted py-16 text-center">加载中...</div>
@@ -216,7 +272,7 @@ onMounted(async () => {
           <p class="mt-1 text-xs text-muted">接管后 AI 会暂停，客户只会收到你的人工回复。点击右上角“接管并回复”即可开始处理。</p>
         </div>
         <!-- 会话信息 -->
-        <div class="bg-bg rounded-lg border border-border p-4 mb-4 grid grid-cols-4 gap-4 text-sm">
+        <div class="bg-bg rounded-lg border border-border p-4 mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
           <div><span class="text-muted">访客 ID：</span><span class="font-mono text-xs">{{ conv.visitorId }}</span></div>
           <div>
             <span class="text-muted">来源站点：</span>{{ conv.site?.name || '-' }}
@@ -232,6 +288,20 @@ onMounted(async () => {
           </div>
           <div><span class="text-muted">兴趣等级：</span>{{ interestLabels[conv.interestLevel] }}</div>
           <div><span class="text-muted">创建时间：</span>{{ fmtTime(conv.createdAt) }}</div>
+          <div v-if="auth.user?.role === 'admin'">
+            <label class="text-muted" for="conversation-assignee">负责人：</label>
+            <select
+              id="conversation-assignee"
+              v-model="assigneeValue"
+              class="mt-1 w-full rounded border border-border bg-bg px-2 py-1 text-sm focus:border-primary focus:outline-none"
+              @change="saveAssignee"
+            >
+              <option value="">未分配</option>
+              <option v-for="user in assigneeOptions" :key="user.id" :value="user.id">
+                {{ user.name || user.username }}（{{ user.role === 'admin' ? '管理员' : '客服' }}）
+              </option>
+            </select>
+          </div>
         </div>
 
         <!-- 消息时间线 -->

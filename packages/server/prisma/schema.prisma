@@ -34,10 +34,11 @@ model Faq {
   siteId   String
   question String
   answer   String   // 预设答案，为空则走 AI
+  language String   @default("zh-CN") // zh-CN | en | ko | ru
   priority Int      @default(0)
   site     Site     @relation(fields: [siteId], references: [id])
 
-  @@index([siteId])
+  @@index([siteId, language])
 }
 
 // ========================
@@ -54,14 +55,16 @@ model Conversation {
   updatedAt      DateTime  @updatedAt
   closedAt       DateTime?
   lastMessageAt  DateTime?                        // 最后消息时间,列表排序用
-
+  assigneeId     String?
   site     Site      @relation(fields: [siteId], references: [id])
+  assignee AdminUser? @relation("ConversationAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
   messages Message[]
   leads    Lead[]
 
   @@index([siteId, visitorId])
   @@index([status])
   @@index([lastMessageAt])
+  @@index([assigneeId])
 }
 
 // ========================
@@ -119,6 +122,8 @@ model AdminUser {
   name      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  assignedConversations Conversation[] @relation("ConversationAssignee")
 }
 
 // ========================

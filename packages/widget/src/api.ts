@@ -2,7 +2,7 @@
  * API 调用封装
  */
 
-import { Lang } from './i18n'
+import { Lang, LocalizedList, LocalizedText } from './i18n'
 
 export interface ChatResponse {
   reply: string
@@ -21,9 +21,10 @@ export type CustomFieldType = 'text' | 'tel' | 'email' | 'select' | 'textarea'
 
 export interface CustomField {
   id: string
-  label: string
+  label: string | LocalizedText
+  placeholder?: string | LocalizedText
   type: CustomFieldType
-  options?: string[]
+  options?: string[] | LocalizedList
   required: boolean
 }
 
@@ -33,9 +34,9 @@ export interface FormConfig {
 }
 
 export interface SiteSettings {
-  welcomeMessage: string
-  guideMessage: string
-  bubbleMessages: string[]
+  welcomeMessage: string | LocalizedText
+  guideMessage: string | LocalizedText
+  bubbleMessages: string[] | LocalizedList
   primaryColor: string
   formConfig?: FormConfig
   contactWhatsApp?: string
@@ -95,6 +96,7 @@ export class ChatApi {
         metadata: {
           url: location.href,
           userAgent: navigator.userAgent,
+          lang: this.lang,
         },
       }),
     })
@@ -137,7 +139,7 @@ export class ChatApi {
   }
 
   async getFaqs(): Promise<FaqItem[]> {
-    const res = await fetch(`${this.apiHost}/api/chat/faqs?siteId=${this.siteId}`)
+    const res = await fetch(`${this.apiHost}/api/chat/faqs?siteId=${encodeURIComponent(this.siteId)}&lang=${encodeURIComponent(this.lang)}`)
     const data = await res.json()
     if (!res.ok || data.code !== 0) {
       throw new Error(data.message || 'FAQ 获取失败')

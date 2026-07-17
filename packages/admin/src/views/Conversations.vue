@@ -8,6 +8,7 @@ import EmptyState from '../components/EmptyState.vue'
 import { request } from '../api/client'
 import { pushToast } from '../components/toast-bus'
 import { useNotificationStore } from '../stores/notification'
+import { useAuthStore } from '../stores/auth'
 import { useSiteStore } from '../stores/site'
 import { hasSiteUrl, siteDisplayUrl, siteHref } from '../utils/site'
 import type { Conversation, PageResult, ConversationStatus, InterestLevel } from '../types'
@@ -15,6 +16,7 @@ import type { Conversation, PageResult, ConversationStatus, InterestLevel } from
 const router = useRouter()
 const route = useRoute()
 const notification = useNotificationStore()
+const auth = useAuthStore()
 const siteStore = useSiteStore()
 
 // 有实时新消息（未读）的会话 ID 集合，用于列表高亮
@@ -43,6 +45,10 @@ function conversationTime(c: Conversation): number {
 const sortedList = computed(() => [...list.value].sort(
   (a, b) => conversationTime(b) - conversationTime(a),
 ))
+const selectedIds = ref<string[]>([])
+const selectableIds = computed(() => sortedList.value.filter((conversation) => conversation.status !== 'closed').map((conversation) => conversation.id))
+const allVisibleSelected = computed(() => selectableIds.value.length > 0 && selectableIds.value.every((id) => selectedIds.value.includes(id)))
+
 
 // 筛选状态从 URL query 初始化，返回页面不丢失
 const page = ref(Number(route.query.page) || 1)
@@ -81,6 +87,65 @@ function visitorLabel(c: Conversation): string {
   return tail ? `访客 ${tail}` : '未知访客'
 }
 
+function lastMessagePreview(c: Conversation): string {
+  const content = c.messages?.[0]?.content?.replace(/\s+/g, ' ').trim() || ''
+  return content.length > 54 ? `${content.slice(0, 54)}…` : content
+}
+
+function handlingReason(c: Conversation): string {
+  const noAnswerCount = Number(c.metadata?.aiNoAnswerCount || 0)
+  if (c.status === 'transferred') return noAnswerCount >= 2 ? 'AI 连续未回答' : '客户请求人工'
+  if (c.status === 'taken_over') return '人工处理中'
+  if (c.status === 'closed') return '已处理'
+  if (!c._count?.messages) return '等待客户消息'
+  return 'AI 自动应答'
+}
+
+function waitingLabel(c: Conversation): string {
+  if (c.status !== 'transferred') return ''
+  const start = new Date(c.lastMessageAt || c.createdAt).getTime()
+  if (!Number.isFinite(start)) return ''
+  const minutes = Math.max(0, Math.floor((Date.now() - start) / 60000))
+  if (minutes < 1) return '刚刚转人工'
+  if (minutes < 60) return `等待 ${minutes} 分钟`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `等待 ${hours} 小时`
+  return `等待 ${Math.floor(hours / 24)} 天`
+}
+
+function actionLabel(c: Conversation): string {
+  if (c.status === 'transferred') return '打开处理'
+  if (c.status === 'taken_over') return '继续处理'
+  return '查看'
+}
+
+function assigneeName(c: Conversation): string {
+  return c.assignee?.name || c.assignee?.username || '未分配'
+}
+
+function toggleSelection(id: string): void {
+  selectedIds.value = selectedIds.value.includes(id)
+    ? selectedIds.value.filter((selectedId) => selectedId !== id)
+    : [...selectedIds.value, id]
+}
+
+function toggleAll(): void {
+  selectedIds.value = allVisibleSelected.value ? [] : [...selectableIds.value]
+}
+
+async function batchResolve(): Promise<void> {
+  if (selectedIds.value.length === 0) return
+  const count = selectedIds.value.length
+  if (!window.confirm(`确认将选中的 ${count} 个会话标记为已处理吗？`)) return
+  try {
+    const result = await request<{ count: number }>('POST', '/api/admin/conversations/bulk-resolve', { ids: selectedIds.value })
+    pushToast('success', `已处理 ${result.count} 个会话`)
+    selectedIds.value = []
+    await fetchList()
+  } catch (e) {
+    pushToast('error', (e as Error).message)
+  }
+}
 async function fetchList() {
   loading.value = true
   try {
@@ -127,6 +192,7 @@ function syncQueryToUrl() {
 }
 
 watch([statusFilter, () => siteStore.selectedSiteId], () => {
+  selectedIds.value = []
   page.value = 1
   syncQueryToUrl()
   fetchList()
@@ -142,7 +208,17 @@ watch(
   (message) => {
     if (!message || message.siteId !== siteStore.selectedSiteId) return
     const conversation = list.value.find((item) => item.id === message.conversationId)
-    if (conversation) conversation.lastMessageAt = message.createdAt
+    if (conversation) {
+      conversation.lastMessageAt = message.createdAt
+      conversation.messages = [{
+        id: message.id,
+        conversationId: message.conversationId,
+        role: 'user' as const,
+        content: message.content,
+        source: 'user' as const,
+        createdAt: message.createdAt,
+      }]
+    }
   },
 )
 </script>
@@ -170,17 +246,38 @@ watch(
       </div>
     </div>
 
+    <div v-if="auth.user?.role === 'admin' && selectedIds.length > 0" class="mb-3 flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
+      <span class="text-muted">已选择 {{ selectedIds.length }} 个会话</span>
+      <button
+        type="button"
+        class="rounded-lg bg-primary px-3 py-1.5 font-medium text-white hover:bg-primary-hover"
+        @click="batchResolve"
+      >
+        批量标记已处理
+      </button>
+    </div>
     <!-- 表格 -->
     <div class="panel overflow-hidden">
       <table class="table-base">
         <thead>
           <tr>
+            <th class="w-10">
+              <input
+                v-if="auth.user?.role === 'admin'"
+                type="checkbox"
+                :checked="allVisibleSelected"
+                :disabled="selectableIds.length === 0"
+                aria-label="全选当前页未处理会话"
+                @change="toggleAll"
+              />
+            </th>
             <th>访客</th>
             <th>站点</th>
             <th>状态</th>
             <th>兴趣</th>
             <th>消息数</th>
             <th>线索</th>
+            <th>初始时间</th>
             <th>最后消息时间</th>
             <th class="text-right">操作</th>
           </tr>
@@ -188,7 +285,7 @@ watch(
         <tbody>
           <template v-if="loading">
             <tr v-for="i in 8" :key="`sk-${i}`">
-              <td v-for="j in 8" :key="j">
+              <td v-for="j in 10" :key="j">
                 <div class="h-4 bg-surface-2 rounded animate-pulse"></div>
               </td>
             </tr>
@@ -199,7 +296,21 @@ watch(
               :key="c.id"
               :class="hasUnread(c.id) || c.status === 'transferred' ? 'bg-accent/10' : ''"
             >
-              <td class="text-ink font-medium">{{ visitorLabel(c) }}</td>
+              <td>
+                <input
+                  v-if="auth.user?.role === 'admin' && c.status !== 'closed'"
+                  type="checkbox"
+                  :checked="selectedIds.includes(c.id)"
+                  :aria-label="'选择会话：' + visitorLabel(c)"
+                  @change="toggleSelection(c.id)"
+                />
+              </td>
+              <td>
+                <div class="text-ink font-medium">{{ visitorLabel(c) }}</div>
+                <div v-if="lastMessagePreview(c)" class="mt-1 max-w-[15rem] truncate text-xs text-muted" :title="lastMessagePreview(c)">
+                  {{ lastMessagePreview(c) }}
+                </div>
+              </td>
               <td>
                 <div class="font-medium text-ink">{{ c.site?.name || '-' }}</div>
                 <a
@@ -212,13 +323,19 @@ watch(
                   {{ siteDisplayUrl(c.site?.domain, c.siteId) }}
                 </a>
               </td>
-              <td><StatusBadge :status="c.status" type="conversation" :timeout="isTimeout(c)" /></td>
+              <td>
+                <StatusBadge :status="c.status" type="conversation" :timeout="isTimeout(c)" />
+                <div class="mt-1 text-xs text-muted">{{ handlingReason(c) }}</div>
+                <div v-if="waitingLabel(c)" class="mt-0.5 text-xs text-info">{{ waitingLabel(c) }}</div>
+                <div class="mt-0.5 text-xs text-muted">负责人：{{ assigneeName(c) }}</div>
+              </td>
               <td class="text-muted">{{ interestLabels[c.interestLevel] || c.interestLevel }}</td>
               <td class="text-muted tabular-nums">{{ c._count?.messages ?? '-' }}</td>
               <td class="text-muted tabular-nums">{{ c._count?.leads ?? '-' }}</td>
+              <td class="text-muted tabular-nums">{{ fmtTime(c.createdAt) }}</td>
               <td class="text-muted tabular-nums">{{ fmtTime(c.lastMessageAt) }}</td>
               <td class="text-right">
-                <button class="text-primary hover:underline" @click="viewDetail(c.id)">查看</button>
+                <button class="text-primary hover:underline" :aria-label="actionLabel(c) + '：' + visitorLabel(c)" @click="viewDetail(c.id)">{{ actionLabel(c) }}</button>
               </td>
             </tr>
           </template>
