@@ -163,12 +163,13 @@ onMounted(async () => {
           placeholder="问题"
           class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none"
         />
-        <input
+        <textarea
           v-model="form.answer"
-          type="text"
-          placeholder="答案"
-          class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none"
-        />        <select
+          rows="3"
+          placeholder="答案（支持分段）"
+          class="textarea resize-y"
+        ></textarea>
+        <select
           v-model="form.language"
           class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none"
         >
@@ -229,11 +230,12 @@ onMounted(async () => {
                   />
                 </td>
                 <td class="px-4 py-3">
-                  <input
+                  <textarea
                     v-model="editForm.answer"
-                    type="text"
-                    class="px-2 py-1.5 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full"
-                  />
+                    rows="3"
+                    placeholder="答案（支持分段）"
+                    class="textarea resize-y"
+                  ></textarea>
                 </td>                <td class="px-4 py-3">
                   <select
                     v-model="editForm.language"

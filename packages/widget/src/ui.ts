@@ -495,6 +495,8 @@ export interface WidgetConfig {
   lang: Lang
 }
 
+const MAX_VISIBLE_FAQS = 5
+
 interface Message {
   role: 'user' | 'assistant'
   content: string
@@ -502,47 +504,74 @@ interface Message {
 
 /** 轻量 Markdown 渲染：粗体、有序/无序列表、段落 */
 function renderMarkdown(text: string): string {
-  // 先转义 HTML
   let html = text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
+    .replace(/\r\n?/g, '\n')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
 
-  // **粗体**
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-
-  // 按行分割处理列表和段落
   const lines = html.split('\n')
   const result: string[] = []
   let inOl = false
   let inUl = false
+  let paragraphLines: string[] = []
+
+  const closeLists = () => {
+    if (inOl) {
+      result.push('</ol>')
+      inOl = false
+    }
+    if (inUl) {
+      result.push('</ul>')
+      inUl = false
+    }
+  }
+
+  const flushParagraph = () => {
+    if (paragraphLines.length === 0) return
+    result.push('<p>' + paragraphLines.join('<br>') + '</p>')
+    paragraphLines = []
+  }
 
   for (const line of lines) {
     const trimmed = line.trim()
-    // 有序列表项: 1. xxx
     const olMatch = trimmed.match(/^(\d+)\.\s+(.+)/)
-    // 无序列表项: - xxx 或 * xxx
     const ulMatch = trimmed.match(/^[-*]\s+(.+)/)
 
     if (olMatch) {
-      if (inUl) { result.push('</ul>'); inUl = false }
-      if (!inOl) { result.push('<ol>'); inOl = true }
-      result.push(`<li>${olMatch[2]}</li>`)
-    } else if (ulMatch) {
-      if (inOl) { result.push('</ol>'); inOl = false }
-      if (!inUl) { result.push('<ul>'); inUl = true }
-      result.push(`<li>${ulMatch[1]}</li>`)
-    } else {
-      if (inOl) { result.push('</ol>'); inOl = false }
-      if (inUl) { result.push('</ul>'); inUl = false }
-      if (trimmed) {
-        result.push(`<p>${trimmed}</p>`)
+      flushParagraph()
+      if (inUl) {
+        result.push('</ul>')
+        inUl = false
       }
+      if (!inOl) {
+        result.push('<ol>')
+        inOl = true
+      }
+      result.push('<li>' + olMatch[2] + '</li>')
+    } else if (ulMatch) {
+      flushParagraph()
+      if (inOl) {
+        result.push('</ol>')
+        inOl = false
+      }
+      if (!inUl) {
+        result.push('<ul>')
+        inUl = true
+      }
+      result.push('<li>' + ulMatch[1] + '</li>')
+    } else if (trimmed) {
+      closeLists()
+      paragraphLines.push(trimmed)
+    } else {
+      flushParagraph()
+      closeLists()
     }
   }
-  if (inOl) result.push('</ol>')
-  if (inUl) result.push('</ul>')
 
+  flushParagraph()
+  closeLists()
   return result.join('')
 }
 
@@ -1063,7 +1092,7 @@ export function createWidget(config: WidgetConfig) {
   // 渲染 FAQ 按钮区域（先清空旧的，再渲染新的）
   function renderFaqs(questions: string[]) {
     faqsEl.innerHTML = ''
-    questions.forEach(q => {
+    questions.slice(0, MAX_VISIBLE_FAQS).forEach(q => {
       const btn = document.createElement('button')
       btn.className = 'chat-faq-btn'
       btn.textContent = q
