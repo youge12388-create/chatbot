@@ -663,6 +663,37 @@ router.patch('/faqs/:id', requireAuth, wrap(async (req, res) => {
   res.json({ code: 0, data: faq })
 }))
 
+/** POST /api/admin/faqs/reorder - 保存指定语言的展示顺序 */
+router.post('/faqs/reorder', requireAuth, wrap(async (req, res) => {
+  const { siteId, language, orderedIds } = req.body
+  if (!siteId || typeof language !== 'string' || !Array.isArray(orderedIds) || orderedIds.length === 0 || orderedIds.some((id: unknown) => typeof id !== 'string')) {
+    res.status(400).json({ code: 1, message: '缺少有效的站点、语言或问题顺序' })
+    return
+  }
+
+  const uniqueIds = new Set(orderedIds as string[])
+  if (uniqueIds.size !== orderedIds.length) {
+    res.status(400).json({ code: 1, message: '问题顺序中存在重复项' })
+    return
+  }
+
+  const faqs = await prisma.faq.findMany({
+    where: { siteId, language },
+    select: { id: true },
+  })
+  const faqIds = new Set(faqs.map(faq => faq.id))
+  if (orderedIds.some((id: string) => !faqIds.has(id)) || orderedIds.length !== faqs.length) {
+    res.status(400).json({ code: 1, message: '问题顺序与当前语言的问题列表不一致，请刷新后重试' })
+    return
+  }
+
+  await prisma.$transaction((orderedIds as string[]).map((id, index) => prisma.faq.update({
+    where: { id },
+    data: { priority: index + 1 },
+  })))
+  res.json({ code: 0, message: '展示顺序已保存' })
+}))
+
 /** DELETE /api/admin/faqs/:id */
 router.delete('/faqs/:id', requireAuth, wrap(async (req, res) => {
   await prisma.faq.delete({ where: { id: req.params.id } })
