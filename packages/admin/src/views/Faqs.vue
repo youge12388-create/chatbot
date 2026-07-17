@@ -20,6 +20,7 @@ const saving = ref(false)
 const blankForm = () => ({
   question: '',
   answer: '',
+  language: 'zh-CN',
   priority: 0,
 })
 const form = ref(blankForm())
@@ -60,6 +61,7 @@ async function submitCreate() {
       siteId: siteStore.selectedSiteId,
       question: form.value.question,
       answer: form.value.answer,
+      language: form.value.language,
       priority: form.value.priority,
     })
     pushToast('success', '已新增')
@@ -74,7 +76,7 @@ async function submitCreate() {
 
 function openEdit(f: Faq) {
   editingId.value = f.id
-  editForm.value = { question: f.question, answer: f.answer, priority: f.priority }
+  editForm.value = { question: f.question, answer: f.answer, language: f.language || 'zh-CN', priority: f.priority }
   confirmDeleteId.value = null
 }
 
@@ -92,6 +94,7 @@ async function submitEdit(f: Faq) {
     await request('PATCH', `/api/admin/faqs/${f.id}`, {
       question: editForm.value.question,
       answer: editForm.value.answer,
+      language: editForm.value.language,
       priority: editForm.value.priority,
     })
     pushToast('success', '已更新')
@@ -153,7 +156,7 @@ onMounted(async () => {
 
     <!-- 新增表单 -->
     <div v-if="creating" class="panel p-4 mb-3">
-      <div class="grid grid-cols-3 gap-3">
+      <div class="grid grid-cols-4 gap-3">
         <input
           v-model="form.question"
           type="text"
@@ -165,8 +168,15 @@ onMounted(async () => {
           type="text"
           placeholder="答案"
           class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none"
-        />
-        <input
+        />        <select
+          v-model="form.language"
+          class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none"
+        >
+          <option value="zh-CN">中文</option>
+          <option value="en">English</option>
+          <option value="ko">한국어</option>
+          <option value="ru">Русский</option>
+        </select>        <input
           v-model.number="form.priority"
           type="number"
           placeholder="优先级"
@@ -192,6 +202,7 @@ onMounted(async () => {
           <tr class="bg-surface text-muted text-left">
             <th class="px-4 py-3 font-medium">问题</th>
             <th class="px-4 py-3 font-medium">答案</th>
+            <th class="px-4 py-3 font-medium w-24">语言</th>
             <th class="px-4 py-3 font-medium w-20">优先级</th>
             <th class="px-4 py-3 font-medium text-right w-40">操作</th>
           </tr>
@@ -199,7 +210,7 @@ onMounted(async () => {
         <tbody>
           <template v-if="loading">
             <tr v-for="i in 5" :key="`sk-${i}`" class="border-t border-border">
-              <td v-for="j in 4" :key="j" class="px-4 py-3"><div class="h-4 bg-surface rounded animate-pulse"></div></td>
+              <td v-for="j in 5" :key="j" class="px-4 py-3"><div class="h-4 bg-surface rounded animate-pulse"></div></td>
             </tr>
           </template>
           <template v-else>
@@ -223,8 +234,17 @@ onMounted(async () => {
                     type="text"
                     class="px-2 py-1.5 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full"
                   />
-                </td>
-                <td class="px-4 py-3">
+                </td>                <td class="px-4 py-3">
+                  <select
+                    v-model="editForm.language"
+                    class="px-2 py-1.5 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full"
+                  >
+                    <option value="zh-CN">中文</option>
+                    <option value="en">English</option>
+                    <option value="ko">한국어</option>
+                    <option value="ru">Русский</option>
+                  </select>
+                </td>                <td class="px-4 py-3">
                   <input
                     v-model.number="editForm.priority"
                     type="number"
@@ -238,7 +258,7 @@ onMounted(async () => {
               </template>
               <!-- 删除确认态 -->
               <template v-else-if="confirmDeleteId === f.id">
-                <td class="px-4 py-3 text-danger" colspan="3">确认删除此问题？</td>
+                <td class="px-4 py-3 text-danger" colspan="4">确认删除此问题？</td>
                 <td class="px-4 py-3 text-right">
                   <button class="text-danger hover:underline mr-3" :disabled="saving" @click="confirmDelete(f)">确认删除</button>
                   <button class="text-muted hover:underline" @click="confirmDeleteId = null">取消</button>
@@ -248,6 +268,7 @@ onMounted(async () => {
               <template v-else>
                 <td class="px-4 py-3 text-ink">{{ f.question }}</td>
                 <td class="px-4 py-3 text-muted">{{ f.answer }}</td>
+                <td class="px-4 py-3 text-muted">{{ f.language }}</td>
                 <td class="px-4 py-3 text-muted">{{ f.priority }}</td>
                 <td class="px-4 py-3 text-right">
                   <button class="text-primary hover:underline mr-3" @click="openEdit(f)">编辑</button>

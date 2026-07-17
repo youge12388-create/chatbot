@@ -8,6 +8,9 @@ export type InterestLevel = 'unknown' | 'low' | 'normal' | 'medium' | 'high' | '
 export type MessageRole = 'user' | 'assistant' | 'system'
 export type MessageSource = 'ai' | 'preset' | 'human' | 'user'
 export type AdminRole = 'admin' | 'staff'
+export type SupportedLang = 'zh-CN' | 'en' | 'ko' | 'ru'
+export type LocalizedText = Partial<Record<SupportedLang, string>>
+export type LocalizedList = Partial<Record<SupportedLang, string[]>>
 
 export interface AdminUser {
   id: string
@@ -21,9 +24,10 @@ export type CustomFieldType = 'text' | 'tel' | 'email' | 'select' | 'textarea'
 
 export interface CustomField {
   id: string
-  label: string
+  label: string | LocalizedText
+  placeholder?: string | LocalizedText
   type: CustomFieldType
-  options?: string[]
+  options?: string[] | LocalizedList
   required: boolean
 }
 
@@ -33,9 +37,9 @@ export interface FormConfig {
 }
 
 export interface SiteSettings {
-  welcomeMessage?: string
-  guideMessage?: string
-  bubbleMessages?: string[]
+  welcomeMessage?: string | LocalizedText
+  guideMessage?: string | LocalizedText
+  bubbleMessages?: string[] | LocalizedList
   primaryColor?: string
   webhookUrl?: string
   n8nWebhookUrl?: string
@@ -62,6 +66,7 @@ export interface Faq {
   siteId: string
   question: string
   answer: string
+  language: SupportedLang
   priority: number
   site?: { name: string }
 }
@@ -87,6 +92,8 @@ export interface Conversation {
   updatedAt: string
   closedAt: string | null
   lastMessageAt: string | null
+  assigneeId: string | null
+  assignee?: { id: string; username: string; name: string | null; role: AdminRole } | null
   site?: { name: string; domain: string }
   messages?: Message[]
   leads?: Lead[]
