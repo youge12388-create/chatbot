@@ -13,6 +13,7 @@
  */
 
 import { Router, Request, Response, NextFunction } from 'express'
+import { randomBytes } from 'node:crypto'
 import { prisma } from '../db/client'
 import { chatService, getDifyInfoUrl } from '../services/chat'
 import { sendWecomTest } from '../services/lead'
@@ -30,6 +31,10 @@ function wrap(fn: AsyncHandler) {
   return (req: Request, res: Response, next: NextFunction) => {
     fn(req, res).catch(next)
   }
+}
+
+function generateSiteApiKey(): string {
+  return `site-${randomBytes(24).toString('hex')}`
 }
 
 // ========================
@@ -467,6 +472,38 @@ router.get('/sites', requireAuth, wrap(async (_req, res) => {
   res.json({ code: 0, data: sites })
 }))
 
+
+/** POST /api/admin/sites - 创建站点（仅管理员） */
+router.post('/sites', requireAuth, requireAdmin, wrap(async (req, res) => {
+  const name = typeof req.body.name === 'string' ? req.body.name.trim() : ''
+  const domain = normalizeSiteDomain(req.body.domain)
+  if (!name) {
+    res.status(400).json({ code: 1, message: '请输入站点名称' })
+    return
+  }
+  if (!domain) {
+    res.status(400).json({ code: 1, message: '请输入正确的网站域名，例如 luckyboy.me' })
+    return
+  }
+
+  try {
+    const site = await prisma.site.create({
+      data: {
+        name,
+        domain,
+        apiKey: generateSiteApiKey(),
+        settings: {},
+      },
+    })
+    res.status(201).json({ code: 0, data: site })
+  } catch (error: any) {
+    if (error?.code === 'P2002') {
+      res.status(409).json({ code: 1, message: '这个网站域名已经存在' })
+      return
+    }
+    throw error
+  }
+}))
 /** PATCH /api/admin/sites/:id - 编辑站点配置 */
 router.patch('/sites/:id', requireAuth, wrap(async (req, res) => {
   const { name, domain, settings } = req.body
