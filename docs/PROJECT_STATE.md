@@ -397,3 +397,16 @@ chatbot/
 ## 2026-07-17 后台二维码缩略图可编辑
 - 站点配置支持直接上传 PNG/JPG/WebP 二维码并在保存前预览，也保留公网图片 URL 输入方式。
 - 上传图片限制 256KB，保存到站点设置后由聊天窗口直接展示；服务端 JSON 请求体上限调整为 512KB。
+
+## 2026-07-17 FAQ 排序与站点文案编辑优化
+- 后台 FAQ 按语言筛选，支持拖拽排序和将问题置顶；当前语言前 5 条作为 Widget 快捷问题展示。
+- 新增 POST /api/admin/faqs/reorder，按站点和语言原子保存 FAQ 展示顺序。
+- 站点欢迎语、引导语和气泡文案改为语言下拉选择后编辑，保留原有多语言数据结构。
+- 本次未执行数据库迁移。
+
+### 最近验证
+- npm test：20/20 通过。
+- npm run build:admin：通过。
+- npm run build:widget：通过。
+- npm run build:server：通过。
+- git diff --check：通过。
