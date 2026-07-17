@@ -232,6 +232,42 @@ function getDraft(id: string) {
   return drafts.value[id]
 }
 
+const MAX_QR_FILE_SIZE = 256 * 1024
+
+function qrValue(siteId: string): string {
+  return drafts.value[siteId]?.settings.contactWecomQrUrl?.trim() || ''
+}
+
+function clearQr(siteId: string): void {
+  const settings = drafts.value[siteId]?.settings
+  if (settings) settings.contactWecomQrUrl = ''
+}
+
+function onQrFileChange(siteId: string, event: Event): void {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+    pushToast('error', '请上传 PNG、JPG 或 WebP 图片')
+    return
+  }
+  if (file.size > MAX_QR_FILE_SIZE) {
+    pushToast('error', '二维码图片不能超过 256KB')
+    return
+  }
+  const reader = new FileReader()
+  reader.onload = () => {
+    const value = reader.result
+    const settings = drafts.value[siteId]?.settings
+    if (typeof value === 'string' && settings) {
+      settings.contactWecomQrUrl = value
+      pushToast('success', '二维码已载入，点击保存后生效')
+    }
+  }
+  reader.onerror = () => pushToast('error', '读取二维码图片失败')
+  reader.readAsDataURL(file)
+}
 async function save(site: Site) {
   const draft = drafts.value[site.id]
   if (!draft) return
@@ -522,13 +558,37 @@ onMounted(fetchList)
               />
             </div>
             <div>
-              <label class="text-sm text-muted block mb-1.5">企微二维码图片 URL</label>
+              <label class="text-sm text-muted block mb-1.5">企微二维码</label>
+              <div v-if="qrValue(site.id)" class="mb-3 flex items-center gap-3 rounded-lg border border-border bg-surface-2 p-3">
+                <img
+                  :src="qrValue(site.id)"
+                  alt="企微二维码预览"
+                  class="h-24 w-24 rounded border border-border bg-white object-contain"
+                />
+                <div class="min-w-0">
+                  <p class="text-xs text-muted">当前二维码预览</p>
+                  <button
+                    type="button"
+                    class="mt-2 text-xs text-danger hover:underline"
+                    @click="clearQr(site.id)"
+                  >
+                    移除图片
+                  </button>
+                </div>
+              </div>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                class="block w-full text-xs text-muted file:mr-3 file:rounded file:border-0 file:bg-primary/10 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-primary"
+                @change="onQrFileChange(site.id, $event)"
+              />
               <input
                 v-model="getDraft(site.id)!.settings.contactWecomQrUrl"
-                type="text"
-                placeholder="https://xxx/qr.png"
-                class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full font-mono text-xs"
+                type="url"
+                placeholder="也可以填写公网图片 URL，例如 https://xxx/qr.png"
+                class="mt-2 px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full font-mono text-xs"
               />
+              <p class="text-xs text-muted mt-1">上传图片或填写 URL，点击站点保存后生效；图片限制 256KB。</p>
             </div>
 
             <!-- Dify 配置 -->
