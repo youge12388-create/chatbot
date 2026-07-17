@@ -15,6 +15,13 @@ test('线索导出路由注册在线索详情路由之前', () => {
   assert.ok(exportIndex < detailIndex)
 })
 
+test('FAQ 顺序路由注册为 POST', () => {
+  const layers = (router as unknown as {
+    stack: Array<{ route?: { path?: string; methods?: Record<string, boolean> } }>
+  }).stack
+  const reorderRoute = layers.find((layer) => layer.route?.path === '/faqs/reorder' && layer.route.methods?.post)
+  assert.ok(reorderRoute)
+})
 test('新增站点路由注册为 POST', () => {
   const layers = (router as unknown as {
     stack: Array<{ route?: { path?: string; methods?: Record<string, boolean> } }>

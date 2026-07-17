@@ -29,6 +29,21 @@ const SUPPORTED_LANGS: Array<{ value: SupportedLang; label: string }> = [
   { value: 'ru', label: 'Русский' },
 ]
 
+const selectedLanguage = ref<Record<string, SupportedLang>>({})
+
+function getSelectedLanguage(siteId: string): SupportedLang {
+  return selectedLanguage.value[siteId] || 'zh-CN'
+}
+
+function setSelectedLanguage(siteId: string, event: Event) {
+  const value = (event.target as HTMLSelectElement).value as SupportedLang
+  if (SUPPORTED_LANGS.some(language => language.value === value)) selectedLanguage.value[siteId] = value
+}
+
+function selectedLanguageLabel(siteId: string): string {
+  const value = getSelectedLanguage(siteId)
+  return SUPPORTED_LANGS.find(language => language.value === value)?.label || value
+}
 type LocalizedTextKey = 'welcomeMessage' | 'guideMessage'
 
 function getLocalizedText(siteId: string, key: LocalizedTextKey, lang: SupportedLang): string {
@@ -490,41 +505,54 @@ onMounted(fetchList)
                 />
               </div>
             </div>
-            <div class="col-span-2 grid grid-cols-2 gap-3">
-              <div v-for="language in SUPPORTED_LANGS" :key="`welcome-${language.value}`">
-                <label class="text-sm text-muted block mb-1.5">欢迎语 · {{ language.label }}</label>
-                <textarea
-                  :value="getLocalizedText(site.id, 'welcomeMessage', language.value)"
-                  rows="2"
-                  class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full resize-none"
-                  @input="setLocalizedText(site.id, 'welcomeMessage', language.value, ($event.target as HTMLTextAreaElement).value)"
-                ></textarea>
+            <div class="col-span-2 rounded-xl border border-border bg-surface-2 p-4">
+              <div class="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <h4 class="text-sm font-semibold text-ink">多语言文案</h4>
+                  <p class="mt-1 text-xs text-muted">选择语言后编辑该语言的欢迎语、引导语和气泡文案。</p>
+                </div>
+                <select
+                  :value="getSelectedLanguage(site.id)"
+                  class="select w-36"
+                  @change="setSelectedLanguage(site.id, $event)"
+                >
+                  <option v-for="language in SUPPORTED_LANGS" :key="language.value" :value="language.value">
+                    {{ language.label }}
+                  </option>
+                </select>
               </div>
-              <div v-for="language in SUPPORTED_LANGS" :key="`guide-${language.value}`">
-                <label class="text-sm text-muted block mb-1.5">引导语 · {{ language.label }}</label>
-                <textarea
-                  :value="getLocalizedText(site.id, 'guideMessage', language.value)"
-                  rows="2"
-                  class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full resize-none"
-                  @input="setLocalizedText(site.id, 'guideMessage', language.value, ($event.target as HTMLTextAreaElement).value)"
-                ></textarea>
-              </div>
-            </div>
-            <div class="col-span-2">
-              <label class="text-sm text-muted block mb-1.5">气泡文案 · 每种语言每行一条</label>
-              <div class="grid grid-cols-2 gap-3">
-                <div v-for="language in SUPPORTED_LANGS" :key="`bubble-${language.value}`">
-                  <label class="text-xs text-muted block mb-1">{{ language.label }}</label>
+              <div class="mt-4 grid grid-cols-2 gap-3">
+                <div>
+                  <label class="text-sm text-muted block mb-1.5">欢迎语 · {{ selectedLanguageLabel(site.id) }}</label>
                   <textarea
-                    :value="getLocalizedMessages(site.id, language.value)"
-                    @input="setLocalizedMessages(site.id, language.value, ($event.target as HTMLTextAreaElement).value)"
+                    :value="getLocalizedText(site.id, 'welcomeMessage', getSelectedLanguage(site.id))"
+                    rows="3"
+                    class="textarea resize-y"
+                    @input="setLocalizedText(site.id, 'welcomeMessage', getSelectedLanguage(site.id), ($event.target as HTMLTextAreaElement).value)"
+                  ></textarea>
+                </div>
+                <div>
+                  <label class="text-sm text-muted block mb-1.5">引导语 · {{ selectedLanguageLabel(site.id) }}</label>
+                  <textarea
+                    :value="getLocalizedText(site.id, 'guideMessage', getSelectedLanguage(site.id))"
+                    rows="3"
+                    class="textarea resize-y"
+                    @input="setLocalizedText(site.id, 'guideMessage', getSelectedLanguage(site.id), ($event.target as HTMLTextAreaElement).value)"
+                  ></textarea>
+                </div>
+                <div class="col-span-2">
+                  <label class="text-sm text-muted block mb-1.5">气泡文案 · {{ selectedLanguageLabel(site.id) }}（每行一条）</label>
+                  <textarea
+                    :value="getLocalizedMessages(site.id, getSelectedLanguage(site.id))"
+                    @input="setLocalizedMessages(site.id, getSelectedLanguage(site.id), ($event.target as HTMLTextAreaElement).value)"
                     rows="4"
                     placeholder="每行一条气泡文案"
-                    class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full resize-none font-sans"
+                    class="textarea resize-y"
                   ></textarea>
                 </div>
               </div>
-            </div>            <div class="col-span-2">
+            </div>
+            <div class="col-span-2">
               <label class="text-sm text-muted block mb-1.5">企业微信群机器人 Webhook（人工接管通知）</label>
               <div class="flex gap-2">
                 <input
