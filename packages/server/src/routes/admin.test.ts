@@ -38,3 +38,11 @@ test('offline notification replay route is registered as GET', () => {
   const route = layers.find((layer) => layer.route?.path === '/notifications' && layer.route.methods?.get)
   assert.ok(route)
 })
+
+test('delete site route is registered as DELETE', () => {
+  const layers = (router as unknown as {
+    stack: Array<{ route?: { path?: string; methods?: Record<string, boolean> } }>
+  }).stack
+  const deleteRoute = layers.find((layer) => layer.route?.path === '/sites/:id' && layer.route.methods?.delete)
+  assert.ok(deleteRoute)
+})

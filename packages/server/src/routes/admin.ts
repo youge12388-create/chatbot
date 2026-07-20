@@ -584,6 +584,44 @@ router.patch('/sites/:id', requireAuth, wrap(async (req, res) => {
   res.json({ code: 0, data: site })
 }))
 
+/** DELETE /api/admin/sites/:id - 删除站点及其全部业务数据（仅管理员） */
+router.delete('/sites/:id', requireAuth, requireAdmin, wrap(async (req, res) => {
+  const site = await prisma.site.findUnique({
+    where: { id: req.params.id },
+    select: { id: true, domain: true },
+  })
+  if (!site) {
+    res.status(404).json({ code: 1, message: '站点不存在' })
+    return
+  }
+
+  const siteCount = await prisma.site.count()
+  if (siteCount <= 1) {
+    res.status(400).json({ code: 1, message: '至少保留一个站点，无法删除最后一个站点' })
+    return
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const conversations = await tx.conversation.findMany({
+      where: { siteId: site.id },
+      select: { id: true },
+    })
+    const conversationIds = conversations.map((conversation) => conversation.id)
+
+    if (conversationIds.length > 0) {
+      await tx.message.deleteMany({ where: { conversationId: { in: conversationIds } } })
+      await tx.lead.deleteMany({ where: { conversationId: { in: conversationIds } } })
+      await tx.conversation.deleteMany({ where: { id: { in: conversationIds } } })
+    }
+
+    const faqs = await tx.faq.deleteMany({ where: { siteId: site.id } })
+    await tx.site.delete({ where: { id: site.id } })
+
+    return { domain: site.domain, conversations: conversationIds.length, faqs: faqs.count }
+  })
+
+  res.json({ code: 0, data: result })
+}))
 /** POST /api/admin/sites/:id/test-wecom - 测试站点企业微信机器人 */
 router.post('/sites/:id/test-wecom', requireAuth, wrap(async (req, res) => {
   const site = await prisma.site.findUnique({
