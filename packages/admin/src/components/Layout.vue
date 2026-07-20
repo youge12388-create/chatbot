@@ -17,6 +17,10 @@ const siteStore = useSiteStore()
 const title = computed(() => (route.meta.title as string) || '')
 const siteMenuOpen = ref(false)
 const sidebarCollapsed = ref(false)
+const notificationPanelOpen = ref(false)
+const siteNotifications = computed(() => [...notification.latestMessages]
+  .filter((message) => message.siteId === siteStore.selectedSiteId)
+  .reverse())
 const currentSiteUrl = computed(() => siteUrlInfo(
   siteStore.currentSite?.domain,
   siteStore.currentSite?.id,
@@ -57,6 +61,7 @@ function siteNumber(siteId: string): string {
 function selectSite(siteId: string): void {
   siteMenuOpen.value = false
   siteStore.selectSite(siteId)
+  void notification.syncSite(siteId)
   if (route.name === 'conversation-detail') router.push('/conversations')
   if (route.name === 'lead-detail') router.push('/leads')
 }
@@ -66,12 +71,18 @@ function closeSiteMenu(event: FocusEvent): void {
   if (!container.contains(event.relatedTarget as Node | null)) siteMenuOpen.value = false
 }
 
-function goConversations(): void {
-  notification.markSiteRead(siteStore.selectedSiteId)
-  router.push({
-    path: '/conversations',
-    query: { status: undefined, page: undefined },
-  })
+function toggleNotifications(): void {
+  notificationPanelOpen.value = !notificationPanelOpen.value
+}
+
+function openNotification(conversationId: string): void {
+  notification.markConversationRead(conversationId)
+  notificationPanelOpen.value = false
+  router.push(`/conversations/${conversationId}`)
+}
+
+function notificationTime(value: string): string {
+  return new Date(value).toLocaleString('zh-CN')
 }
 
 function onLogout(): void {
@@ -189,10 +200,33 @@ onMounted(async () => {
           </span>
         </div>
         <div class="topbar-actions">
-          <button type="button" class="icon-button notification-button" aria-label="消息通知" @click="goConversations">
-            <AppIcon name="bell" :size="20" />
-            <span v-if="notification.hasUnread" class="notification-badge">{{ unreadDisplay }}</span>
-          </button>
+          <div class="notification-wrap">
+            <button type="button" class="icon-button notification-button" aria-label="消息通知" :aria-expanded="notificationPanelOpen" @click="toggleNotifications">
+              <AppIcon name="bell" :size="20" />
+              <span v-if="notification.hasUnread" class="notification-badge">{{ unreadDisplay }}</span>
+            </button>
+            <div v-if="notificationPanelOpen" class="notification-panel" role="dialog" aria-label="消息通知">
+              <div class="notification-panel__header">
+                <strong>未读消息</strong>
+                <span>{{ siteNotifications.length }} 条</span>
+              </div>
+              <div v-if="siteNotifications.length === 0" class="notification-panel__empty">当前站点暂无未读消息</div>
+              <button
+                v-for="message in siteNotifications"
+                :key="message.id"
+                type="button"
+                class="notification-item"
+                @click="openNotification(message.conversationId)"
+              >
+                <span class="notification-item__dot"></span>
+                <span class="notification-item__body">
+                  <span class="notification-item__title">访客会话 · {{ message.conversationId.slice(-4).toUpperCase() }}</span>
+                  <span class="notification-item__content">{{ message.content }}</span>
+                  <span class="notification-item__time">{{ notificationTime(message.createdAt) }}</span>
+                </span>
+              </button>
+            </div>
+          </div>
           <span class="topbar-divider"></span>
           <div class="user-chip">
             <span class="avatar">{{ (auth.user?.name || auth.user?.username || '?').charAt(0).toUpperCase() }}</span>
