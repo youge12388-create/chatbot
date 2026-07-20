@@ -269,6 +269,37 @@ async function copySiteValue(value: string, label: string) {
     pushToast('error', '复制失败，请手动复制')
   }
 }
+const WIDGET_API_HOST = 'https://canhuo.site'
+
+function escapeHtmlAttribute(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+function siteEmbedCode(siteId: string): string {
+  const draft = drafts.value[siteId]
+  if (!draft) return ''
+  const closingScriptTag = '</' + 'script>'
+  return `<script
+  src="${WIDGET_API_HOST}/widget.js"
+  data-site-id="${escapeHtmlAttribute(draft.id)}"
+  data-site-key="${escapeHtmlAttribute(draft.apiKey)}"
+  data-api-host="${WIDGET_API_HOST}"
+  defer>
+${closingScriptTag}`
+}
+
+async function copyEmbedCode(site: Site): Promise<void> {
+  const code = siteEmbedCode(site.id)
+  if (!code) {
+    pushToast('error', '站点配置尚未加载')
+    return
+  }
+  await copySiteValue(code, '植入代码')
+}
 function toggle(id: string) {
   expanded.value[id] = !expanded.value[id]
 }
@@ -498,6 +529,16 @@ onMounted(fetchList)
 
         <!-- 展开编辑 -->
         <div v-if="expanded[site.id] && getDraft(site.id)" class="px-5 pb-5 pt-1 border-t border-border">
+          <div class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary-soft px-4 py-3">
+            <p class="text-xs text-muted">复制下面的代码，粘贴到对应网站的 HTML 或 Next.js 布局中。</p>
+            <button
+              type="button"
+              class="btn btn-primary btn-sm whitespace-nowrap"
+              @click="copyEmbedCode(site)"
+            >
+              一键复制植入代码
+            </button>
+          </div>
           <div class="grid grid-cols-2 gap-4 mt-4">
             <div>
               <label class="text-sm text-muted block mb-1.5">名称</label>
