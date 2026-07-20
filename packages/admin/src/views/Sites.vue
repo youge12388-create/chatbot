@@ -17,6 +17,7 @@ const expanded = ref<Record<string, boolean>>({})
 const saving = ref<Record<string, boolean>>({})
 const testing = ref<Record<string, boolean>>({})
 const testingWecom = ref<Record<string, boolean>>({})
+const deleting = ref<Record<string, boolean>>({})
 const drafts = ref<Record<string, { name: string; domain: string; settings: SiteSettings }>>({})
 const showCreateForm = ref(false)
 const creating = ref(false)
@@ -229,6 +230,32 @@ async function createSite() {
     pushToast('error', (e as Error).message)
   } finally {
     creating.value = false
+  }
+}
+
+async function deleteSite(site: Site): Promise<void> {
+  if (!canCreateSite.value) return
+  const conversationCount = site._count?.conversations || 0
+  const faqCount = site._count?.faqs || 0
+  const confirmed = window.confirm(
+    `确定删除站点“${site.name}”（${site.domain}）吗？此操作将永久删除 ${conversationCount} 个会话、${faqCount} 个 FAQ 及其线索和消息。`,
+  )
+  if (!confirmed) return
+
+  deleting.value[site.id] = true
+  try {
+    const result = await request<{ domain: string; conversations: number; faqs: number }>(
+      'DELETE',
+      `/api/admin/sites/${site.id}`,
+    )
+    delete drafts.value[site.id]
+    delete expanded.value[site.id]
+    pushToast('success', `站点 ${result.domain} 已删除`)
+    await fetchList()
+  } catch (e) {
+    pushToast('error', (e as Error).message)
+  } finally {
+    deleting.value[site.id] = false
   }
 }
 
@@ -775,8 +802,18 @@ onMounted(fetchList)
             </div>
           </div>
 
-          <div class="flex justify-end mt-4">
+          <div class="flex items-center justify-between gap-3 mt-4">
             <button
+              v-if="canCreateSite"
+              type="button"
+              class="btn btn-danger btn-sm"
+              :disabled="deleting[site.id]"
+              @click="deleteSite(site)"
+            >
+              {{ deleting[site.id] ? '删除中...' : '删除站点' }}
+            </button>
+            <button
+              type="button"
               :disabled="saving[site.id]"
               class="btn btn-primary"
               @click="save(site)"

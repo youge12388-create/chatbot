@@ -9,6 +9,7 @@
  */
 
 import { prisma } from '../db/client'
+import { normalizeSiteOrigin } from '../utils/site-domain'
 
 // ---- 类型 ----
 
@@ -289,19 +290,32 @@ async function createSession(
   visitorId: string,
   metadata?: any,
   siteKey?: string,
+  origin?: string,
 ) {
-  const site = await prisma.site.findUnique({
+  let site = await prisma.site.findUnique({
     where: { id: siteId },
-    select: { apiKey: true, settings: true },
+    select: { id: true, domain: true, apiKey: true, settings: true },
   })
 
   // 站点标识错误时拒绝创建隐式站点，避免聊天落到没有配置的站点。
   if (!site || (siteKey && site.apiKey !== siteKey)) return null
 
+  // data-site-id can be copied between websites. When the browser Origin maps
+  // to another configured site, route the new session to that site instead.
+  // An explicit site key remains authoritative and must not be silently moved.
+  const originHost = normalizeSiteOrigin(origin)
+  if (originHost && !siteKey && site.domain !== originHost) {
+    const originSite = await prisma.site.findUnique({
+      where: { domain: originHost },
+      select: { id: true, domain: true, apiKey: true, settings: true },
+    })
+    if (originSite) site = originSite
+  }
+
   const settings = getPublicSiteSettings(site.settings)
   const session = await prisma.conversation.create({
     data: {
-      siteId,
+      siteId: site.id,
       visitorId,
       metadata: metadata || {},
     },

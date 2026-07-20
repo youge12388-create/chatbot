@@ -20,3 +20,20 @@ export function normalizeSiteDomain(value: unknown): string | null {
     return null
   }
 }
+
+/** Return the normalized host from a browser Origin header. */
+export function normalizeSiteOrigin(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+
+  const raw = value.trim()
+  if (!raw) return null
+
+  try {
+    const url = new URL(raw)
+    if (!['http:', 'https:'].includes(url.protocol)) return null
+    if (url.username || url.password || url.pathname !== '/' || url.search || url.hash) return null
+    return url.host.toLowerCase()
+  } catch {
+    return null
+  }
+}
