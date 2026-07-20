@@ -449,3 +449,8 @@ chatbot/
 - 服务端新增 `DELETE /api/admin/sites/:id`；删除时事务级联清理该站点的 FAQ、线索、消息和会话。
 - 为避免误删，系统不允许删除最后一个站点；非管理员无法调用删除接口。
 - 验证：`npm test`（24/24）、`npm run build:admin`、`npm run build:server`、`git diff --check` 均通过。
+## 2026-07-20 站点身份字段编辑
+- 管理后台站点配置新增 Site ID 与 Site API Key 编辑框；普通员工仍只能修改名称、域名和公开/业务配置，身份字段仅管理员可改。
+- 服务端 PATCH /api/admin/sites/:id 支持修改 id/apiKey，并校验 Site ID 格式、API Key 长度和唯一性。
+- 修改 Site ID 时使用事务创建临时站点、迁移 FAQ 与会话关联、删除旧站点并写入最终配置；修改后必须同步网站代码中的 data-site-id/data-site-key。
+- 验证：npm test（25/25）、npm run build:admin、npm run build:server、git diff --check 均通过。

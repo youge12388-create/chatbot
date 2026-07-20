@@ -564,8 +564,29 @@ router.post('/sites', requireAuth, requireAdmin, wrap(async (req, res) => {
 }))
 /** PATCH /api/admin/sites/:id - 编辑站点配置 */
 router.patch('/sites/:id', requireAuth, wrap(async (req, res) => {
-  const { name, domain, settings } = req.body
+  const { id, name, domain, apiKey, settings } = req.body
+  const currentId = req.params.id
+  const nextId = id === undefined ? currentId : String(id).trim()
+  const nextApiKey = apiKey === undefined ? undefined : String(apiKey).trim()
   const data: any = {}
+
+  if (id !== undefined && req.user?.role !== 'admin') {
+    res.status(403).json({ code: 1, message: '权限不足' })
+    return
+  }
+  if (id !== undefined && !/^[A-Za-z0-9_-]{8,100}$/.test(nextId)) {
+    res.status(400).json({ code: 1, message: 'Site ID 只能包含字母、数字、下划线和短横线，长度为 8-100 个字符' })
+    return
+  }
+  if (apiKey !== undefined && req.user?.role !== 'admin') {
+    res.status(403).json({ code: 1, message: '权限不足' })
+    return
+  }
+  if (apiKey !== undefined && !/^\S{16,256}$/.test(nextApiKey || '')) {
+    res.status(400).json({ code: 1, message: 'API Key 不能为空，且长度需为 16-256 个字符' })
+    return
+  }
+
   if (name !== undefined) data.name = name
   if (domain !== undefined) {
     const normalizedDomain = normalizeSiteDomain(domain)
@@ -576,12 +597,40 @@ router.patch('/sites/:id', requireAuth, wrap(async (req, res) => {
     data.domain = normalizedDomain
   }
   if (settings !== undefined) data.settings = settings
+  if (apiKey !== undefined) data.apiKey = nextApiKey
 
-  const site = await prisma.site.update({
-    where: { id: req.params.id },
-    data,
-  })
-  res.json({ code: 0, data: site })
+  try {
+    const site = await prisma.$transaction(async (tx) => {
+      if (nextId !== currentId) {
+        const current = await tx.site.findUnique({ where: { id: currentId } })
+        if (!current) throw new Error('SITE_NOT_FOUND')
+        const existing = await tx.site.findUnique({ where: { id: nextId }, select: { id: true } })
+        if (existing) throw new Error('SITE_ID_CONFLICT')
+
+        await tx.site.create({
+          data: {
+            id: nextId,
+            name: current.name,
+            domain: `__site_migrating_${randomBytes(12).toString('hex')}`,
+            apiKey: generateSiteApiKey(),
+            settings: current.settings === null ? {} : current.settings,
+          },
+        })
+        await tx.faq.updateMany({ where: { siteId: currentId }, data: { siteId: nextId } })
+        await tx.conversation.updateMany({ where: { siteId: currentId }, data: { siteId: nextId } })
+        await tx.site.delete({ where: { id: currentId } })
+        return tx.site.update({ where: { id: nextId }, data })
+      }
+      return tx.site.update({ where: { id: currentId }, data })
+    })
+    res.json({ code: 0, data: site })
+  } catch (error: any) {
+    if (error?.message === 'SITE_ID_CONFLICT' || error?.code === 'P2002') {
+      res.status(409).json({ code: 1, message: 'Site ID、域名或 API Key 已经存在' })
+      return
+    }
+    throw error
+  }
 }))
 
 /** DELETE /api/admin/sites/:id - 删除站点及其全部业务数据（仅管理员） */
