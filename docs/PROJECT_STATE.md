@@ -410,3 +410,23 @@ chatbot/
 - npm run build:widget：通过。
 - npm run build:server：通过。
 - git diff --check：通过。
+
+
+## 2026-07-20 Conversation triage and notification panel
+- Admin conversation list now queries only conversations with at least one message. Empty session records remain in the database and reappear automatically after the first customer message.
+- The admin bell opens an unread-message panel scoped to the selected site; clicking a notification marks that conversation read and opens its detail page.
+- Real-time customer messages refresh the conversation list when they belong to a previously hidden empty session.
+- Visitor labels use the lead name/phone when available, otherwise a stable four-character visitor suffix. Conversation detail aligns visitor messages left and operator/AI messages right.
+
+### Validation
+- npm run build:admin passed.
+- npm run build:server passed.
+- npm test -w packages/server passed (20/20).
+- git diff --check passed.
+
+
+## 2026-07-20 Offline notification replay
+- Added GET /api/admin/notifications?siteId=&since= so the admin can replay customer messages created while the browser was closed or disconnected.
+- Notification state now persists pending messages and read message ids in localStorage, deduplicates SSE plus replay responses, and syncs the selected site on startup and site changes.
+- The last sync cursor advances only after a successful replay request; failed requests retry on the next open.
+- Validation: admin build, server build, server tests (21/21), and git diff --check passed.
