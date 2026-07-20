@@ -49,8 +49,8 @@ function fmtTime(t: string | null | undefined): string {
 function visitorLabel(conversation: Conversation): string {
   const lead = conversation.leads?.[0]
   if (lead?.name) return lead.name
-  const tail = conversation.visitorId.replace(/[^a-zA-Z0-9]/g, '').slice(-4).toUpperCase()
-  return tail ? `访客 ${tail}` : '访客'
+  const number = conversation.visitorNumber
+  return number ? `访客 ${String(number).padStart(3, '0')}` : '访客'
 }
 
 async function fetchDetail() {

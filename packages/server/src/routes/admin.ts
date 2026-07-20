@@ -278,6 +278,30 @@ async function exportLeads(req: Request, res: Response): Promise<void> {
 // 会话管理
 // ========================
 
+async function withVisitorNumbers<T extends { id: string; siteId: string; visitorId: string }>(items: T[], siteId?: string) {
+  const where: any = { messages: { some: {} } }
+  if (siteId) where.siteId = siteId
+  const rows = await prisma.conversation.findMany({
+    where,
+    select: { id: true, siteId: true, visitorId: true },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+  })
+  const nextBySite = new Map<string, number>()
+  const numberByVisitor = new Map<string, number>()
+  const numberByConversation = new Map<string, number>()
+  for (const row of rows) {
+    const visitorKey = `${row.siteId}:${row.visitorId}`
+    let number = numberByVisitor.get(visitorKey)
+    if (!number) {
+      number = (nextBySite.get(row.siteId) || 0) + 1
+      nextBySite.set(row.siteId, number)
+      numberByVisitor.set(visitorKey, number)
+    }
+    numberByConversation.set(row.id, number)
+  }
+  return items.map((item) => ({ ...item, visitorNumber: numberByConversation.get(item.id) || 0 }))
+}
+
 /** GET /api/admin/conversations?page=1&size=20&status=&siteId= */
 router.get('/conversations', requireAuth, wrap(async (req, res) => {
   const page = Math.max(1, Number(req.query.page) || 1)
@@ -312,11 +336,12 @@ router.get('/conversations', requireAuth, wrap(async (req, res) => {
       take: size,
     }),
   ])
+  const numberedConversations = await withVisitorNumbers(conversations, typeof siteId === 'string' ? siteId : undefined)
 
   res.json({
     code: 0,
     data: {
-      list: conversations,
+      list: numberedConversations,
       total,
       page,
       size,
@@ -340,7 +365,8 @@ router.get('/conversations/:id', requireAuth, wrap(async (req, res) => {
     res.status(404).json({ code: 1, message: '会话不存在' })
     return
   }
-  res.json({ code: 0, data: conv })
+  const [numbered] = await withVisitorNumbers([conv])
+  res.json({ code: 0, data: numbered })
 }))
 
 /** POST /api/admin/conversations/:id/reply - 后台人工回复（推送到 widget SSE） */
