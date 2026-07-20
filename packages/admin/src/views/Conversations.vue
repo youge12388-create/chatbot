@@ -78,12 +78,12 @@ function isTimeout(c: Conversation): boolean {
   const last = c.lastMessageAt ? new Date(c.lastMessageAt).getTime() : 0
   return Date.now() - last > TIMEOUT_MS
 }
-/** Visitor display name: use lead name or a stable four-character visitor code. */
+/** Visitor display name: use lead name or a sequential per-site visitor number. */
 function visitorLabel(c: Conversation): string {
   const lead = c.leads?.[0]
   if (lead?.name) return lead.name
-  const tail = c.visitorId.replace(/[^a-zA-Z0-9]/g, '').slice(-4).toUpperCase()
-  return tail ? `访客 ${tail}` : '访客'
+  const number = c.visitorNumber
+  return number ? `访客 ${String(number).padStart(3, '0')}` : '访客'
 }
 
 function lastMessagePreview(c: Conversation): string {
