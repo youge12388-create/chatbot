@@ -107,6 +107,38 @@ router.get('/stream', async (req, res) => {
 // 线索管理
 // ========================
 
+/** GET /api/admin/notifications?siteId=&since= - replay customer messages missed while admin was offline */
+router.get('/notifications', requireAuth, wrap(async (req, res) => {
+  const siteId = String(req.query.siteId || '')
+  const sinceRaw = String(req.query.since || '')
+  if (!siteId) {
+    res.status(400).json({ code: 1, message: 'siteId is required' })
+    return
+  }
+
+  const since = sinceRaw ? new Date(sinceRaw) : new Date()
+  if (Number.isNaN(since.getTime())) {
+    res.status(400).json({ code: 1, message: 'since must be a valid date' })
+    return
+  }
+
+  const messages = await prisma.message.findMany({
+    where: {
+      role: 'user',
+      createdAt: { gt: since },
+      conversation: { siteId },
+    },
+    orderBy: { createdAt: 'asc' },
+    take: 100,
+    select: { id: true, conversationId: true, content: true, createdAt: true },
+  })
+
+  res.json({
+    code: 0,
+    data: messages.map((message) => ({ ...message, siteId })),
+  })
+}))
+
 /** GET /api/admin/leads?page=1&size=20&status=&search=&siteId= */
 router.get('/leads', requireAuth, wrap(async (req, res) => {
   const page = Math.max(1, Number(req.query.page) || 1)
@@ -252,7 +284,7 @@ router.get('/conversations', requireAuth, wrap(async (req, res) => {
   const size = Math.min(100, Math.max(1, Number(req.query.size) || 20))
   const { status, siteId } = req.query
 
-  const where: any = {}
+  const where: any = { messages: { some: {} } }
   if (status && status !== 'all') where.status = status
   if (siteId) where.siteId = siteId
 
