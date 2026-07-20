@@ -46,3 +46,10 @@ test('delete site route is registered as DELETE', () => {
   const deleteRoute = layers.find((layer) => layer.route?.path === '/sites/:id' && layer.route.methods?.delete)
   assert.ok(deleteRoute)
 })
+test('site edit route is registered as PATCH', () => {
+  const layers = (router as unknown as {
+    stack: Array<{ route?: { path?: string; methods?: Record<string, boolean> } }>
+  }).stack
+  const editRoute = layers.find((layer) => layer.route?.path === '/sites/:id' && layer.route.methods?.patch)
+  assert.ok(editRoute)
+})
