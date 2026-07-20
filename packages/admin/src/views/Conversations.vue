@@ -78,11 +78,10 @@ function isTimeout(c: Conversation): boolean {
   const last = c.lastMessageAt ? new Date(c.lastMessageAt).getTime() : 0
   return Date.now() - last > TIMEOUT_MS
 }
-/** 访客显示名：有线索显示姓名，无线索显示"访客 + 后6位大写" */
+/** Visitor display name: use lead name or a stable four-character visitor code. */
 function visitorLabel(c: Conversation): string {
   const lead = c.leads?.[0]
   if (lead?.name) return lead.name
-  if (lead?.phone) return lead.phone
   const tail = c.visitorId.replace(/[^a-zA-Z0-9]/g, '').slice(-4).toUpperCase()
   return tail ? `访客 ${tail}` : '访客'
 }
