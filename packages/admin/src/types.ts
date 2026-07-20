@@ -85,6 +85,7 @@ export interface Conversation {
   id: string
   siteId: string
   visitorId: string
+  visitorNumber?: number
   status: ConversationStatus
   interestLevel: InterestLevel
   metadata?: Record<string, unknown>
