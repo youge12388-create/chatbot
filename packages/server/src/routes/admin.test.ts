@@ -29,3 +29,12 @@ test('新增站点路由注册为 POST', () => {
   const createRoute = layers.find((layer) => layer.route?.path === '/sites' && layer.route.methods?.post)
   assert.ok(createRoute)
 })
+
+
+test('offline notification replay route is registered as GET', () => {
+  const layers = (router as unknown as {
+    stack: Array<{ route?: { path?: string; methods?: Record<string, boolean> } }>
+  }).stack
+  const route = layers.find((layer) => layer.route?.path === '/notifications' && layer.route.methods?.get)
+  assert.ok(route)
+})

@@ -42,9 +42,9 @@ function conversationTime(c: Conversation): number {
   return Number.isNaN(timestamp) ? 0 : timestamp
 }
 
-const sortedList = computed(() => [...list.value].sort(
-  (a, b) => conversationTime(b) - conversationTime(a),
-))
+const sortedList = computed(() => list.value
+  .filter((conversation) => (conversation._count?.messages ?? 0) > 0 || (conversation.messages?.length ?? 0) > 0)
+  .sort((a, b) => conversationTime(b) - conversationTime(a)))
 const selectedIds = ref<string[]>([])
 const selectableIds = computed(() => sortedList.value.filter((conversation) => conversation.status !== 'closed').map((conversation) => conversation.id))
 const allVisibleSelected = computed(() => selectableIds.value.length > 0 && selectableIds.value.every((id) => selectedIds.value.includes(id)))
@@ -83,8 +83,8 @@ function visitorLabel(c: Conversation): string {
   const lead = c.leads?.[0]
   if (lead?.name) return lead.name
   if (lead?.phone) return lead.phone
-  const tail = c.visitorId.replace(/[^a-zA-Z0-9]/g, '').slice(-6).toUpperCase()
-  return tail ? `访客 ${tail}` : '未知访客'
+  const tail = c.visitorId.replace(/[^a-zA-Z0-9]/g, '').slice(-4).toUpperCase()
+  return tail ? `访客 ${tail}` : '访客'
 }
 
 function lastMessagePreview(c: Conversation): string {
@@ -205,19 +205,27 @@ onMounted(async () => {
 
 watch(
   () => notification.latestMessages[notification.latestMessages.length - 1],
-  (message) => {
+  async (message) => {
     if (!message || message.siteId !== siteStore.selectedSiteId) return
     const conversation = list.value.find((item) => item.id === message.conversationId)
-    if (conversation) {
-      conversation.lastMessageAt = message.createdAt
-      conversation.messages = [{
-        id: message.id,
-        conversationId: message.conversationId,
-        role: 'user' as const,
-        content: message.content,
-        source: 'user' as const,
-        createdAt: message.createdAt,
-      }]
+    if (!conversation) {
+      page.value = 1
+      syncQueryToUrl()
+      await fetchList()
+      return
+    }
+    conversation.lastMessageAt = message.createdAt
+    conversation.messages = [{
+      id: message.id,
+      conversationId: message.conversationId,
+      role: 'user' as const,
+      content: message.content,
+      source: 'user' as const,
+      createdAt: message.createdAt,
+    }]
+    conversation._count = {
+      messages: Math.max(1, conversation._count?.messages ?? 0),
+      leads: conversation._count?.leads ?? 0,
     }
   },
 )
