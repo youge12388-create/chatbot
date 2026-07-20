@@ -19,6 +19,18 @@ services:
       retries: 5
 
   # Chat API 后端
+  # Redis shared rate-limit and SSE connection leases
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
   server:
     build:
       context: .
@@ -27,12 +39,15 @@ services:
       - '3001:3001'
     environment:
       DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/chatbot"
+      REDIS_URL: "redis://redis:6379"
       DIFY_API_URL: "${DIFY_API_URL}"
       DIFY_API_KEY: "${DIFY_API_KEY}"
       WECOM_WEBHOOK_URL: "${WECOM_WEBHOOK_URL}"
       N8N_WEBHOOK_URL: "http://n8n:5678/webhook/lead-notify"
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   # n8n 自动化平台
@@ -57,4 +72,5 @@ services:
 
 volumes:
   pgdata:
+  redisdata:
   n8n_data:
