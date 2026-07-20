@@ -430,3 +430,9 @@ chatbot/
 - Notification state now persists pending messages and read message ids in localStorage, deduplicates SSE plus replay responses, and syncs the selected site on startup and site changes.
 - The last sync cursor advances only after a successful replay request; failed requests retry on the next open.
 - Validation: admin build, server build, server tests (21/21), and git diff --check passed.
+
+
+## 2026-07-20 Sequential visitor labels and expanded site settings
+- Conversation APIs return a per-site sequential visitor number based on the visitorId first seen in a non-empty conversation; the admin displays it as visitor 001, visitor 002, and keeps the same label for the same visitor across sessions.
+- Site configuration cards default to expanded on first load while preserving a manually collapsed state during refreshes.
+- The raw visitorId remains an internal identifier and is not shown in the admin UI.

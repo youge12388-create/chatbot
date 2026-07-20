@@ -185,6 +185,7 @@ async function fetchList() {
     const data = await siteStore.loadSites(true)
     list.value = data
     for (const s of data) {
+      if (expanded.value[s.id] === undefined) expanded.value[s.id] = true
       drafts.value[s.id] = {
         name: s.name,
         domain: hasSiteUrl(s.domain, s.id) ? siteDisplayUrl(s.domain, s.id) : '',
