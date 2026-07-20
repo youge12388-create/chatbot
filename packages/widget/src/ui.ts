@@ -657,8 +657,8 @@ export function createWidget(config: WidgetConfig) {
   const closeBtn = shadow.querySelector('.chat-widget-close')!
   const messagesEl = shadow.querySelector('.chat-widget-messages')!
   const faqsEl = shadow.querySelector('.chat-widget-faqs')!
-  const input = shadow.querySelector('.chat-widget-input input')!
-  const sendBtn = shadow.querySelector('.chat-widget-send')!
+  const input = shadow.querySelector<HTMLInputElement>('.chat-widget-input input')!
+  const sendBtn = shadow.querySelector<HTMLButtonElement>('.chat-widget-send')!
   const formOverlay = shadow.querySelector<HTMLElement>('.chat-widget-form-overlay')!
   const bubble = shadow.querySelector<HTMLElement>('.chat-widget-bubble')!
   const contactBtn = shadow.querySelector<HTMLElement>('.chat-widget-contact-btn')!
@@ -1198,7 +1198,7 @@ export function createWidget(config: WidgetConfig) {
   }
 
   sendBtn.addEventListener('click', () => sendMessage(input.value))
-  input.addEventListener('keydown', (e) => {
+  input.addEventListener('keydown', (e: KeyboardEvent) => {
     if (e.key === 'Enter') {
       sendMessage(input.value)
     }
@@ -1207,9 +1207,13 @@ export function createWidget(config: WidgetConfig) {
   // 打开表单
   function openForm() {
     renderForm(formOverlay, lang, async (data, extra) => {
-      await api.submitLead(data, extra)
-      closeForm()
-      addMessage({ role: 'assistant', content: t(lang, 'form.success') })
+      try {
+        await api.submitLead(data, extra)
+        closeForm()
+        addMessage({ role: 'assistant', content: t(lang, 'form.success') })
+      } catch {
+        addMessage({ role: 'assistant', content: t(lang, 'networkError') }, true)
+      }
     }, closeForm, siteSettings?.formConfig)
     // 重新插入拖动条 handle（renderForm 会清空容器）
     const handle = document.createElement('div')

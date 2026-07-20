@@ -55,6 +55,8 @@ model Conversation {
   updatedAt      DateTime  @updatedAt
   closedAt       DateTime?
   lastMessageAt  DateTime?                        // 最后消息时间,列表排序用
+  sessionTokenHash String?
+  sessionTokenExpiresAt DateTime?
   assigneeId     String?
   site     Site      @relation(fields: [siteId], references: [id])
   assignee AdminUser? @relation("ConversationAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
@@ -64,6 +66,7 @@ model Conversation {
   @@index([siteId, visitorId])
   @@index([status])
   @@index([lastMessageAt])
+  @@index([sessionTokenExpiresAt])
   @@index([assigneeId])
 }
 
@@ -114,6 +117,25 @@ model Lead {
 // ========================
 // 管理员账号
 // ========================
+model NotificationOutbox {
+  id             String    @id @default(cuid())
+  eventType      String
+  idempotencyKey String    @unique
+  conversationId String?
+  leadId         String?
+  status         String    @default("pending")
+  attempts       Int       @default(0)
+  availableAt    DateTime  @default(now())
+  lockedAt       DateTime?
+  lockedBy       String?
+  lastError      String?
+  sentAt         DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([status, availableAt])
+  @@index([lockedAt])
+}
 model AdminUser {
   id        String   @id @default(cuid())
   username  String   @unique

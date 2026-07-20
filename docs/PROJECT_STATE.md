@@ -430,3 +430,42 @@ chatbot/
 - Notification state now persists pending messages and read message ids in localStorage, deduplicates SSE plus replay responses, and syncs the selected site on startup and site changes.
 - The last sync cursor advances only after a successful replay request; failed requests retry on the next open.
 - Validation: admin build, server build, server tests (21/21), and git diff --check passed.
+
+
+## 2026-07-20 Sequential visitor labels and expanded site settings
+- Conversation APIs now return a per-site sequential visitor number based on the visitorId first seen in a non-empty conversation; the admin displays it as ?? 001, ?? 002, and keeps the same label for the same visitor across sessions.
+- Site configuration cards default to expanded on first load while preserving a manually collapsed state during refreshes.
+- The raw visitorId remains an internal identifier and is not shown in the admin UI.
+
+### Validation
+- npm test passed (21/21).
+- npm run build:admin passed.
+- npm run build:server passed.
+- git diff --check passed.
+
+## 2026-07-20：P0 线索安全与提交可靠性修复
+- 移除公开 /api/chat/leads、/api/chat/leads/html、/api/chat/leads/test-notify 调试接口，线索查询继续使用需要鉴权的 admin 路由。
+- 新增线索请求白名单 DTO、字符串长度限制和 extra 校验；applyingLevel 兼容迁移到 Lead.extra，避免直接写入不存在的 Prisma 字段。
+- Widget 线索提交检查 HTTP/业务响应；失败时保留表单并显示网络错误，成功后才关闭表单和显示成功提示。
+- 验证：服务端测试 24/24、服务端构建、Widget 构建、git diff --check 通过。
+- 未处理：会话消息凭证、生产密钥/限流、通知 outbox 等其他 P0/P1 项目。
+## 2026-07-20：会话令牌、限流与通知 outbox
+- 会话创建生成 256-bit 随机令牌，数据库只保存 SHA-256 摘要和 24 小时过期时间；消息、线索、历史消息与 Widget SSE 均校验令牌。
+- 新增有界单实例限流：管理员登录 5/分钟、创建会话 10/分钟、发消息 30/分钟/会话、提交线索 5/分钟/会话；SSE 限制同一 IP/会话 5 个并发连接。多实例部署需替换为 Redis 等共享存储。
+- Lead 和转人工通知改为事务内幂等写入 NotificationOutbox；worker 采用租约、最多 5 次重试、递增退避和最终失败记录，不再阻塞用户请求等待 webhook。
+- 生产 webhook 仅允许 HTTPS 且必须匹配 WEBHOOK_ALLOWED_HOSTS；上线前需依次执行两条 Prisma migration，再启动服务。
+- 验证：服务端测试 28/28、服务端构建、Widget 构建、git diff --check 通过。
+
+## 2026-07-20 Widget 类型修复与 Redis 限流
+- Widget 的 10 个 TypeScript 错误已修复：DOM 查询使用具体元素类型，会话创建返回值使用已收窄的非空 ID。
+- 限流存储改为 Redis：请求窗口使用 Lua 原子 `INCR + PEXPIRE`；SSE 并发连接使用 Redis 槽位、租约和续租，支持多实例共享。
+- Redis 不可用时限流接口默认拒绝请求并返回 503；生产环境缺少 `REDIS_URL` 时服务启动直接失败。
+- `.env.example` 和 `docker-compose.yml` 已增加 Redis 配置；服务端新增 `ioredis` 依赖。
+
+### 最近验证
+- `npx tsc --noEmit -p packages/widget/tsconfig.json`：通过。
+- `npm test -w packages/server`：28/28 通过。
+- `npm run build -w packages/server`：通过。
+- `npm run build -w packages/widget`：通过。
+- `npx prisma validate --schema packages/server/prisma/schema.prisma`：通过。
+- `git diff --check`：通过。

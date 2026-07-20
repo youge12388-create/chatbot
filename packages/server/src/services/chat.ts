@@ -9,6 +9,7 @@
  */
 
 import { prisma } from '../db/client'
+import { issueSessionToken } from './session-token'
 
 // ---- 类型 ----
 
@@ -299,14 +300,18 @@ async function createSession(
   if (!site || (siteKey && site.apiKey !== siteKey)) return null
 
   const settings = getPublicSiteSettings(site.settings)
+  const credential = issueSessionToken()
   const session = await prisma.conversation.create({
     data: {
       siteId,
       visitorId,
       metadata: metadata || {},
+      sessionTokenHash: credential.tokenHash,
+      sessionTokenExpiresAt: credential.expiresAt,
     },
   })
-  return { ...session, siteSettings: settings }
+  const { sessionTokenHash, sessionTokenExpiresAt, ...publicSession } = session
+  return { ...publicSession, token: credential.token, siteSettings: settings }
 }
 function isLocalizedObject(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
@@ -655,12 +660,22 @@ function getTransferReply(lang: string): string {
 }
 
 async function transferToHuman(conversationId: string) {
-  await prisma.conversation.update({
-    where: { id: conversationId },
-    data: { status: 'transferred' },
+  await prisma.$transaction(async (tx) => {
+    await tx.conversation.update({
+      where: { id: conversationId },
+      data: { status: 'transferred' },
+    })
+    await tx.notificationOutbox.upsert({
+      where: { idempotencyKey: 'transfer_request:' + conversationId },
+      create: {
+        eventType: 'transfer_request',
+        idempotencyKey: 'transfer_request:' + conversationId,
+        conversationId,
+      },
+      update: {},
+    })
   })
 }
-
 // ---- 预设问题 ----
 
 async function getFaqs(siteId: string, lang: SupportedLang = 'zh-CN') {

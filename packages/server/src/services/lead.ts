@@ -1,3 +1,82 @@
+export interface LeadFields {
+  name?: string
+  phone?: string
+  email?: string
+  wechat?: string
+  education?: string
+  targetMajor?: string
+  budget?: string
+  enrollmentDate?: string
+}
+
+export interface NormalizedLeadInput {
+  fields: LeadFields
+  extra: Record<string, string>
+}
+
+const LEAD_FIELD_LIMITS: Record<keyof LeadFields, number> = {
+  name: 100,
+  phone: 32,
+  email: 254,
+  wechat: 100,
+  education: 100,
+  targetMajor: 200,
+  budget: 100,
+  enrollmentDate: 32,
+}
+
+const LEGACY_EXTRA_FIELD_LIMITS: Record<string, number> = {
+  applyingLevel: 64,
+}
+
+function normalizeString(value: unknown, fieldName: string, maxLength: number): string {
+  if (typeof value !== 'string') {
+    throw new Error('字段 ' + fieldName + ' 必须是字符串')
+  }
+  const normalized = value.trim()
+  if (normalized.length > maxLength) {
+    throw new Error('字段 ' + fieldName + ' 长度不能超过 ' + maxLength + ' 个字符')
+  }
+  return normalized
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+/** 将公开线索请求转换为 Prisma 可接受的白名单 DTO。 */
+export function normalizeLeadInput(input: Record<string, unknown>): NormalizedLeadInput {
+  const fields: LeadFields = {}
+  const extra: Record<string, string> = {}
+
+  for (const [key, value] of Object.entries(input)) {
+    if (key === 'extra') {
+      if (!isRecord(value)) throw new Error('字段 extra 必须是对象')
+      for (const [extraKey, extraValue] of Object.entries(value)) {
+        if (!/^[A-Za-z0-9_-]{1,64}$/.test(extraKey)) {
+          throw new Error('extra 字段名格式无效')
+        }
+        extra[extraKey] = normalizeString(extraValue, 'extra.' + extraKey, 1000)
+      }
+      continue
+    }
+
+    if (Object.prototype.hasOwnProperty.call(LEAD_FIELD_LIMITS, key)) {
+      const normalized = normalizeString(value, key, LEAD_FIELD_LIMITS[key as keyof LeadFields])
+      Object.assign(fields, { [key]: normalized })
+      continue
+    }
+
+    if (Object.prototype.hasOwnProperty.call(LEGACY_EXTRA_FIELD_LIMITS, key)) {
+      extra[key] = normalizeString(value, key, LEGACY_EXTRA_FIELD_LIMITS[key])
+      continue
+    }
+
+    throw new Error('不支持的线索字段: ' + key)
+  }
+
+  return { fields, extra }
+}
 /**
  * 线索管理服务
  *
@@ -100,40 +179,45 @@ async function updateInterestScore(
 /**
  * 更新或创建线索
  */
-async function upsertLead(conversationId: string, fields: Record<string, any>) {
-  const { extra, ...rest } = fields
-  const existing = await prisma.lead.findFirst({
-    where: { conversationId },
+async function upsertLead(conversationId: string, fields: LeadFields, extra: Record<string, string>) {
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.lead.findFirst({
+      where: { conversationId },
+    })
+
+    const lead = existing
+      ? await tx.lead.update({
+        where: { id: existing.id },
+        data: {
+          ...fields,
+          extra: { ...(isRecord(existing.extra) ? existing.extra : {}), ...extra },
+        },
+      })
+      : await tx.lead.create({
+        data: { conversationId, ...fields, extra },
+      })
+
+    if (fields.phone) {
+      await tx.notificationOutbox.upsert({
+        where: { idempotencyKey: 'new_lead:' + conversationId },
+        create: {
+          eventType: 'new_lead',
+          idempotencyKey: 'new_lead:' + conversationId,
+          conversationId,
+          leadId: lead.id,
+        },
+        update: {},
+      })
+    }
+
+    return lead
   })
-
-  let lead
-  if (existing) {
-    lead = await prisma.lead.update({
-      where: { id: existing.id },
-      data: {
-        ...rest,
-        extra: extra ? { ...(existing.extra as any), ...extra } : undefined,
-      },
-    })
-  } else {
-    lead = await prisma.lead.create({
-      data: { conversationId, ...rest, extra: extra || {} },
-    })
-  }
-
-  // 线索有手机就推通知
-  if (fields.phone) {
-    await notifyNewLead(conversationId)
-  }
-
-  return lead
 }
-
 /**
  * 通知新线索：优先 n8n，降级到企微直连
  * webhook 地址优先从 site.settings.webhookUrl 读，兼容环境变量
  */
-async function notifyNewLead(conversationId: string) {
+async function notifyNewLead(conversationId: string): Promise<boolean> {
   const lead = await prisma.lead.findFirst({
     where: { conversationId },
     include: {
@@ -145,7 +229,7 @@ async function notifyNewLead(conversationId: string) {
       },
     },
   })
-  if (!lead) return
+  if (!lead) return false
 
   const payload = {
     event: 'new_lead',
@@ -171,17 +255,18 @@ async function notifyNewLead(conversationId: string) {
   // 优先走 n8n
   if (n8nUrl) {
     const result = await postJson(n8nUrl, payload)
-    if (result.ok) return
+    if (result.ok) return true
   }
 
   // 降级：直连企微机器人
   if (wecomUrl) {
-    const text = formatWecomText(payload.data)
-    await postJson(wecomUrl, {
+    const result = await postJson(wecomUrl, {
       msgtype: 'text',
-      text: { content: text },
+      text: { content: formatWecomText(payload.data) },
     })
+    return result.ok
   }
+  return false
 }
 
 /** 格式化企微消息文案 */
@@ -208,6 +293,22 @@ function formatWecomText(data: any): string {
   ].join('\n')
 }
 
+export function isAllowedWebhookUrl(rawUrl: string): boolean {
+  try {
+    const url = new URL(rawUrl)
+    if (url.protocol !== 'https:') return false
+
+    const allowedHosts = (process.env.WEBHOOK_ALLOWED_HOSTS || '')
+      .split(',')
+      .map(host => host.trim().toLowerCase())
+      .filter(Boolean)
+
+    if (process.env.NODE_ENV === 'production' && allowedHosts.length === 0) return false
+    return allowedHosts.length === 0 || allowedHosts.includes(url.hostname.toLowerCase())
+  } catch {
+    return false
+  }
+}
 /** POST JSON，吞异常，返回是否成功 */
 export interface WebhookResult {
   ok: boolean
@@ -216,6 +317,9 @@ export interface WebhookResult {
 }
 
 export async function postJson(url: string, body: any): Promise<WebhookResult> {
+  if (!isAllowedWebhookUrl(url)) {
+    return { ok: false, status: 0, message: 'Webhook 地址不在允许范围内' }
+  }
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 10_000)
 

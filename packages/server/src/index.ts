@@ -3,6 +3,8 @@ import cors from 'cors'
 import path from 'path'
 import chatRoutes from './routes/chat'
 import adminRoutes from './routes/admin'
+import { startNotificationOutboxWorker } from './services/notification-outbox'
+import { assertRedisConfigured } from './middleware/rate-limit'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -41,6 +43,9 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   })
 })
 
+if (process.env.NODE_ENV === 'production') assertRedisConfigured()
+
 app.listen(Number(PORT), '0.0.0.0', () => {
+  startNotificationOutboxWorker()
   console.log(`[chat-api] running on http://0.0.0.0:${PORT}`)
 })

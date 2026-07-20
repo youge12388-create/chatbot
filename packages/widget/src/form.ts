@@ -49,6 +49,10 @@ const PRESET_FIELDS: Array<{
   { key: 'targetMajor', labels: { 'zh-CN': '意向专业', en: 'Intended major', ko: '희망 전공', ru: 'Специальность' }, placeholder: { 'zh-CN': '您想申请的专业', en: 'Your intended major', ko: '희망 전공을 입력하세요', ru: 'Ваша специальность' } },
   { key: 'budget', labels: { 'zh-CN': '预算', en: 'Budget', ko: '예산', ru: 'Бюджет' }, placeholder: { 'zh-CN': '如：30万/年', en: 'e.g. 300k/year', ko: '예: 연간 300,000', ru: 'напр. 300k/год' } },
 ]
+
+const TOP_LEVEL_LEAD_FIELDS = new Set([
+  'name', 'phone', 'email', 'wechat', 'education', 'targetMajor', 'budget', 'enrollmentDate',
+])
 /** 校验手机号（中国11位或国际格式） */
 function isValidPhone(phone: string): boolean {
   const trimmed = phone.trim()
@@ -66,7 +70,7 @@ function isValidEmail(email: string): boolean {
 /** 显示字段错误 */
 function showError(input: HTMLElement, msg: string) {
   input.style.borderColor = '#ff4d4f'
-  let errEl = input.parentElement!.querySelector('.chat-form-error')
+  let errEl = input.parentElement!.querySelector<HTMLElement>('.chat-form-error')
   if (!errEl) {
     errEl = document.createElement('div')
     errEl.className = 'chat-form-error'
@@ -288,9 +292,9 @@ export function renderForm(
         hasError = true
         continue
       }
-      // 预设字段 key 在 PRESET_FIELDS 列表中
-      const isPreset = PRESET_FIELDS.some(p => p.key === f.name)
-      if (isPreset) {
+      // Only fields with a Lead column are written at the top level; other fields go to extra
+      // 只有对应 Lead 列的字段写入顶层，其余字段写入 extra
+      if (TOP_LEVEL_LEAD_FIELDS.has(f.name)) {
         data[f.name] = value.trim()
       } else {
         extra[f.name] = value.trim()

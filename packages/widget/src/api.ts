@@ -48,6 +48,7 @@ export class ChatApi {
   private siteId: string
   private lang: Lang
   private conversationId: string | null = null
+  private sessionToken: string | null = null
   private visitorId: string
   private siteKey: string | null = null
 
@@ -101,11 +102,14 @@ export class ChatApi {
       }),
     })
     const data = await res.json()
-    if (!res.ok || data.code !== 0 || !data.data?.id) {
+    if (!res.ok || data.code !== 0 || !data.data?.id || !data.data?.token) {
       throw new Error(data.message || '站点配置无效')
     }
-    this.conversationId = data.data.id
-    return { conversationId: this.conversationId, siteSettings: data.data.siteSettings }
+    const conversationId = String(data.data.id)
+    const sessionToken = String(data.data.token)
+    this.conversationId = conversationId
+    this.sessionToken = sessionToken
+    return { conversationId, siteSettings: data.data.siteSettings }
   }
 
   async sendMessage(content: string): Promise<ChatResponse> {
@@ -114,7 +118,7 @@ export class ChatApi {
     }
     const res = await fetch(`${this.apiHost}/api/chat/message`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Chat-Session-Token': this.sessionToken || '' },
       body: JSON.stringify({
         conversationId: this.conversationId,
         content,
@@ -129,15 +133,21 @@ export class ChatApi {
   }
 
   async submitLead(fields: Record<string, string>, extra?: Record<string, string>): Promise<void> {
+    if (!this.conversationId) {
+      throw new Error('会话尚未创建')
+    }
     const body: Record<string, unknown> = { conversationId: this.conversationId, ...fields }
     if (extra && Object.keys(extra).length > 0) body.extra = extra
-    await fetch(`${this.apiHost}/api/chat/lead`, {
+    const res = await fetch(this.apiHost + '/api/chat/lead', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Chat-Session-Token': this.sessionToken || '' },
       body: JSON.stringify(body),
     })
+    const data = await res.json().catch(() => ({})) as { code?: number; message?: string }
+    if (!res.ok || data.code !== 0) {
+      throw new Error(data.message || '线索提交失败')
+    }
   }
-
   async getFaqs(): Promise<FaqItem[]> {
     const res = await fetch(`${this.apiHost}/api/chat/faqs?siteId=${encodeURIComponent(this.siteId)}&lang=${encodeURIComponent(this.lang)}`)
     const data = await res.json()
@@ -157,9 +167,9 @@ export class ChatApi {
    * 返回一个 close 函数，调用即断开
    */
   startStream(onMessage: (payload: any) => void): () => void {
-    if (!this.conversationId) return () => {}
+    if (!this.conversationId || !this.sessionToken) return () => {}
 
-    const url = `${this.apiHost}/api/chat/stream?conversationId=${encodeURIComponent(this.conversationId)}`
+    const url = this.apiHost + '/api/chat/stream?conversationId=' + encodeURIComponent(this.conversationId) + '&token=' + encodeURIComponent(this.sessionToken || '')
     const es = new EventSource(url)
 
     es.onmessage = (ev) => {
@@ -182,9 +192,9 @@ export class ChatApi {
    * 拉取某个时间点之后的消息（重连时拉未读）
    */
   async fetchMessagesAfter(afterISO: string): Promise<any[]> {
-    if (!this.conversationId) return []
+    if (!this.conversationId || !this.sessionToken) return []
     try {
-      const url = `${this.apiHost}/api/chat/messages?conversationId=${encodeURIComponent(this.conversationId)}&after=${encodeURIComponent(afterISO)}`
+      const url = this.apiHost + '/api/chat/messages?conversationId=' + encodeURIComponent(this.conversationId) + '&after=' + encodeURIComponent(afterISO) + '&token=' + encodeURIComponent(this.sessionToken || '')
       const res = await fetch(url)
       const data = await res.json()
       return data.data || []
