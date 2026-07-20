@@ -18,7 +18,7 @@ const saving = ref<Record<string, boolean>>({})
 const testing = ref<Record<string, boolean>>({})
 const testingWecom = ref<Record<string, boolean>>({})
 const deleting = ref<Record<string, boolean>>({})
-const drafts = ref<Record<string, { name: string; domain: string; settings: SiteSettings }>>({})
+const drafts = ref<Record<string, { id: string; name: string; domain: string; apiKey: string; settings: SiteSettings }>>({})
 const showCreateForm = ref(false)
 const creating = ref(false)
 const newSite = ref({ name: '', domain: '' })
@@ -188,8 +188,10 @@ async function fetchList() {
     for (const s of data) {
       if (expanded.value[s.id] === undefined) expanded.value[s.id] = true
       drafts.value[s.id] = {
+        id: s.id,
         name: s.name,
         domain: hasSiteUrl(s.domain, s.id) ? siteDisplayUrl(s.domain, s.id) : '',
+        apiKey: s.apiKey,
         settings: {
           ...s.settings,
           formConfig: ensureFormConfig(s.settings),
@@ -314,15 +316,23 @@ function onQrFileChange(siteId: string, event: Event): void {
 async function save(site: Site) {
   const draft = drafts.value[site.id]
   if (!draft) return
+  const nextId = draft.id.trim()
+  if (nextId !== site.id && !window.confirm('修改 Site ID 会导致已嵌入网站需要同步更新 data-site-id，确定继续吗？')) return
   saving.value[site.id] = true
   try {
-    await request('PATCH', `/api/admin/sites/${site.id}`, {
+    const payload: Record<string, unknown> = {
       name: draft.name,
       settings: draft.settings,
       ...(draft.domain.trim() ? { domain: draft.domain } : {}),
-    })
+    }
+    if (canCreateSite.value) {
+      payload.id = nextId
+      payload.apiKey = draft.apiKey.trim()
+    }
+    const updated = await request<Site>('PATCH', `/api/admin/sites/${site.id}`, payload)
     pushToast('success', '保存成功')
     await fetchList()
+    siteStore.selectSite(updated.id)
   } catch (e) {
     pushToast('error', (e as Error).message)
   } finally {
@@ -510,12 +520,23 @@ onMounted(fetchList)
               <p class="mt-1.5 text-xs text-muted">只填写域名，不需要输入 https:// 或页面路径。</p>
             </div>
             <div>
-              <label class="text-sm text-muted block mb-1.5">API Key（只读）</label>
+              <label class="text-sm text-muted block mb-1.5">Site ID</label>
               <input
-                :value="site.apiKey"
+                v-model="getDraft(site.id)!.id"
                 type="text"
-                readonly
-                class="px-3 py-2 rounded border border-border bg-surface text-muted w-full font-mono text-xs"
+                spellcheck="false"
+                class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full font-mono text-xs"
+              />
+              <p class="mt-1.5 text-xs text-muted">修改后必须同步更新网站代码中的 data-site-id。</p>
+            </div>
+            <div>
+              <label class="text-sm text-muted block mb-1.5">API Key</label>
+              <input
+                v-model="getDraft(site.id)!.apiKey"
+                type="text"
+                autocomplete="new-password"
+                spellcheck="false"
+                class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full font-mono text-xs"
               />
             </div>
             <div>
