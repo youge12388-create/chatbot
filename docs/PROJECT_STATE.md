@@ -436,3 +436,16 @@ chatbot/
 - Conversation APIs return a per-site sequential visitor number based on the visitorId first seen in a non-empty conversation; the admin displays it as visitor 001, visitor 002, and keeps the same label for the same visitor across sessions.
 - Site configuration cards default to expanded on first load while preserving a manually collapsed state during refreshes.
 - The raw visitorId remains an internal identifier and is not shown in the admin UI.
+
+## 2026-07-20 跨域站点会话归属修复
+- 根因：`check.medicalchinaway.com` 与 `114.132.180.195` 的线上页面都注入了同一个 `data-site-id`，且未提供 `data-site-key`；服务端原先只按该 ID 创建会话，没有校验页面来源域名。
+- 修复：会话创建读取浏览器 `Origin`，当 Origin 命中已配置的 `Site.domain` 时，优先将新会话写入该站点；显式 `siteKey` 仍按原逻辑严格校验，不静默改站点。
+- 部署前提：后台“站点配置”中必须存在并准确填写 `check.medicalchinaway.com` 与 `114.132.180.195` 两个站点域名；历史上已错误归档的会话不会自动迁移。
+- 涉及文件：`packages/server/src/routes/chat.ts`、`packages/server/src/services/chat.ts`、`packages/server/src/utils/site-domain.ts`。
+- 验证：`npm run build -w packages/server`、`npm test -w packages/server`（23/23）、`git diff --check` 均通过。
+
+## 2026-07-20 站点删除功能
+- 管理后台“站点配置”新增管理员专用“删除站点”按钮，带二次确认。
+- 服务端新增 `DELETE /api/admin/sites/:id`；删除时事务级联清理该站点的 FAQ、线索、消息和会话。
+- 为避免误删，系统不允许删除最后一个站点；非管理员无法调用删除接口。
+- 验证：`npm test`（24/24）、`npm run build:admin`、`npm run build:server`、`git diff --check` 均通过。
