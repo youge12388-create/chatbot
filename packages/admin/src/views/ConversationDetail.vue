@@ -49,7 +49,6 @@ function fmtTime(t: string | null | undefined): string {
 function visitorLabel(conversation: Conversation): string {
   const lead = conversation.leads?.[0]
   if (lead?.name) return lead.name
-  if (lead?.phone) return lead.phone
   const tail = conversation.visitorId.replace(/[^a-zA-Z0-9]/g, '').slice(-4).toUpperCase()
   return tail ? `访客 ${tail}` : '访客'
 }
@@ -281,7 +280,7 @@ onMounted(async () => {
         </div>
         <!-- 会话信息 -->
         <div class="bg-bg rounded-lg border border-border p-4 mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
-          <div><span class="text-muted">访客：</span><strong>{{ visitorLabel(conv) }}</strong><span class="block font-mono text-xs text-muted">{{ conv.visitorId }}</span></div>
+          <div><span class="text-muted">访客：</span><strong>{{ visitorLabel(conv) }}</strong></div>
           <div>
             <span class="text-muted">来源站点：</span>{{ conv.site?.name || '-' }}
             <a
