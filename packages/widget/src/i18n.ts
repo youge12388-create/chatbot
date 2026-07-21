@@ -47,7 +47,9 @@ export function normalizeLang(value: unknown, fallback: Lang = 'zh-CN'): Lang {
     const normalized = value.toLowerCase()
     if (normalized.startsWith('zh')) return 'zh-CN'
     if (normalized.startsWith('en')) return 'en'
+    if (normalized === 'us' || normalized === 'uk' || normalized === 'gb') return 'en'
     if (normalized.startsWith('ko')) return 'ko'
+    if (normalized === 'kr') return 'ko'
     if (normalized.startsWith('ru')) return 'ru'
   }
   return fallback
