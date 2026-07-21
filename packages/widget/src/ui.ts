@@ -4,7 +4,7 @@
 
 import { ChatApi, FaqItem, SiteSettings } from './api'
 import { renderForm } from './form'
-import { Lang, resolveList, resolveText, t } from './i18n'
+import { Lang, resolveList, resolveText, SUPPORTED_LANGS, t } from './i18n'
 
 const CSS = `
 .chat-widget-container {
@@ -120,6 +120,20 @@ const CSS = `
   margin: 0;
   font-size: 16px;
   font-weight: 600;
+}
+.chat-widget-language {
+  max-width: 92px;
+  padding: 4px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+}
+.chat-widget-language option {
+  color: #333;
+  background: #fff;
 }
 .chat-widget-close {
   cursor: pointer;
@@ -496,6 +510,13 @@ export interface WidgetConfig {
 }
 
 const MAX_VISIBLE_FAQS = 5
+const LANGUAGE_LABELS: Record<Lang, string> = {
+  'zh-CN': '中文',
+  en: 'English',
+  ko: '한국어',
+  ru: 'Русский',
+}
+const LANGUAGE_OPTIONS = SUPPORTED_LANGS.map(value => ({ value, label: LANGUAGE_LABELS[value] }))
 
 interface Message {
   role: 'user' | 'assistant'
@@ -578,7 +599,7 @@ function renderMarkdown(text: string): string {
 export function createWidget(config: WidgetConfig) {
   const api = new ChatApi(config.apiHost, config.siteId, config.lang)
   if (config.siteKey) api.setSiteKey(config.siteKey)
-  const lang = config.lang
+  let lang = config.lang
 
   // Shadow DOM 隔离样式
   const container = document.createElement('div')
@@ -603,7 +624,10 @@ export function createWidget(config: WidgetConfig) {
     <div class="chat-widget-window">
       <div class="chat-widget-header">
         <h3>${t(lang, 'header.title')}</h3>
-        <div style="display:flex;align-items:center;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <select class="chat-widget-language" aria-label="${t(lang, 'language.label')}">
+            ${LANGUAGE_OPTIONS.map(option => `<option value="${option.value}"${option.value === lang ? ' selected' : ''}>${option.label}</option>`).join('')}
+          </select>
           <div class="chat-widget-contact-btn" style="display:none;">
             <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
             <span>${t(lang, 'contact.button')}</span>
@@ -655,9 +679,14 @@ export function createWidget(config: WidgetConfig) {
   const button = shadow.querySelector<HTMLElement>('.chat-widget-button')!
   const chatWindow = shadow.querySelector<HTMLElement>('.chat-widget-window')!
   const closeBtn = shadow.querySelector('.chat-widget-close')!
+  const languageSelect = shadow.querySelector<HTMLSelectElement>('.chat-widget-language')!
+  const headerTitle = shadow.querySelector<HTMLElement>('.chat-widget-header h3')!
+  const contactLabel = shadow.querySelector<HTMLElement>('.chat-widget-contact-btn span')!
+  const contactTitle = shadow.querySelector<HTMLElement>('.chat-widget-contact-card h4')!
+  const contactCloseLabel = shadow.querySelector<HTMLElement>('.chat-widget-contact-close')!
   const messagesEl = shadow.querySelector('.chat-widget-messages')!
   const faqsEl = shadow.querySelector('.chat-widget-faqs')!
-  const input = shadow.querySelector('.chat-widget-input input')!
+  const input = shadow.querySelector<HTMLInputElement>('.chat-widget-input input')!
   const sendBtn = shadow.querySelector('.chat-widget-send')!
   const formOverlay = shadow.querySelector<HTMLElement>('.chat-widget-form-overlay')!
   const bubble = shadow.querySelector<HTMLElement>('.chat-widget-bubble')!
@@ -669,6 +698,8 @@ export function createWidget(config: WidgetConfig) {
   const retainInput = shadow.querySelector<HTMLInputElement>('.chat-widget-retain-card input')!
   const retainSubmitBtn = shadow.querySelector<HTMLElement>('.chat-widget-retain-submit')!
   const retainSkipBtn = shadow.querySelector<HTMLElement>('.chat-widget-retain-skip')!
+  const retainTitle = shadow.querySelector<HTMLElement>('.chat-widget-retain-card h4')!
+  const retainDescription = shadow.querySelector<HTMLElement>('.chat-widget-retain-card p')!
 
   // 状态
   let isOpen = false
@@ -677,6 +708,11 @@ export function createWidget(config: WidgetConfig) {
   let conversationCreated = false
   let siteSettings: SiteSettings | null = null
   let retainShown = false  // 挽留卡片只触发一次
+  let welcomeMessage: Message | null = null
+  let guideMessage: Message | null = null
+  let welcomeMessageEl: HTMLElement | null = null
+  let guideMessageEl: HTMLElement | null = null
+  const typewriterTimers = new Map<HTMLElement, ReturnType<typeof setInterval>>()
 
   // 气泡状态：多条文案轮播，常驻显示（仅打开聊天窗口时隐藏）
   let bubbleIndex = 0
@@ -734,6 +770,41 @@ export function createWidget(config: WidgetConfig) {
       contactBtn.style.display = 'none'
     }
   }
+
+  function updateLanguageUi() {
+    languageSelect.value = lang
+    languageSelect.setAttribute('aria-label', t(lang, 'language.label'))
+    headerTitle.textContent = t(lang, 'header.title')
+    contactLabel.textContent = t(lang, 'contact.button')
+    input.placeholder = t(lang, 'input.placeholder')
+    contactTitle.textContent = t(lang, 'contact.title')
+    contactCloseLabel.textContent = t(lang, 'contact.close')
+    retainTitle.textContent = t(lang, 'retain.title')
+    retainDescription.textContent = t(lang, 'retain.description')
+    retainInput.placeholder = t(lang, 'retain.phonePlaceholder')
+    retainSkipBtn.textContent = t(lang, 'retain.stillClose')
+    retainSubmitBtn.textContent = t(lang, 'retain.submit')
+  }
+
+  async function switchLanguage(nextLang: Lang) {
+    if (nextLang === lang) return
+    lang = nextLang
+    api.setLanguage(lang)
+    updateLanguageUi()
+    updateWelcomeMessages()
+    refreshBubble()
+    if (conversationCreated) {
+      try {
+        await loadFaqs()
+      } catch {
+        // 切换语言失败时保留当前 FAQ，避免影响正在进行的对话
+      }
+    }
+  }
+
+  languageSelect.addEventListener('change', () => {
+    void switchLanguage(languageSelect.value as Lang)
+  })
 
   // 打开联系顾问弹窗
   function openContactModal() {
@@ -1043,12 +1114,17 @@ export function createWidget(config: WidgetConfig) {
       updateContactButton()
     }
     // 显示欢迎消息
-    const welcome = resolveText(settings?.welcomeMessage, lang, t(lang, 'header.welcome'))
-    addMessage({ role: 'assistant', content: welcome }, true)
+    welcomeMessage = { role: 'assistant', content: resolveText(settings?.welcomeMessage, lang, t(lang, 'header.welcome')) }
+    welcomeMessageEl = addMessage(welcomeMessage, true)
     // 显示引导语
     const guide = resolveText(settings?.guideMessage, lang)
     if (guide) {
-      setTimeout(() => addMessage({ role: 'assistant', content: guide }, true), 1500)
+      setTimeout(() => {
+        const currentGuide = resolveText(siteSettings?.guideMessage, lang)
+        if (!currentGuide) return
+        guideMessage = { role: 'assistant', content: currentGuide }
+        guideMessageEl = addMessage(guideMessage, true)
+      }, 1500)
     }
     loadFaqs()
     // 启动 SSE 监听后台人工回复
@@ -1101,8 +1177,19 @@ export function createWidget(config: WidgetConfig) {
     })
   }
 
+  function updateWelcomeMessages() {
+    if (welcomeMessage && welcomeMessageEl) {
+      welcomeMessage.content = resolveText(siteSettings?.welcomeMessage, lang, t(lang, 'header.welcome'))
+      setAssistantContent(welcomeMessageEl, welcomeMessage.content)
+    }
+    if (guideMessage && guideMessageEl) {
+      guideMessage.content = resolveText(siteSettings?.guideMessage, lang)
+      setAssistantContent(guideMessageEl, guideMessage.content)
+    }
+  }
+
   // 添加消息到 UI（用户消息直接显示，AI 消息用打字机效果）
-  function addMessage(message: Message, useTypewriter = false) {
+  function addMessage(message: Message, useTypewriter = false): HTMLElement {
     messages.push(message)
     const el = document.createElement('div')
     el.className = `chat-message ${message.role}`
@@ -1117,38 +1204,38 @@ export function createWidget(config: WidgetConfig) {
       el.textContent = message.content
       messagesEl.scrollTop = messagesEl.scrollHeight
     }
+    return el
+  }
+
+  function setAssistantContent(el: HTMLElement, text: string) {
+    const timer = typewriterTimers.get(el)
+    if (timer) {
+      clearInterval(timer)
+      typewriterTimers.delete(el)
+    }
+    el.innerHTML = renderMarkdown(text)
+    el.style.cursor = ''
+    messagesEl.scrollTop = messagesEl.scrollHeight
   }
 
   // 打字机效果：逐字显示
   function typewriter(el: HTMLElement, text: string, speed = 25) {
     let index = 0
-    let timer: ReturnType<typeof setInterval> | null = null
-
-    // 点击可跳过动画
     el.style.cursor = 'pointer'
-    el.addEventListener('click', () => {
-      if (timer) {
-        clearInterval(timer)
-        timer = null
-      }
-      el.innerHTML = renderMarkdown(text)
-      el.style.cursor = ''
-      messagesEl.scrollTop = messagesEl.scrollHeight
-    })
+    el.addEventListener('click', () => setAssistantContent(el, text))
 
-    timer = setInterval(() => {
+    const timer = setInterval(() => {
       if (index < text.length) {
         el.innerHTML = renderMarkdown(text.slice(0, index + 1))
         index++
         messagesEl.scrollTop = messagesEl.scrollHeight
       } else {
-        if (timer) {
-          clearInterval(timer)
-          timer = null
-        }
+        clearInterval(timer)
+        typewriterTimers.delete(el)
         el.style.cursor = ''
       }
     }, speed)
+    typewriterTimers.set(el, timer)
   }
 
   // 显示 loading

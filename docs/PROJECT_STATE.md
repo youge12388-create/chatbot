@@ -454,3 +454,18 @@ chatbot/
 - 服务端 PATCH /api/admin/sites/:id 支持修改 id/apiKey，并校验 Site ID 格式、API Key 长度和唯一性。
 - 修改 Site ID 时使用事务创建临时站点、迁移 FAQ 与会话关联、删除旧站点并写入最终配置；修改后必须同步网站代码中的 data-site-id/data-site-key。
 - 验证：npm test（25/25）、npm run build:admin、npm run build:server、git diff --check 均通过。
+## 2026-07-21 通知红点刷新状态修复
+- 通知 store 从 localStorage 恢复待处理消息时，会再次排除已记录为已读的消息。
+- 打开会话详情或标记会话已处理时，同步清理该会话的通知状态。
+- 离线通知回放接口返回会话状态；前端会清理旧缓存中已经关闭的会话，避免刷新后重新出现红点，同时不丢失关闭后产生的新消息。
+- 验证：npm test（25/25）、npm run build:admin、npm run build:server、git diff --check 均通过。
+## 2026-07-21 Test coverage integration
+- Root `npm test` now runs test scripts for admin, server, and widget workspaces.
+- Root `npm run test:coverage` uses Node's built-in test coverage and includes all three workspace test globs.
+- Admin tests are connected through `packages/admin/package.json`; widget now covers i18n fallback/normalization and ChatApi request/session/replay behavior.
+- Validation: 60 tests passed; line coverage 83.00%, branch coverage 82.59%, function coverage 86.48%; admin/widget/server builds passed.
+
+## 2026-07-21 Widget 手动语言切换
+- 聊天窗口标题栏新增语言下拉框，支持中文、English、한국어、Русский手动切换。
+- 切换后同步更新固定 UI 文案、欢迎语、引导语、气泡文案和 FAQ；后续消息请求使用新语言。
+- 新增 Widget API 语言切换回归测试；本次未执行数据库变更。
