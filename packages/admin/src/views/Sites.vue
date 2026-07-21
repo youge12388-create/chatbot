@@ -285,13 +285,15 @@ function siteEmbedCode(siteId: string): string {
   const draft = drafts.value[siteId]
   if (!draft) return ''
   const closingScriptTag = '</' + 'script>'
-  return `<script
+  return `<!-- Chatbot Widget：不要添加 data-lang，Widget 会跟随页面 html lang -->
+<script
   src="${WIDGET_API_HOST}/widget.js"
   data-site-id="${escapeHtmlAttribute(draft.id)}"
   data-site-key="${escapeHtmlAttribute(draft.apiKey)}"
   data-api-host="${WIDGET_API_HOST}"
   defer>
-${closingScriptTag}`
+${closingScriptTag}
+<!-- 多语言网站：切换语言时调用 window.ChatbotWidget?.setLanguage('en') -->`
 }
 
 async function copyEmbedCode(site: Site): Promise<void> {
@@ -532,7 +534,10 @@ onMounted(fetchList)
         <!-- 展开编辑 -->
         <div v-if="expanded[site.id] && getDraft(site.id)" class="px-5 pb-5 pt-1 border-t border-border">
           <div class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary-soft px-4 py-3">
-            <p class="text-xs text-muted">复制下面的代码，粘贴到对应网站的 HTML 或 Next.js 布局中。</p>
+            <div>
+              <p class="text-xs text-muted">复制下面的代码，粘贴到对应网站的 HTML 或 Next.js 布局中。</p>
+              <p class="mt-1 text-xs text-muted">多语言网站请保持 html lang 同步，或在语言切换时调用 ChatbotWidget.setLanguage(lang)。</p>
+            </div>
             <button
               type="button"
               class="btn btn-primary btn-sm whitespace-nowrap"
