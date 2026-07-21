@@ -337,9 +337,33 @@ function cleanLocalizedLists(value: Record<string, unknown>): Record<string, str
   return result
 }
 
+function cleanLocalizedText(value: unknown): Record<string, string> {
+  const result: Record<string, string> = {}
+  if (typeof value === 'string' && value.trim()) {
+    result['zh-CN'] = value.trim()
+    return result
+  }
+  if (!isLocalizedObject(value)) return result
+  for (const lang of SUPPORTED_LANGS) {
+    const text = value[lang]
+    if (typeof text === 'string' && text.trim()) result[lang] = text.trim()
+  }
+  return result
+}
+
+function normalizeLocalizedText(value: unknown, fallback: Record<string, string>): Record<string, string> {
+  const result = cleanLocalizedText(value)
+  return Object.keys(result).length > 0
+    ? result
+    : JSON.parse(JSON.stringify(fallback))
+}
+
 function mergeSettings(raw: any): Record<string, any> {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return JSON.parse(JSON.stringify(DEFAULT_SITE_SETTINGS))
   const merged = { ...DEFAULT_SITE_SETTINGS, ...raw }
+
+  merged.welcomeMessage = normalizeLocalizedText(merged.welcomeMessage, DEFAULT_SITE_SETTINGS.welcomeMessage)
+  merged.guideMessage = normalizeLocalizedText(merged.guideMessage, DEFAULT_SITE_SETTINGS.guideMessage)
 
   // 兼容旧版单个 bubbleMessage 字符串：转成旧数组格式。
   if (
@@ -350,9 +374,11 @@ function mergeSettings(raw: any): Record<string, any> {
     merged.bubbleMessages = [merged.bubbleMessage.trim()]
   }
   if (Array.isArray(merged.bubbleMessages)) {
-    merged.bubbleMessages = merged.bubbleMessages
-      .filter((item: unknown) => typeof item === 'string' && item.trim())
-      .map((item: string) => item.trim())
+    merged.bubbleMessages = {
+      'zh-CN': merged.bubbleMessages
+        .filter((item: unknown) => typeof item === 'string' && item.trim())
+        .map((item: string) => item.trim()),
+    }
   } else if (isLocalizedObject(merged.bubbleMessages)) {
     merged.bubbleMessages = cleanLocalizedLists(merged.bubbleMessages)
   } else {

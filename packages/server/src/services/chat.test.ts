@@ -35,7 +35,7 @@ test('公开站点配置不会暴露 Dify Key、Webhook 或 n8n 地址', () => {
   assert.equal(settings.difyApiUrl, undefined)
   assert.equal(settings.webhookUrl, undefined)
   assert.equal(settings.n8nWebhookUrl, undefined)
-  assert.equal(settings.welcomeMessage, '欢迎')
+  assert.deepEqual(settings.welcomeMessage, { 'zh-CN': '欢迎' })
 })
 test('Dify 首次请求使用空 conversation_id', () => {
   const body = buildDifyRequestBody('你好', null, 'local-conversation-id')
@@ -150,4 +150,16 @@ test('FAQ 按请求语言读取，并在缺少翻译时回退中文', async () =
 test('AI 无法回答文案应触发计数', () => {
   assert.equal(isNoAnswerReply('抱歉，我暂时无法回答这个问题'), true)
   assert.equal(isNoAnswerReply('这是一个正常的课程费用说明'), false)
+})
+
+test('legacy site copy is normalized to localized settings', () => {
+  const settings = getPublicSiteSettings({
+    welcomeMessage: 'legacy welcome',
+    guideMessage: 'legacy guide',
+    bubbleMessages: ['legacy bubble 1', 'legacy bubble 2'],
+  })
+
+  assert.deepEqual(settings.welcomeMessage, { 'zh-CN': 'legacy welcome' })
+  assert.deepEqual(settings.guideMessage, { 'zh-CN': 'legacy guide' })
+  assert.deepEqual(settings.bubbleMessages, { 'zh-CN': ['legacy bubble 1', 'legacy bubble 2'] })
 })
