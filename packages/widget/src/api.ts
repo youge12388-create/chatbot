@@ -63,6 +63,11 @@ export class ChatApi {
     this.siteKey = key
   }
 
+  /** 更新当前语言，后续会话、消息和 FAQ 请求都会使用新语言 */
+  setLanguage(lang: Lang) {
+    this.lang = lang
+  }
+
   private getOrCreateVisitorId(): string {
     const key = 'chatbot_visitor_id'
     let id = localStorage.getItem(key)

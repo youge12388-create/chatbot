@@ -5,7 +5,8 @@
   "scripts": {
     "build": "npm run build:widget && node scripts/sync-widget.mjs && npm run build:admin && node scripts/sync-admin.mjs && npm run build:server",
     "start": "npm run start -w packages/server",
-    "test": "npm run test -w packages/server",
+    "test": "npm run test --workspaces --if-present",
+    "test:coverage": "node --experimental-test-coverage --import tsx --test packages/server/src/**/*.test.ts packages/admin/tests/**/*.test.ts packages/widget/src/**/*.test.ts",
     "dev:server": "npm run dev -w packages/server",
     "dev:widget": "npm run dev -w packages/widget",
     "dev:admin": "npm run dev -w packages/admin",
