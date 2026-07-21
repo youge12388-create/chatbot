@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { siteUrlInfo } from '../src/utils/site'
+import { hasSiteUrl, siteDisplayUrl, siteHref, siteUrlInfo } from '../src/utils/site'
 
 test('site ID is shown as an unconfigured URL', () => {
   assert.deepEqual(siteUrlInfo('cmrgdlbi300008hsqmynz2lu9', 'cmrgdlbi300008hsqmynz2lu9'), {
@@ -28,4 +28,19 @@ test('an explicit HTTP localhost URL remains usable for local development', () =
     display: 'localhost:3000',
     href: 'http://localhost:3000/',
   })
+})
+
+test('site URL helper functions share the same validation rules', () => {
+  assert.equal(hasSiteUrl('example.com'), true)
+  assert.equal(siteHref('example.com'), 'https://example.com/')
+  assert.equal(siteDisplayUrl('example.com'), 'example.com')
+  assert.equal(hasSiteUrl('https://example.com/path', 'site-1'), true)
+  assert.equal(siteHref('https://example.com/path/', 'site-1'), 'https://example.com/path/')
+  assert.equal(siteDisplayUrl('https://example.com/path/', 'site-1'), 'example.com/path')
+})
+
+test('unsafe or malformed site values remain unconfigured', () => {
+  for (const domain of ['example', 'https://user:pass@example.com', 'ftp://example.com']) {
+    assert.equal(hasSiteUrl(domain), false)
+  }
 })
