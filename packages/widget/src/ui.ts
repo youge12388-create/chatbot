@@ -585,6 +585,11 @@ export interface WidgetConfig {
   lang: Lang
 }
 
+export interface WidgetController {
+  setLanguage(lang: Lang): Promise<void>
+  getLanguage(): Lang
+}
+
 const MAX_VISIBLE_FAQS = 5
 const LANGUAGE_LABELS: Record<Lang, string> = {
   'zh-CN': '中文',
@@ -672,7 +677,7 @@ function renderMarkdown(text: string): string {
   return result.join('')
 }
 
-export function createWidget(config: WidgetConfig) {
+export function createWidget(config: WidgetConfig): WidgetController {
   const api = new ChatApi(config.apiHost, config.siteId, config.lang)
   if (config.siteKey) api.setSiteKey(config.siteKey)
   let lang = config.lang
@@ -1453,4 +1458,9 @@ export function createWidget(config: WidgetConfig) {
   input.addEventListener('input', () => {
     sendBtn.disabled = !input.value.trim()
   })
+
+  return {
+    setLanguage: switchLanguage,
+    getLanguage: () => lang,
+  }
 }

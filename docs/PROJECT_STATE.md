@@ -475,3 +475,10 @@ chatbot/
 - The server normalizes legacy welcome/guide strings and bubble arrays before returning public Widget settings. Existing localized values are preserved and invalid/empty values still use the configured defaults.
 - No database migration was executed; settings remain JSON and migration is backward-compatible at read/save boundaries.
 - Validation: admin tests 8/8, server tests 47/47, admin type-check/build passed, server build passed, and `git diff --check` passed.
+
+## 2026-07-21 Widget 宿主语言同步
+- Widget 继续支持内部语言下拉；新增宿主语言桥接。
+- 未显式设置 data-lang 时，Widget 监听 document.documentElement.lang 变化并自动切换。
+- 宿主网站若不修改 html lang，可调用 window.ChatbotWidget.setLanguage('en')，或派发 chatbot:language-change 事件（detail: { lang: 'en' }）。
+- 兼容 US/UK/GB -> English、KR -> Korean 等常见站点语言/地区代码。
+- Widget 源码测试 9/9、生产构建通过；本次未执行数据库变更。

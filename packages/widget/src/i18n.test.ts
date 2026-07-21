@@ -7,7 +7,9 @@ test('normalizes supported and browser language values', () => {
   assert.equal(isLang('fr'), false)
   assert.equal(normalizeLang('zh-Hans'), 'zh-CN')
   assert.equal(normalizeLang('EN-us'), 'en')
+  assert.equal(normalizeLang('US'), 'en')
   assert.equal(normalizeLang('ko-KR'), 'ko')
+  assert.equal(normalizeLang('KR'), 'ko')
   assert.equal(normalizeLang('unknown', 'ru'), 'ru')
 })
 
