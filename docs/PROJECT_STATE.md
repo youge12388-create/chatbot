@@ -469,3 +469,9 @@ chatbot/
 - 聊天窗口标题栏新增语言下拉框，支持中文、English、한국어、Русский手动切换。
 - 切换后同步更新固定 UI 文案、欢迎语、引导语、气泡文案和 FAQ；后续消息请求使用新语言。
 - 新增 Widget API 语言切换回归测试；本次未执行数据库变更。
+
+## 2026-07-21 Localized site copy migration
+- The admin Sites settings already expose language-specific editors for welcome, guide, and bubble copy; legacy string/array values are now normalized into `zh-CN` fields when drafts load, so the next site save persists the localized shape.
+- The server normalizes legacy welcome/guide strings and bubble arrays before returning public Widget settings. Existing localized values are preserved and invalid/empty values still use the configured defaults.
+- No database migration was executed; settings remain JSON and migration is backward-compatible at read/save boundaries.
+- Validation: admin tests 8/8, server tests 47/47, admin type-check/build passed, server build passed, and `git diff --check` passed.

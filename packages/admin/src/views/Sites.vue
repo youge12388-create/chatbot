@@ -8,6 +8,7 @@ import type { CustomField, Site, SiteSettings, FormConfig, CustomFieldType, Loca
 import { useSiteStore } from '../stores/site'
 import { useAuthStore } from '../stores/auth'
 import { hasSiteUrl, siteDisplayUrl } from '../utils/site'
+import { normalizeSiteSettings } from '../utils/site-settings'
 
 const loading = ref(false)
 const siteStore = useSiteStore()
@@ -187,14 +188,15 @@ async function fetchList() {
     list.value = data
     for (const s of data) {
       if (expanded.value[s.id] === undefined) expanded.value[s.id] = true
+      const settings = normalizeSiteSettings(s.settings)
       drafts.value[s.id] = {
         id: s.id,
         name: s.name,
         domain: hasSiteUrl(s.domain, s.id) ? siteDisplayUrl(s.domain, s.id) : '',
         apiKey: s.apiKey,
         settings: {
-          ...s.settings,
-          formConfig: ensureFormConfig(s.settings),
+          ...settings,
+          formConfig: ensureFormConfig(settings),
         },
       }
     }
