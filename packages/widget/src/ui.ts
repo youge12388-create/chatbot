@@ -121,19 +121,95 @@ const CSS = `
   font-size: 16px;
   font-weight: 600;
 }
-.chat-widget-language {
-  max-width: 92px;
-  padding: 4px 6px;
-  border: 1px solid rgba(255, 255, 255, 0.65);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.14);
+.chat-widget-language-wrap {
+  position: relative;
+}
+.chat-widget-language-trigger {
+  min-width: 86px;
+  height: 32px;
+  padding: 0 9px 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.16);
   color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font: inherit;
   font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+.chat-widget-language-trigger:hover,
+.chat-widget-language-trigger[aria-expanded="true"] {
+  background: rgba(255, 255, 255, 0.28);
+  border-color: #fff;
+}
+.chat-widget-language-trigger:focus-visible,
+.chat-widget-language-option:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.95);
+  outline-offset: 2px;
+}
+.chat-widget-language-trigger svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  transition: transform 0.18s ease;
+}
+.chat-widget-language-trigger[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+.chat-widget-language-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 142px;
+  padding: 6px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.2);
+  z-index: 20;
+}
+.chat-widget-language-option {
+  width: 100%;
+  min-height: 34px;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
   cursor: pointer;
 }
-.chat-widget-language option {
-  color: #333;
-  background: #fff;
+.chat-widget-language-option:hover,
+.chat-widget-language-option[aria-selected="true"] {
+  background: #ecfdf5;
+  color: #0f766e;
+}
+.chat-widget-language-option[aria-selected="true"] {
+  font-weight: 600;
+}
+.chat-widget-language-check {
+  width: 14px;
+  height: 14px;
+  opacity: 0;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+}
+.chat-widget-language-option[aria-selected="true"] .chat-widget-language-check {
+  opacity: 1;
 }
 .chat-widget-close {
   cursor: pointer;
@@ -625,9 +701,20 @@ export function createWidget(config: WidgetConfig) {
       <div class="chat-widget-header">
         <h3>${t(lang, 'header.title')}</h3>
         <div style="display:flex;align-items:center;gap:6px;">
-          <select class="chat-widget-language" aria-label="${t(lang, 'language.label')}">
-            ${LANGUAGE_OPTIONS.map(option => `<option value="${option.value}"${option.value === lang ? ' selected' : ''}>${option.label}</option>`).join('')}
-          </select>
+          <div class="chat-widget-language-wrap">
+            <button type="button" class="chat-widget-language-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="${t(lang, 'language.label')}" aria-controls="chat-widget-language-menu">
+              <span class="chat-widget-language-value">${LANGUAGE_LABELS[lang]}</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <div id="chat-widget-language-menu" class="chat-widget-language-menu" role="listbox" aria-label="${t(lang, 'language.label')}" hidden>
+              ${LANGUAGE_OPTIONS.map(option => `
+                <button type="button" class="chat-widget-language-option" role="option" data-lang="${option.value}" aria-selected="${option.value === lang}">
+                  <span>${option.label}</span>
+                  <svg class="chat-widget-language-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+                </button>
+              `).join('')}
+            </div>
+          </div>
           <div class="chat-widget-contact-btn" style="display:none;">
             <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
             <span>${t(lang, 'contact.button')}</span>
@@ -679,7 +766,10 @@ export function createWidget(config: WidgetConfig) {
   const button = shadow.querySelector<HTMLElement>('.chat-widget-button')!
   const chatWindow = shadow.querySelector<HTMLElement>('.chat-widget-window')!
   const closeBtn = shadow.querySelector('.chat-widget-close')!
-  const languageSelect = shadow.querySelector<HTMLSelectElement>('.chat-widget-language')!
+  const languageTrigger = shadow.querySelector<HTMLButtonElement>('.chat-widget-language-trigger')!
+  const languageValue = shadow.querySelector<HTMLElement>('.chat-widget-language-value')!
+  const languageMenu = shadow.querySelector<HTMLElement>('.chat-widget-language-menu')!
+  const languageOptions = Array.from(shadow.querySelectorAll<HTMLButtonElement>('.chat-widget-language-option'))
   const headerTitle = shadow.querySelector<HTMLElement>('.chat-widget-header h3')!
   const contactLabel = shadow.querySelector<HTMLElement>('.chat-widget-contact-btn span')!
   const contactTitle = shadow.querySelector<HTMLElement>('.chat-widget-contact-card h4')!
@@ -772,8 +862,12 @@ export function createWidget(config: WidgetConfig) {
   }
 
   function updateLanguageUi() {
-    languageSelect.value = lang
-    languageSelect.setAttribute('aria-label', t(lang, 'language.label'))
+    languageValue.textContent = LANGUAGE_LABELS[lang]
+    languageTrigger.setAttribute('aria-label', t(lang, 'language.label'))
+    languageMenu.setAttribute('aria-label', t(lang, 'language.label'))
+    languageOptions.forEach(option => {
+      option.setAttribute('aria-selected', String(option.dataset.lang === lang))
+    })
     headerTitle.textContent = t(lang, 'header.title')
     contactLabel.textContent = t(lang, 'contact.button')
     input.placeholder = t(lang, 'input.placeholder')
@@ -802,8 +896,54 @@ export function createWidget(config: WidgetConfig) {
     }
   }
 
-  languageSelect.addEventListener('change', () => {
-    void switchLanguage(languageSelect.value as Lang)
+  function setLanguageMenuOpen(open: boolean) {
+    languageMenu.hidden = !open
+    languageTrigger.setAttribute('aria-expanded', String(open))
+    if (open) {
+      const selected = languageOptions.find(option => option.dataset.lang === lang)
+      selected?.focus()
+    }
+  }
+
+  languageTrigger.addEventListener('click', event => {
+    event.stopPropagation()
+    setLanguageMenuOpen(languageMenu.hidden)
+  })
+
+  languageTrigger.addEventListener('keydown', event => {
+    if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      setLanguageMenuOpen(true)
+    } else if (event.key === 'Escape') {
+      setLanguageMenuOpen(false)
+    }
+  })
+
+  languageOptions.forEach((option, index) => {
+    option.addEventListener('click', event => {
+      event.stopPropagation()
+      setLanguageMenuOpen(false)
+      void switchLanguage(option.dataset.lang as Lang)
+    })
+    option.addEventListener('keydown', event => {
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault()
+        const offset = event.key === 'ArrowDown' ? 1 : -1
+        languageOptions[(index + offset + languageOptions.length) % languageOptions.length]?.focus()
+      } else if (event.key === 'Escape') {
+        event.preventDefault()
+        setLanguageMenuOpen(false)
+        languageTrigger.focus()
+      } else if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault()
+        setLanguageMenuOpen(false)
+        void switchLanguage(option.dataset.lang as Lang)
+      }
+    })
+  })
+
+  document.addEventListener('click', () => {
+    setLanguageMenuOpen(false)
   })
 
   // 打开联系顾问弹窗
