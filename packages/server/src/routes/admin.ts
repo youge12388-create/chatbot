@@ -130,12 +130,22 @@ router.get('/notifications', requireAuth, wrap(async (req, res) => {
     },
     orderBy: { createdAt: 'asc' },
     take: 100,
-    select: { id: true, conversationId: true, content: true, createdAt: true },
+    select: {
+      id: true,
+      conversationId: true,
+      content: true,
+      createdAt: true,
+      conversation: { select: { siteId: true, status: true } },
+    },
   })
 
   res.json({
     code: 0,
-    data: messages.map((message) => ({ ...message, siteId })),
+    data: messages.map(({ conversation, ...message }) => ({
+      ...message,
+      siteId: conversation.siteId,
+      conversationStatus: conversation.status,
+    })),
   })
 }))
 

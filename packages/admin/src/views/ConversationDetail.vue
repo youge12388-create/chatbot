@@ -58,6 +58,7 @@ async function fetchDetail() {
   try {
     const data = await request<Conversation>('GET', `/api/admin/conversations/${route.params.id}`)
     conv.value = data
+    notification.markConversationRead(data.id)
     siteStore.selectSite(data.siteId)
     messages.value = data.messages || []
     assigneeValue.value = data.assigneeId || ''
@@ -181,6 +182,7 @@ async function markProcessed() {
   acting.value = true
   try {
     await request('POST', `/api/admin/conversations/${route.params.id}/resolve`)
+    notification.markConversationRead(String(route.params.id))
     if (conv.value) conv.value.status = 'closed' as ConversationStatus
     pushToast('success', '会话已标记为已处理')
   } catch (e) {

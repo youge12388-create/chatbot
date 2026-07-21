@@ -9,6 +9,7 @@ export interface NotificationMessage {
   siteId: string
   content: string
   createdAt: string
+  conversationStatus?: string
 }
 
 const MAX_KEPT = 50
@@ -60,8 +61,16 @@ function pushUniqueCapped(list: NotificationMessage[], item: NotificationMessage
   return next.length > MAX_KEPT ? next.slice(-MAX_KEPT) : next
 }
 
+function filterReadMessages(
+  messages: NotificationMessage[],
+  readIdsBySite: ReadonlyMap<string, ReadonlySet<string>>,
+): NotificationMessage[] {
+  return messages.filter((message) => !readIdsBySite.get(message.siteId)?.has(message.id))
+}
+
 function loadStoredPending(): NotificationMessage[] {
   const messages: NotificationMessage[] = []
+  const readIdsBySite = new Map<string, ReadonlySet<string>>()
   try {
     for (let index = 0; index < localStorage.length; index += 1) {
       const key = localStorage.key(index)
@@ -69,11 +78,14 @@ function loadStoredPending(): NotificationMessage[] {
       const raw = localStorage.getItem(key)
       if (!raw) continue
       const parsed = JSON.parse(raw) as NotificationMessage[]
-      for (const item of parsed) {
-        if (item?.id && item.conversationId && item.siteId) {
-          const next = pushUniqueCapped(messages, item)
-          messages.splice(0, messages.length, ...next)
-        }
+      const valid = parsed.filter((item) => item?.id && item.conversationId && item.siteId)
+      for (const item of valid) {
+        if (!readIdsBySite.has(item.siteId)) readIdsBySite.set(item.siteId, storedReadIds(item.siteId))
+      }
+      const unread = filterReadMessages(valid, readIdsBySite)
+      for (const item of unread) {
+        const next = pushUniqueCapped(messages, item)
+        messages.splice(0, messages.length, ...next)
       }
     }
   } catch {
@@ -125,6 +137,9 @@ export const useNotificationStore = defineStore('notification', () => {
       siteId: String(data.siteId ?? ''),
       content: String(data.content ?? ''),
       createdAt: String(data.createdAt ?? ''),
+      conversationStatus: typeof data.conversationStatus === 'string'
+        ? data.conversationStatus
+        : undefined,
     }
   }
 
@@ -133,9 +148,24 @@ export const useNotificationStore = defineStore('notification', () => {
     const now = new Date().toISOString()
     let since = now
     try {
-      since = localStorage.getItem(syncKey(siteId)) || now
+      const storedSince = localStorage.getItem(syncKey(siteId)) || now
+      const pendingTimes = latestMessages.value
+        .filter((message) => message.siteId === siteId)
+        .map((message) => Date.parse(message.createdAt))
+        .filter((time) => Number.isFinite(time))
+      const oldestPending = pendingTimes.length > 0 ? Math.min(...pendingTimes) : 0
+      const storedSinceTime = Date.parse(storedSince)
+      since = oldestPending > 0 && (!Number.isFinite(storedSinceTime) || oldestPending < storedSinceTime)
+        ? new Date(oldestPending).toISOString()
+        : storedSince
       const messages = await request<NotificationMessage[]>('GET', '/api/admin/notifications', { siteId, since })
-      for (const message of messages) appendMessage(message, 'user')
+      for (const message of messages) {
+        if (message.conversationStatus === 'closed') {
+          markConversationRead(message.conversationId)
+        } else {
+          appendMessage(message, 'user')
+        }
+      }
       localStorage.setItem(syncKey(siteId), now)
     } catch {
       // Keep the previous sync time so the next page load retries the gap.
