@@ -33,7 +33,7 @@ const paths: Record<IconName, string[]> = {
   filter: ['M4 6h16', 'M7 12h10', 'M10 18h4'],
   globe: ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z', 'M3 12h18', 'M12 3a13.7 13.7 0 0 1 0 18', 'M12 3a13.7 13.7 0 0 0 0 18'],
   'arrow-left': ['M19 12H5', 'm12 19-7-7 7-7'],
-  user: ['M20 21a8 8 0 0 0-16 0', 'M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z'],
+  user: ['M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z', 'M4 21a8 8 0 0 1 16 0H4Z'],
   copy: ['M9 9h10v10H9z', 'M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'],
   edit: ['M12 20h9', 'M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z'],
   trash: ['M4 7h16', 'M10 11v6', 'M14 11v6', 'M6 7l1 14h10l1-14', 'M9 7V4h6v3'],
@@ -58,6 +58,6 @@ const iconPaths = computed(() => paths[props.name])
     :stroke-width="strokeWidth"
     aria-hidden="true"
   >
-    <path v-for="(path, index) in iconPaths" :key="index" :d="path" />
+    <path v-for="(path, index) in iconPaths" :key="index" :d="path" :fill="name === 'user' ? 'currentColor' : 'none'" :stroke="name === 'user' ? 'none' : 'currentColor'" />
   </svg>
 </template>

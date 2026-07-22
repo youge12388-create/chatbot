@@ -1175,6 +1175,7 @@ select {
   .mobile-lead-card, .mobile-conversation-card, .mobile-faq-card { display: flex; width: 100%; gap: 14px; padding: 18px 16px; color: #233149; text-align: left; background: #fff; border: 1px solid #e5eaf3; border-radius: 16px; box-shadow: 0 6px 18px rgba(36, 60, 104, 0.055); }
   .mobile-lead-card:active, .mobile-conversation-card:active, .mobile-faq-card:active { background: #fbfcff; }
   .mobile-avatar { display: grid; flex: 0 0 48px; place-items: center; width: 48px; height: 48px; border: 1px solid currentColor; border-radius: 50%; }
+  .mobile-avatar > svg { display: block; color: currentColor; }
   .mobile-avatar--blue { color: #2362d4; background: #edf3ff; border-color: #d2e0ff; }
   .mobile-avatar--pink { color: #ef3e78; background: #fff0f5; border-color: #ffd4e4; }
   .mobile-avatar--orange { color: #f28a0a; background: #fff6e9; border-color: #ffe2b9; }
