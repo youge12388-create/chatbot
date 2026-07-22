@@ -75,7 +75,7 @@ function setLocalizedMessages(siteId: string, lang: SupportedLang, value: string
   if (!settings) return
   const current = settings.bubbleMessages
   const localized: LocalizedList = Array.isArray(current) ? { 'zh-CN': current } : { ...(current || {}) }
-  localized[lang] = value.split('\n').map(item => item.trim()).filter(Boolean)
+  localized[lang] = value.replace(/\r\n/g, '\n').split('\n')
   settings.bubbleMessages = localized
 }
 

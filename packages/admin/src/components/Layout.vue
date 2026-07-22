@@ -234,7 +234,6 @@ onMounted(async () => {
               <strong>{{ auth.user?.name || auth.user?.username || '未登录' }}</strong>
               <small>{{ auth.user?.role === 'admin' ? '管理员' : '客服' }}</small>
             </span>
-            <AppIcon name="chevron" :size="15" />
           </div>
           <span class="topbar-divider"></span>
           <button type="button" class="logout-button" @click="onLogout">
