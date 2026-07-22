@@ -73,6 +73,16 @@ test('encodes FAQ requests and sends custom lead fields as extra data', async ()
   })
 })
 
+test('raises the backend error when lead submission fails', async () => {
+  const api = new ChatApi('https://api.example.com', 'site-1', 'en')
+  globalThis.fetch = async () => response({ code: 1, message: 'missing conversation' }, false)
+
+  await assert.rejects(
+    () => api.submitLead({ name: 'Name' }),
+    { message: 'missing conversation' },
+  )
+})
+
 test('uses the selected language for subsequent FAQ and message requests', async () => {
   const api = new ChatApi('https://api.example.com', 'site-1', 'en')
   const requests: Array<{ url: string; init?: RequestInit }> = []
