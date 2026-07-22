@@ -204,8 +204,17 @@ onMounted(async () => {
 
 <template>
   <Layout>
+    <div class="mobile-page-heading faq-mobile-heading">
+      <h2>常见问题</h2>
+      <p>管理常见问题及自动回复内容</p>
+      <button type="button" class="mobile-primary-action" @click="openCreate">
+        <AppIcon name="plus" :size="20" />
+        新增常见问题
+      </button>
+    </div>
+
     <!-- FAQ 始终属于左上角选中的站点 -->
-    <div class="page-toolbar">
+    <div class="page-toolbar faq-desktop-toolbar">
       <div>
         <p class="font-semibold text-ink">{{ siteStore.currentSite?.name || '未选择站点' }}</p>
         <a
@@ -227,7 +236,7 @@ onMounted(async () => {
       </button>
     </div>
 
-    <div class="panel mb-3 flex flex-wrap items-center gap-3 px-4 py-3">
+    <div class="panel mb-3 flex flex-wrap items-center gap-3 px-4 py-3 faq-language-panel">
       <div>
         <p class="text-sm font-medium text-ink">快捷问题展示顺序</p>
         <p class="mt-1 text-xs text-muted">当前语言前 5 个会显示在聊天窗口，可拖拽排序或将问题置顶。</p>
@@ -242,7 +251,7 @@ onMounted(async () => {
     </div>
 
     <!-- 新增表单 -->
-    <div v-if="creating" class="panel p-4 mb-3">
+    <div v-if="creating" class="panel p-4 mb-3 faq-create-panel">
       <div class="grid grid-cols-4 gap-3">
         <input
           v-model="form.question"
@@ -279,7 +288,41 @@ onMounted(async () => {
     </div>
 
     <!-- 列表 -->
-    <div class="panel overflow-hidden">
+    <div class="panel overflow-hidden faq-table-panel">
+      <div class="mobile-faq-list">
+        <div v-for="f in visibleList" :key="`mobile-faq-${f.id}`" class="mobile-faq-card">
+          <template v-if="editingId === f.id">
+            <input v-model="editForm.question" type="text" class="mobile-faq-input" />
+            <textarea v-model="editForm.answer" rows="4" class="mobile-faq-input mobile-faq-textarea"></textarea>
+            <select v-model="editForm.language" class="mobile-faq-input">
+              <option value="zh-CN">中文</option>
+              <option value="en">English</option>
+              <option value="ko">한국어</option>
+              <option value="ru">Русский</option>
+            </select>
+            <span class="mobile-faq-actions">
+              <button type="button" class="mobile-faq-action mobile-faq-action--primary" :disabled="saving" @click="submitEdit(f)">保存</button>
+              <button type="button" class="mobile-faq-action" @click="cancelEdit">取消</button>
+            </span>
+          </template>
+          <template v-else-if="confirmDeleteId === f.id">
+            <strong class="mobile-faq-delete-title">确认删除此问题？</strong>
+            <span class="mobile-faq-actions">
+              <button type="button" class="mobile-faq-action mobile-faq-action--danger" :disabled="saving" @click="confirmDelete(f)">确认删除</button>
+              <button type="button" class="mobile-faq-action" @click="confirmDeleteId = null">取消</button>
+            </span>
+          </template>
+          <template v-else>
+            <h3>{{ f.question }}</h3>
+            <p><span>回答：</span>{{ f.answer }}</p>
+            <div class="mobile-faq-meta">语言：{{ languageLabel(f.language) }} <span>排序：{{ positionOf(f.id) }}</span></div>
+            <div class="mobile-faq-actions">
+              <button type="button" class="mobile-faq-action mobile-faq-action--primary" @click="openEdit(f)"><AppIcon name="edit" :size="17" />编辑</button>
+              <button type="button" class="mobile-faq-action mobile-faq-action--danger" @click="confirmDeleteId = f.id"><AppIcon name="trash" :size="17" />删除</button>
+            </div>
+          </template>
+        </div>
+      </div>
       <table class="table-base">
         <thead>
           <tr class="bg-surface text-muted text-left">
