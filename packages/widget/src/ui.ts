@@ -53,11 +53,13 @@ const CSS = `
   color: #fff;
   padding: 12px 18px;
   border-radius: 14px;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
-  max-width: 220px;
+  width: max-content;
+  max-width: min(260px, calc(100vw - 104px));
+  box-sizing: border-box;
   white-space: normal;
-  word-break: break-word;
+  overflow-wrap: anywhere;
   line-height: 1.4;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
   cursor: pointer;
