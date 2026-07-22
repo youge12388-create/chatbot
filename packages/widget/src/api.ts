@@ -136,11 +136,15 @@ export class ChatApi {
   async submitLead(fields: Record<string, string>, extra?: Record<string, string>): Promise<void> {
     const body: Record<string, unknown> = { conversationId: this.conversationId, ...fields }
     if (extra && Object.keys(extra).length > 0) body.extra = extra
-    await fetch(`${this.apiHost}/api/chat/lead`, {
+    const res = await fetch(`${this.apiHost}/api/chat/lead`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok || data.code !== 0) {
+      throw new Error(data.message || '线索提交失败')
+    }
   }
 
   async getFaqs(): Promise<FaqItem[]> {

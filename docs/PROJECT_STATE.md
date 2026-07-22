@@ -507,3 +507,7 @@ chatbot/
 ## 2026-07-22 Mobile bottom navigation render fix
 - Layout now renders the four mobile route buttons for leads, conversations, FAQ, and site configuration; the existing mobile navigation CSS is reused.
 - Validation: admin tests 8/8, admin build, and git diff --check passed.
+## 2026-07-22 线索表单保存修复
+- 根因：默认表单提交 `applyingLevel`，但 Lead 数据模型没有该列；服务端原样传给 Prisma，导致整条线索写入失败。
+- 修复：服务端将 `applyingLevel` 及未知表单字段归入已有 `Lead.extra`，避免未知列导致保存失败；Widget 检查线索接口响应并在失败时提示。
+- 验证：server 测试 48/48、widget 测试 10/10、server build、widget build、git diff --check 通过。
