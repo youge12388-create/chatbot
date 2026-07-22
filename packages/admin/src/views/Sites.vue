@@ -187,7 +187,7 @@ async function fetchList() {
     const data = await siteStore.loadSites(true)
     list.value = data
     for (const s of data) {
-      if (expanded.value[s.id] === undefined) expanded.value[s.id] = true
+      if (expanded.value[s.id] === undefined) expanded.value[s.id] = typeof window !== 'undefined' && window.matchMedia('(max-width: 680px)').matches ? false : true
       const settings = normalizeSiteSettings(s.settings)
       drafts.value[s.id] = {
         id: s.id,
@@ -312,6 +312,10 @@ function getDraft(id: string) {
   return drafts.value[id]
 }
 
+function maskSiteValue(value: string): string {
+  return value.length > 16 ? value.slice(0, 16) + '...' : value
+}
+
 const MAX_QR_FILE_SIZE = 256 * 1024
 
 function qrValue(siteId: string): string {
@@ -414,7 +418,12 @@ onMounted(fetchList)
 
 <template>
   <Layout>
-    <div class="mb-4 flex items-center justify-between gap-3">
+    <div class="mobile-page-heading sites-mobile-heading">
+      <h2>站点配置</h2>
+      <p>管理站点信息、API Key 和个性化设置</p>
+    </div>
+
+    <div class="mb-4 flex items-center justify-between gap-3 sites-desktop-heading">
       <div>
         <p class="text-sm font-semibold text-ink">站点管理</p>
         <p class="mt-1 text-xs text-muted">每个站点都有独立的 ID、API Key 和配置。</p>
@@ -533,7 +542,27 @@ onMounted(fetchList)
         </button>
 
         <!-- 展开编辑 -->
-        <div v-if="expanded[site.id] && getDraft(site.id)" class="site-config-body">
+        <div v-if="getDraft(site.id)" class="mobile-site-summary" @click="toggle(site.id)">
+          <section class="mobile-site-section">
+            <h3><span></span>基础信息</h3>
+            <div class="mobile-site-row"><AppIcon name="file" :size="20" /><span>站点名称</span><strong>{{ getDraft(site.id)!.name }}</strong></div>
+            <div class="mobile-site-row"><AppIcon name="globe" :size="20" /><span>网站域名</span><strong>{{ getDraft(site.id)!.domain || '-' }}</strong><AppIcon name="chevron" class="mobile-chevron-right" :size="18" /></div>
+            <div class="mobile-site-row"><AppIcon name="hash" :size="20" /><span>Site ID</span><strong>{{ maskSiteValue(getDraft(site.id)!.id) }}</strong><button type="button" @click.stop="copySiteValue(getDraft(site.id)!.id, 'Site ID')"><AppIcon name="copy" :size="18" /></button></div>
+            <div class="mobile-site-row"><AppIcon name="key" :size="20" /><span>API Key</span><strong>{{ maskSiteValue(getDraft(site.id)!.apiKey) }}</strong><button type="button" @click.stop="copySiteValue(getDraft(site.id)!.apiKey, 'API Key')"><AppIcon name="copy" :size="18" /></button></div>
+          </section>
+          <section class="mobile-site-section mobile-site-section--compact">
+            <h3><span></span>主题设置</h3>
+            <div class="mobile-site-row"><span>主题色</span><input v-model="getDraft(site.id)!.settings.primaryColor" type="color" class="mobile-color-swatch" /><strong>{{ getDraft(site.id)!.settings.primaryColor || '-' }}</strong><AppIcon name="chevron" class="mobile-chevron-right" :size="18" /></div>
+          </section>
+          <section class="mobile-site-section mobile-site-section--copy">
+            <h3><span></span>多语言文案</h3>
+            <div class="mobile-copy-row"><span>欢迎语（中文）</span><strong>{{ getLocalizedText(site.id, 'welcomeMessage', 'zh-CN') || '-' }}</strong><AppIcon name="chevron" :size="18" /></div>
+            <div class="mobile-copy-row"><span>引导语（中文）</span><strong>{{ getLocalizedText(site.id, 'guideMessage', 'zh-CN') || '-' }}</strong><AppIcon name="chevron" :size="18" /></div>
+            <div class="mobile-copy-row"><span>气泡文案（中文）</span><strong>{{ getLocalizedMessages(site.id, 'zh-CN').split('\n')[0] || '-' }}</strong><AppIcon name="chevron" :size="18" /></div>
+          </section>
+          <button type="button" class="mobile-embed-button" @click.stop="copyEmbedCode(site)"><AppIcon name="code" :size="20" />复制嵌入代码</button>
+        </div>
+        <div v-if="expanded[site.id] && getDraft(site.id)" class="site-config-body" :class="{ 'site-config-body--open': expanded[site.id] }">
           <div class="site-config-embed-notice">
             <div>
               <p class="text-xs text-muted">复制下面的代码，粘贴到对应网站的 HTML 或 Next.js 布局中。</p>

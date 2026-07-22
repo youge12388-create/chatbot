@@ -4,7 +4,7 @@ import { computed } from 'vue'
 export type IconName =
   | 'grid' | 'target' | 'chat' | 'help' | 'settings' | 'users' | 'bell'
   | 'logout' | 'external' | 'chevron' | 'search' | 'download' | 'plus'
-  | 'close' | 'filter' | 'globe' | 'arrow-left'
+  | 'close' | 'filter' | 'globe' | 'arrow-left' | 'user' | 'copy' | 'edit' | 'trash' | 'code' | 'file' | 'key' | 'hash'
 
 const props = withDefaults(defineProps<{
   name: IconName
@@ -33,6 +33,14 @@ const paths: Record<IconName, string[]> = {
   filter: ['M4 6h16', 'M7 12h10', 'M10 18h4'],
   globe: ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z', 'M3 12h18', 'M12 3a13.7 13.7 0 0 1 0 18', 'M12 3a13.7 13.7 0 0 0 0 18'],
   'arrow-left': ['M19 12H5', 'm12 19-7-7 7-7'],
+  user: ['M20 21a8 8 0 0 0-16 0', 'M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z'],
+  copy: ['M9 9h10v10H9z', 'M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'],
+  edit: ['M12 20h9', 'M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z'],
+  trash: ['M4 7h16', 'M10 11v6', 'M14 11v6', 'M6 7l1 14h10l1-14', 'M9 7V4h6v3'],
+  code: ['m8 9-4 3 4 3', 'm16 9 4 3-4 3', 'm13 5-2 14'],
+  file: ['M6 3h8l4 4v14H6z', 'M14 3v5h5', 'M9 13h6', 'M9 17h6'],
+  key: ['M15.5 8.5a4.5 4.5 0 1 0-3.9 6.7L14 17.6V20h2v-2h2v-2h2v-2.2', 'M15.5 8.5h.01'],
+  hash: ['M10 3 8 21', 'M16 3l-2 18', 'M4 9h17', 'M3 15h17'],
 }
 
 const iconPaths = computed(() => paths[props.name])
