@@ -87,6 +87,15 @@ function fmtTime(t: string | null | undefined): string {
   return new Date(t).toLocaleString('zh-CN')
 }
 
+function fmtTimeOnly(t: string | null | undefined): string {
+  if (!t) return '-'
+  return new Date(t).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+}
+
+function avatarTone(index: number): string {
+  return ['blue', 'pink', 'orange', 'green', 'purple'][index % 5]
+}
+
 function fmtInterest(level: InterestLevel | undefined): string {
   if (!level) return '未知'
   return interestLabels[level] || level
@@ -120,6 +129,53 @@ onMounted(async () => {
 
 <template>
   <Layout>
+    <div class="mobile-page-heading leads-mobile-heading">
+      <h2>线索管理</h2>
+      <p>管理线索信息，跟进客户需求</p>
+    </div>
+
+    <div v-if="loading" class="mobile-lead-list">
+      <div v-for="i in 5" :key="`mobile-lead-skeleton-${i}`" class="mobile-lead-card mobile-lead-card--skeleton">
+        <span class="mobile-skeleton mobile-skeleton--avatar"></span>
+        <span class="mobile-lead-card__body">
+          <span class="mobile-skeleton mobile-skeleton--line mobile-skeleton--line-wide"></span>
+          <span class="mobile-skeleton mobile-skeleton--line"></span>
+          <span class="mobile-skeleton mobile-skeleton--line mobile-skeleton--line-short"></span>
+        </span>
+      </div>
+    </div>
+
+    <div v-else class="mobile-lead-list">
+      <button
+        v-for="(lead, index) in list"
+        :key="lead.id"
+        type="button"
+        class="mobile-lead-card"
+        @click="viewDetail(lead.id)"
+      >
+        <span class="mobile-avatar" :class="`mobile-avatar--${avatarTone(index)}`">
+          <AppIcon name="user" :size="24" :stroke-width="2" />
+        </span>
+        <span class="mobile-lead-card__body">
+          <span class="mobile-lead-card__topline">
+            <strong>{{ lead.name || '访客' }}</strong>
+            <time>{{ fmtTimeOnly(lead.createdAt) }}</time>
+            <AppIcon name="chevron" class="mobile-chevron-right" :size="20" />
+          </span>
+          <span class="mobile-lead-card__contact">{{ lead.phone || '-' }}</span>
+          <span class="mobile-lead-card__contact">{{ lead.email || '-' }}</span>
+          <span class="mobile-lead-card__source">
+            <AppIcon name="users" :size="16" />
+            <span>来源站点：{{ lead.conversation?.site?.name || '-' }}</span>
+          </span>
+          <span class="mobile-lead-card__meta">
+            <span class="mobile-meta-pill">兴趣等级：{{ fmtInterest(lead.conversation?.interestLevel) }}</span>
+            <span class="mobile-meta-pill mobile-meta-pill--status">状态：<StatusBadge :status="lead.status" type="lead" /></span>
+          </span>
+          <span class="mobile-lead-card__submitted">提交时间：{{ fmtTime(lead.createdAt) }}</span>
+        </span>
+      </button>
+    </div>
     <!-- 筛选栏 -->
     <div class="page-toolbar">
       <div class="toolbar-field">

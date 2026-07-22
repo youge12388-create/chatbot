@@ -496,3 +496,9 @@ chatbot/
 - 线索、会话、FAQ、账号表格在移动端转换为单列卡片；站点配置保持分组卡片并压缩间距。
 - 未修改业务接口、权限和桌面端布局。
 - 验证：admin 测试 8/8、vue-tsc + vite build、git diff --check 均通过。
+
+
+## 2026-07-22 Mobile pixel UI
+- 按四张参考图重做移动端线索、会话、FAQ 和站点配置页面的专用卡片模板与布局。
+- 仅复用已有接口字段和操作；会话页不添加收藏、评论等图片中但产品未提供的功能。
+- 验证：admin 测试 8/8、vue-tsc + vite build、git diff --check 均通过。

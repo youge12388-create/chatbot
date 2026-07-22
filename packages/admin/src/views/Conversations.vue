@@ -91,6 +91,15 @@ function lastMessagePreview(c: Conversation): string {
   return content.length > 54 ? `${content.slice(0, 54)}…` : content
 }
 
+function conversationTone(index: number): string {
+  return ['blue', 'pink', 'orange', 'green', 'purple'][index % 5]
+}
+
+function fmtTimeOnly(t: string | null | undefined): string {
+  if (!t) return '-'
+  return new Date(t).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+}
+
 function handlingReason(c: Conversation): string {
   const noAnswerCount = Number(c.metadata?.aiNoAnswerCount || 0)
   if (c.status === 'transferred') return noAnswerCount >= 2 ? 'AI 连续未回答' : '客户请求人工'
@@ -233,7 +242,12 @@ watch(
 <template>
   <Layout>
     <!-- 筛选栏 -->
-    <div class="mb-5 flex flex-wrap items-end justify-between gap-4">
+    <div class="mobile-page-heading conversations-mobile-heading">
+      <h2>会话管理</h2>
+      <p>处理访客会话，提供人工服务</p>
+    </div>
+
+    <div class="mb-5 flex flex-wrap items-end justify-between gap-4 conversations-filter-bar">
       <div>
         <p class="text-xs font-semibold uppercase tracking-[0.16em] text-primary">会话工作台</p>
         <h2 class="mt-1 text-xl font-semibold text-ink">先处理待人工，再开始回复</h2>
@@ -253,6 +267,34 @@ watch(
       </div>
     </div>
 
+
+    <div v-if="!loading" class="mobile-conversation-list">
+      <button
+        v-for="(c, index) in sortedList"
+        :key="`mobile-conversation-${c.id}`"
+        type="button"
+        class="mobile-conversation-card"
+        :class="{ 'mobile-conversation-card--unread': hasUnread(c.id) || c.status === 'transferred' }"
+        @click="viewDetail(c.id)"
+      >
+        <span class="mobile-avatar" :class="`mobile-avatar--${conversationTone(index)}`">
+          <AppIcon name="user" :size="24" :stroke-width="2" />
+        </span>
+        <span class="mobile-conversation-card__body">
+          <span class="mobile-conversation-card__topline">
+            <strong>{{ visitorLabel(c) }}</strong>
+            <time>{{ fmtTimeOnly(c.lastMessageAt || c.updatedAt || c.createdAt) }}</time>
+            <AppIcon name="chevron" class="mobile-chevron-right" :size="20" />
+          </span>
+          <span v-if="lastMessagePreview(c)" class="mobile-conversation-card__preview">{{ lastMessagePreview(c) }}</span>
+          <span class="mobile-conversation-card__meta">
+            <StatusBadge :status="c.status" type="conversation" :timeout="isTimeout(c)" />
+            <span class="mobile-meta-pill">{{ interestLabels[c.interestLevel] || c.interestLevel }}</span>
+            <span class="mobile-message-count"><AppIcon name="chat" :size="18" />{{ c._count?.messages ?? 0 }}</span>
+          </span>
+        </span>
+      </button>
+    </div>
     <div v-if="auth.user?.role === 'admin' && selectedIds.length > 0" class="mb-3 flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
       <span class="text-muted">已选择 {{ selectedIds.length }} 个会话</span>
       <button
