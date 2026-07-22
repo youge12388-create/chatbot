@@ -482,3 +482,7 @@ chatbot/
 - 宿主网站若不修改 html lang，可调用 window.ChatbotWidget.setLanguage('en')，或派发 chatbot:language-change 事件（detail: { lang: 'en' }）。
 - 兼容 US/UK/GB -> English、KR -> Korean 等常见站点语言/地区代码。
 - Widget 源码测试 9/9、生产构建通过；本次未执行数据库变更。
+
+## 2026-07-22 气泡文案换行修复
+- 后台多语言气泡文案编辑时保留末尾空行，按 Enter 后可以继续输入下一行；保存和服务端仍会清理空白行。
+- 验证：npm test（64/64）、npm run build:admin、admin 静态文件同步、git diff --check 均通过。
