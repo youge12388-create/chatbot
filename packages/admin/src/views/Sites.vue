@@ -501,6 +501,7 @@ onMounted(fetchList)
     <EmptyState v-else-if="list.length === 0" message="暂无站点" icon="settings" />
 
     <div v-else class="flex flex-col gap-3">
+      <div class="site-config-list">
       <div
         v-for="site in displayedSites"
         :key="site.id"
@@ -532,8 +533,8 @@ onMounted(fetchList)
         </button>
 
         <!-- 展开编辑 -->
-        <div v-if="expanded[site.id] && getDraft(site.id)" class="px-5 pb-5 pt-1 border-t border-border">
-          <div class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary-soft px-4 py-3">
+        <div v-if="expanded[site.id] && getDraft(site.id)" class="site-config-body">
+          <div class="site-config-embed-notice">
             <div>
               <p class="text-xs text-muted">复制下面的代码，粘贴到对应网站的 HTML 或 Next.js 布局中。</p>
               <p class="mt-1 text-xs text-muted">多语言网站请保持 html lang 同步，或在语言切换时调用 ChatbotWidget.setLanguage(lang)。</p>
@@ -546,7 +547,11 @@ onMounted(fetchList)
               一键复制植入代码
             </button>
           </div>
-          <div class="grid grid-cols-2 gap-4 mt-4">
+          <div class="site-config-section">
+            <div class="site-config-section__header">
+              <h3>{{ '\u57fa\u672c\u4fe1\u606f' }}</h3>
+            </div>
+            <div class="site-config-grid">
             <div>
               <label class="text-sm text-muted block mb-1.5">名称</label>
               <input
@@ -602,7 +607,9 @@ onMounted(fetchList)
                 />
               </div>
             </div>
-            <div class="col-span-2 rounded-xl border border-border bg-surface-2 p-4">
+          </div>
+        </div>
+        <div class="site-config-section site-config-section--muted">
               <div class="flex flex-wrap items-end justify-between gap-3">
                 <div>
                   <h4 class="text-sm font-semibold text-ink">多语言文案</h4>
@@ -618,7 +625,7 @@ onMounted(fetchList)
                   </option>
                 </select>
               </div>
-              <div class="mt-4 grid grid-cols-2 gap-3">
+              <div class="site-config-grid site-config-grid--copy">
                 <div>
                   <label class="text-sm text-muted block mb-1.5">欢迎语 · {{ selectedLanguageLabel(site.id) }}</label>
                   <textarea
@@ -649,6 +656,12 @@ onMounted(fetchList)
                 </div>
               </div>
             </div>
+          </div>
+          <div class="site-config-section">
+            <div class="site-config-section__header">
+              <h3>{{ '\u8054\u7cfb\u4e0e\u901a\u77e5' }}</h3>
+            </div>
+            <div class="site-config-grid">
             <div class="col-span-2">
               <label class="text-sm text-muted block mb-1.5">企业微信群机器人 Webhook（人工接管通知）</label>
               <div class="flex gap-2">
@@ -717,6 +730,10 @@ onMounted(fetchList)
             </div>
 
             <!-- Dify 配置 -->
+            </div>
+          </div>
+          <div class="site-config-section">
+            <div class="site-config-grid">
             <div class="col-span-2 mt-2 pt-4 border-t border-border">
               <h4 class="text-sm font-semibold text-ink mb-3">Dify AI 配置（每个站点可独立配置不同智能体）</h4>
             </div>
@@ -757,9 +774,10 @@ onMounted(fetchList)
           </div>
 
           <!-- 表单配置 -->
+          </div>
           <div
             v-if="getDraft(site.id)!.settings.formConfig"
-            class="mt-5 bg-surface rounded-lg border border-border p-4"
+            class="site-config-section site-config-section--muted"
           >
             <h4 class="text-sm font-semibold text-ink mb-3">表单配置</h4>
 
@@ -871,7 +889,7 @@ onMounted(fetchList)
             </div>
           </div>
 
-          <div class="flex items-center justify-between gap-3 mt-4">
+          <div class="site-config-actions">
             <button
               v-if="canCreateSite"
               type="button"
