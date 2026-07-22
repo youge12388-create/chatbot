@@ -479,6 +479,7 @@ const CSS = `
   bottom: 0;
   max-height: 80%;
   background: #fff;
+  color: #1f2937;
   display: none;
   padding: 20px 16px 16px;
   overflow-y: auto;
@@ -494,6 +495,7 @@ const CSS = `
 .chat-widget-form-overlay h4 {
   margin: 0 0 12px 0;
   font-size: 16px;
+  color: #111827;
 }
 .chat-form-overlay-handle {
   width: 36px;
@@ -508,16 +510,29 @@ const CSS = `
 .chat-form-row label {
   display: block;
   font-size: 13px;
-  color: #666;
+  color: #4b5563;
   margin-bottom: 4px;
 }
-.chat-form-row input {
+.chat-form-row input,
+.chat-form-row select,
+.chat-form-row textarea {
   width: 100%;
   padding: 8px 12px;
   border: 1px solid #ddd;
   border-radius: 6px;
   box-sizing: border-box;
   font-size: 14px;
+  color: #1f2937;
+  background: #fff;
+}
+.chat-form-row input::placeholder,
+.chat-form-row textarea::placeholder {
+  color: #9ca3af;
+  opacity: 1;
+}
+.chat-form-row select option {
+  color: #1f2937;
+  background: #fff;
 }
 .chat-form-actions {
   display: flex;
@@ -537,6 +552,7 @@ const CSS = `
 .chat-form-cancel {
   padding: 10px 16px;
   background: #f5f5f5;
+  color: #374151;
   border: 1px solid #ddd;
   border-radius: 6px;
   cursor: pointer;
