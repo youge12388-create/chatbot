@@ -285,5 +285,24 @@ onMounted(async () => {
         <slot />
       </main>
     </section>
+
+    <nav class="mobile-bottom-nav" aria-label="移动端主导航">
+      <router-link to="/leads" class="mobile-nav-item" :class="{ 'mobile-nav-item--active': isActive('/leads') }" :aria-current="isActive('/leads') ? 'page' : undefined">
+        <AppIcon name="users" :size="25" :stroke-width="2" />
+        <span>线索</span>
+      </router-link>
+      <router-link to="/conversations" class="mobile-nav-item" :class="{ 'mobile-nav-item--active': isActive('/conversations') }" :aria-current="isActive('/conversations') ? 'page' : undefined">
+        <AppIcon name="chat" :size="25" :stroke-width="2" />
+        <span>会话</span>
+      </router-link>
+      <router-link to="/faqs" class="mobile-nav-item" :class="{ 'mobile-nav-item--active': isActive('/faqs') }" :aria-current="isActive('/faqs') ? 'page' : undefined">
+        <AppIcon name="help" :size="25" :stroke-width="2" />
+        <span>FAQ</span>
+      </router-link>
+      <router-link to="/sites" class="mobile-nav-item" :class="{ 'mobile-nav-item--active': isActive('/sites') }" :aria-current="isActive('/sites') ? 'page' : undefined">
+        <AppIcon name="settings" :size="25" :stroke-width="2" />
+        <span>配置</span>
+      </router-link>
+    </nav>
   </div>
 </template>
