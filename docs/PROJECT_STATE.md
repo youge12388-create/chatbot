@@ -485,4 +485,14 @@ chatbot/
 
 ## 2026-07-22 气泡文案换行修复
 - 后台多语言气泡文案编辑时保留末尾空行，按 Enter 后可以继续输入下一行；保存和服务端仍会清理空白行。
+
+## 2026-07-22 Admin site configuration visual grouping
+- Refactored the expanded site settings view into bordered sections for identity, multilingual copy, contact and notifications, AI configuration, and form configuration.
+- Preserved existing save, delete, copy, QR upload, webhook, Dify, FAQ, and form configuration behavior.
 - 验证：npm test（64/64）、npm run build:admin、admin 静态文件同步、git diff --check 均通过。
+
+## 2026-07-22 Mobile admin UI
+- 按移动端参考图优化管理后台：680px 以下隐藏侧边栏，新增站点选择器与固定底部四项导航。
+- 线索、会话、FAQ、账号表格在移动端转换为单列卡片；站点配置保持分组卡片并压缩间距。
+- 未修改业务接口、权限和桌面端布局。
+- 验证：admin 测试 8/8、vue-tsc + vite build、git diff --check 均通过。
