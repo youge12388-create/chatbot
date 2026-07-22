@@ -125,27 +125,26 @@ const CSS = `
   position: relative;
 }
 .chat-widget-language-trigger {
-  min-width: 86px;
-  height: 32px;
-  padding: 0 9px 0 12px;
-  border: 1px solid rgba(255, 255, 255, 0.72);
-  border-radius: 9px;
-  background: rgba(255, 255, 255, 0.16);
-  color: #fff;
+  min-width: 64px;
+  height: 24px;
+  padding: 0 5px 0 7px;
+  border: 0;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.88);
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 4px;
   font: inherit;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 0.18s ease, border-color 0.18s ease;
+  transition: background 0.18s ease;
 }
 .chat-widget-language-trigger:hover,
 .chat-widget-language-trigger[aria-expanded="true"] {
-  background: rgba(255, 255, 255, 0.28);
-  border-color: #fff;
+  background: rgba(255, 255, 255, 0.18);
 }
 .chat-widget-language-trigger:focus-visible,
 .chat-widget-language-option:focus-visible {
@@ -153,8 +152,8 @@ const CSS = `
   outline-offset: 2px;
 }
 .chat-widget-language-trigger svg {
-  width: 14px;
-  height: 14px;
+  width: 11px;
+  height: 11px;
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
@@ -165,22 +164,22 @@ const CSS = `
 }
 .chat-widget-language-menu {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + 6px);
   right: 0;
-  min-width: 142px;
-  padding: 6px;
+  min-width: 128px;
+  padding: 4px;
   border: 1px solid #e5e7eb;
-  border-radius: 12px;
+  border-radius: 9px;
   background: #fff;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.2);
   z-index: 20;
 }
 .chat-widget-language-option {
   width: 100%;
-  min-height: 34px;
-  padding: 7px 9px;
+  min-height: 30px;
+  padding: 5px 8px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 6px;
   background: transparent;
   color: #374151;
   display: flex;
@@ -188,21 +187,21 @@ const CSS = `
   justify-content: space-between;
   gap: 14px;
   font: inherit;
-  font-size: 13px;
+  font-size: 12px;
   text-align: left;
   cursor: pointer;
 }
 .chat-widget-language-option:hover,
 .chat-widget-language-option[aria-selected="true"] {
-  background: #ecfdf5;
-  color: #0f766e;
+  background: #eff6ff;
+  color: #165DFF;
 }
 .chat-widget-language-option[aria-selected="true"] {
   font-weight: 600;
 }
 .chat-widget-language-check {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   opacity: 0;
   fill: none;
   stroke: currentColor;
