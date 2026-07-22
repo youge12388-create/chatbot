@@ -100,8 +100,40 @@ async function updateInterestScore(
 /**
  * 更新或创建线索
  */
+const LEAD_FIELDS = new Set([
+  'name',
+  'phone',
+  'email',
+  'wechat',
+  'education',
+  'targetMajor',
+  'budget',
+  'enrollmentDate',
+])
+
+function normalizeLeadFields(fields: Record<string, any>) {
+  const leadFields: Record<string, any> = {}
+  const extra = fields.extra && typeof fields.extra === 'object' && !Array.isArray(fields.extra)
+    ? { ...fields.extra }
+    : {}
+
+  for (const [key, value] of Object.entries(fields)) {
+    if (key === 'extra') continue
+    // Legacy form submissions use applyingLevel, which is stored as an extension field.
+    if (key === 'applyingLevel') {
+      extra.applyingLevel = value
+    } else if (LEAD_FIELDS.has(key)) {
+      leadFields[key] = value
+    } else {
+      extra[key] = value
+    }
+  }
+
+  return { leadFields, extra }
+}
+
 async function upsertLead(conversationId: string, fields: Record<string, any>) {
-  const { extra, ...rest } = fields
+  const { leadFields, extra } = normalizeLeadFields(fields)
   const existing = await prisma.lead.findFirst({
     where: { conversationId },
   })
@@ -111,13 +143,13 @@ async function upsertLead(conversationId: string, fields: Record<string, any>) {
     lead = await prisma.lead.update({
       where: { id: existing.id },
       data: {
-        ...rest,
-        extra: extra ? { ...(existing.extra as any), ...extra } : undefined,
+        ...leadFields,
+        extra: Object.keys(extra).length > 0 ? { ...(existing.extra as any), ...extra } : undefined,
       },
     })
   } else {
     lead = await prisma.lead.create({
-      data: { conversationId, ...rest, extra: extra || {} },
+      data: { conversationId, ...leadFields, extra },
     })
   }
 
