@@ -1456,9 +1456,13 @@ export function createWidget(config: WidgetConfig): WidgetController {
   // 打开表单
   function openForm() {
     renderForm(formOverlay, lang, async (data, extra) => {
-      await api.submitLead(data, extra)
-      closeForm()
-      addMessage({ role: 'assistant', content: t(lang, 'form.success') })
+      try {
+        await api.submitLead(data, extra)
+        closeForm()
+        addMessage({ role: 'assistant', content: t(lang, 'form.success') })
+      } catch {
+        addMessage({ role: 'assistant', content: t(lang, 'networkError') }, true)
+      }
     }, closeForm, siteSettings?.formConfig)
     // 重新插入拖动条 handle（renderForm 会清空容器）
     const handle = document.createElement('div')

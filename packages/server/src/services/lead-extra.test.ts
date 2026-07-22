@@ -89,6 +89,24 @@ test('upsertLead updates existing extra fields and creates new leads', async () 
   }
 })
 
+test('upsertLead stores legacy applyingLevel in extra instead of sending an unknown Prisma field', async () => {
+  const originalFind = (prisma.lead as any).findFirst
+  const createRestore = replaceMethod(prisma.lead, 'create', async ({ data }: any) => data)
+  ;(prisma.lead as any).findFirst = async () => null
+  try {
+    const lead = await leadService.upsertLead('conversation-3', {
+      name: 'Name',
+      phone: '+8613800000000',
+      applyingLevel: 'Master',
+    })
+    assert.equal((lead as any).applyingLevel, undefined)
+    assert.deepEqual(lead.extra, { applyingLevel: 'Master' })
+  } finally {
+    ;(prisma.lead as any).findFirst = originalFind
+    createRestore()
+  }
+})
+
 test('notifyNewLead and notifyTransfer handle missing webhooks and delivery outcomes', async () => {
   const originalFetch = globalThis.fetch
   const findRestore = replaceMethod(prisma.conversation, 'findUnique', async ({ include }: any) => include
