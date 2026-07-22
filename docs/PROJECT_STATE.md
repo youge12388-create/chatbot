@@ -502,3 +502,8 @@ chatbot/
 - 按四张参考图重做移动端线索、会话、FAQ 和站点配置页面的专用卡片模板与布局。
 - 仅复用已有接口字段和操作；会话页不添加收藏、评论等图片中但产品未提供的功能。
 - 验证：admin 测试 8/8、vue-tsc + vite build、git diff --check 均通过。
+
+
+## 2026-07-22 Mobile bottom navigation render fix
+- Layout now renders the four mobile route buttons for leads, conversations, FAQ, and site configuration; the existing mobile navigation CSS is reused.
+- Validation: admin tests 8/8, admin build, and git diff --check passed.
