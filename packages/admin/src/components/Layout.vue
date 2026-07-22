@@ -199,6 +199,44 @@ onMounted(async () => {
             {{ siteStore.currentSite.name }} · {{ siteDisplayUrl(siteStore.currentSite.domain, siteStore.currentSite.id) }}
           </span>
         </div>
+        <div
+          class="mobile-site-context"
+          @focusout="closeSiteMenu"
+          @keydown.esc.stop="siteMenuOpen = false"
+        >
+          <button
+            type="button"
+            class="mobile-site-selector"
+            :disabled="siteStore.loading || siteStore.sites.length === 0"
+            aria-haspopup="listbox"
+            :aria-expanded="siteMenuOpen"
+            @click="siteMenuOpen = !siteMenuOpen"
+          >
+            <span class="mobile-site-selector__copy">
+              <strong>{{ siteStore.loading ? '加载站点…' : (siteStore.currentSite?.name || '暂无可用站点') }}</strong>
+              <small>{{ currentSiteUrl.display }}</small>
+            </span>
+            <AppIcon name="chevron" :size="16" :class="{ 'rotate-180': siteMenuOpen }" />
+          </button>
+          <div v-if="siteMenuOpen" role="listbox" class="site-menu mobile-site-menu">
+            <button
+              v-for="site in siteStore.sites"
+              :key="site.id"
+              type="button"
+              role="option"
+              :aria-selected="site.id === siteStore.selectedSiteId"
+              class="site-menu-option"
+              :class="{ 'site-menu-option--active': site.id === siteStore.selectedSiteId }"
+              @click="selectSite(site.id)"
+            >
+              <span class="site-index">{{ siteNumber(site.id) }}</span>
+              <span>
+                <strong>{{ site.name }}</strong>
+                <small>{{ siteDisplayUrl(site.domain, site.id) }}</small>
+              </span>
+            </button>
+          </div>
+        </div>
         <div class="topbar-actions">
           <div class="notification-wrap">
             <button type="button" class="icon-button notification-button" aria-label="消息通知" :aria-expanded="notificationPanelOpen" @click="toggleNotifications">
