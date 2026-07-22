@@ -264,7 +264,7 @@ watch(
       </button>
     </div>
     <!-- 表格 -->
-    <div class="panel overflow-hidden">
+    <div class="panel conversation-table-panel overflow-hidden">
       <table class="table-base">
         <thead>
           <tr>
