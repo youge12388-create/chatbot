@@ -23,6 +23,111 @@ async function seedDefaultFaqs(client, siteId) {
   console.log(`[seed] FAQ 初始化完成，共 ${DEFAULT_FAQS.length} 条`)
 }
 
+async function ensureAdminUser(client, username, password, role, name) {
+  const existing = await client.adminUser.findUnique({ where: { username } })
+  if (existing) {
+    return existing
+  }
+
+  const hashed = await bcrypt.hash(password, 10)
+  return client.adminUser.create({
+    data: { username, password: hashed, role, name },
+  })
+}
+async function seedDemoData(client, site, admin) {
+  const activeConversation = await client.conversation.upsert({
+    where: { id: 'e2e-conversation-active' },
+    update: {
+      siteId: site.id,
+      visitorId: 'e2e-visitor-active',
+      status: 'active',
+      interestLevel: 'high',
+      assigneeId: admin.id,
+    },
+    create: {
+      id: 'e2e-conversation-active',
+      siteId: site.id,
+      visitorId: 'e2e-visitor-active',
+      status: 'active',
+      interestLevel: 'high',
+      assigneeId: admin.id,
+      metadata: { source: 'seed', scenario: 'active-lead' },
+    },
+  })
+
+  await client.message.upsert({
+    where: { id: 'e2e-message-user' },
+    update: { conversationId: activeConversation.id, content: '我想了解申请条件', role: 'user', source: 'user' },
+    create: {
+      id: 'e2e-message-user',
+      conversationId: activeConversation.id,
+      role: 'user',
+      content: '我想了解申请条件',
+      source: 'user',
+    },
+  })
+  await client.message.upsert({
+    where: { id: 'e2e-message-assistant' },
+    update: { conversationId: activeConversation.id, content: '可以的，我来为你介绍申请条件。', role: 'assistant', source: 'preset' },
+    create: {
+      id: 'e2e-message-assistant',
+      conversationId: activeConversation.id,
+      role: 'assistant',
+      content: '可以的，我来为你介绍申请条件。',
+      source: 'preset',
+    },
+  })
+  await client.lead.upsert({
+    where: { id: 'e2e-lead-001' },
+    update: {
+      conversationId: activeConversation.id,
+      name: '测试客户',
+      phone: '13800000000',
+      email: 'e2e@example.com',
+      status: 'new',
+      note: '由本地 E2E seed 创建',
+      extra: { applyingLevel: '本科' },
+    },
+    create: {
+      id: 'e2e-lead-001',
+      conversationId: activeConversation.id,
+      name: '测试客户',
+      phone: '13800000000',
+      email: 'e2e@example.com',
+      status: 'new',
+      note: '由本地 E2E seed 创建',
+      extra: { applyingLevel: '本科' },
+    },
+  })
+
+  const closedConversation = await client.conversation.upsert({
+    where: { id: 'e2e-conversation-closed' },
+    update: { siteId: site.id, visitorId: 'e2e-visitor-closed', status: 'closed', interestLevel: 'normal' },
+    create: {
+      id: 'e2e-conversation-closed',
+      siteId: site.id,
+      visitorId: 'e2e-visitor-closed',
+      status: 'closed',
+      interestLevel: 'normal',
+      closedAt: new Date(),
+      metadata: { source: 'seed', scenario: 'closed-conversation' },
+    },
+  })
+  await client.message.upsert({
+    where: { id: 'e2e-message-closed' },
+    update: { conversationId: closedConversation.id, content: '测试历史消息', role: 'user', source: 'user' },
+    create: {
+      id: 'e2e-message-closed',
+      conversationId: closedConversation.id,
+      role: 'user',
+      content: '测试历史消息',
+      source: 'user',
+    },
+  })
+
+  await ensureAdminUser(client, 'staff', 'staff', 'staff', '测试客服')
+  console.log('[seed] demo conversations, lead, and staff account are ready')
+}
 async function main() {
   // 创建默认站点
   const site = await prisma.site.upsert({
@@ -63,15 +168,11 @@ async function main() {
   // 创建默认管理员账号
   const adminUsername = process.env.ADMIN_USERNAME || 'admin'
   const adminPassword = process.env.ADMIN_PASSWORD || 'admin123'
-  const existing = await prisma.adminUser.findUnique({ where: { username: adminUsername } })
-  if (!existing) {
-    const hashed = await bcrypt.hash(adminPassword, 10)
-    await prisma.adminUser.create({
-      data: { username: adminUsername, password: hashed, role: 'admin', name: '管理员' },
-    })
-    console.log(`[seed] 默认管理员创建成功: ${adminUsername} (请尽快修改密码)`)
-  } else {
-    console.log(`[seed] 管理员已存在: ${adminUsername}`)
+  const admin = await ensureAdminUser(prisma, adminUsername, adminPassword, 'admin', '管理员')
+  console.log(`[seed] admin account ready: ${adminUsername}`)
+
+  if (process.env.SEED_DEMO_DATA === 'true') {
+    await seedDemoData(prisma, site, admin)
   }
 
   console.log(`[seed] 站点创建成功: ${site.id}, apiKey: ${site.apiKey}`)
@@ -88,4 +189,4 @@ if (require.main === module) {
     })
 }
 
-module.exports = { seedDefaultFaqs }
+module.exports = { seedDefaultFaqs, ensureAdminUser }

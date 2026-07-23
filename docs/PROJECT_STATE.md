@@ -511,3 +511,21 @@ chatbot/
 - 根因：默认表单提交 `applyingLevel`，但 Lead 数据模型没有该列；服务端原样传给 Prisma，导致整条线索写入失败。
 - 修复：服务端将 `applyingLevel` 及未知表单字段归入已有 `Lead.extra`，避免未知列导致保存失败；Widget 检查线索接口响应并在失败时提示。
 - 验证：server 测试 48/48、widget 测试 10/10、server build、widget build、git diff --check 通过。
+
+## 2026-07-22 Admin browser E2E validation
+- Launched the local admin UI at `http://127.0.0.1:5175/admin/login` and kept the login page visible for handoff.
+- Passed empty-credential validation and wrong-credential error feedback (`账号或密码错误`); browser console reported no errors or warnings.
+- Full authenticated CRUD/business-flow E2E is blocked because the local backend has no `DATABASE_URL`, and Docker is unavailable in the environment.
+## 2026-07-22 Local database, seed data, and browser E2E
+- Added the dev-only `embedded-postgres` runtime and local scripts: `npm run db:local` starts PostgreSQL on `127.0.0.1:55432`, syncs Prisma schema, and seeds deterministic data; `npm run dev:server:local` does the same before starting the API.
+- Local seed credentials are `admin/admin` and `staff/staff`; seeded data includes the default site, FAQ entries, one active conversation, one closed conversation, and one lead.
+- Added bounded webhook retry behavior: up to three attempts for network errors, HTTP 429, and 5xx; 4xx and provider business errors are not retried.
+- Browser E2E passed local login, lead list/detail loading, lead status save, conversation list loading, and conversation detail loading. The final `标记已处理` confirmation dialog was reached, but the browser input channel timed out before an authoritative post-click status check.
+- Validation: `npm test` 68/68, line coverage 81.81%, branch coverage 83.54%, function coverage 86.38%; admin/widget/server builds passed; `git diff --check` passed.
+## 2026-07-22 Final chat coverage reinforcement
+- Added focused tests for chat question classification priority, AI fallback language normalization, transfer replies, malformed Dify SSE blocks, and provider error events.
+- Final validation: 71 tests passed; overall line coverage 82.36%, branch coverage 84.23%, function coverage 88.08%; `chat.ts` line coverage 72.34%, branch coverage 81.89%, function coverage 82.26%; server build and `git diff --check` passed.
+- Remaining chat line coverage is concentrated in database-backed session/message/Dify runtime branches; keep the next increase as an integration-test task rather than adding more pure helper tests.
+## 2026-07-23 Seed password safety
+- Seed now creates the configured admin/staff account only when missing; restarting the service no longer overwrites existing passwords.
+- Added regression coverage for preserving existing credentials and hashing newly created passwords.
