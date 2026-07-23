@@ -6,3 +6,5 @@ dist/
 # 构建同步产物（由 build 链路生成，不入库）
 packages/server/public/admin/
 packages/server/public/widget.js
+data/
+.npm-cache/
