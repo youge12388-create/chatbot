@@ -34,3 +34,38 @@ test('企业微信返回 errcode=0 时通知应判定成功', async () => {
     globalThis.fetch = originalFetch
   }
 })
+test('webhook retries transient server failures and then succeeds', async () => {
+  const originalFetch = globalThis.fetch
+  let calls = 0
+  globalThis.fetch = (async () => {
+    calls += 1
+    if (calls === 1) return new Response('temporary failure', { status: 503 })
+    return new Response('{}', { status: 200 })
+  }) as typeof fetch
+
+  try {
+    const result = await postJson('https://example.com/retry', { event: 'test' })
+    assert.equal(result.ok, true)
+    assert.equal(calls, 2)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
+
+test('webhook does not retry client errors', async () => {
+  const originalFetch = globalThis.fetch
+  let calls = 0
+  globalThis.fetch = (async () => {
+    calls += 1
+    return new Response('invalid request', { status: 400 })
+  }) as typeof fetch
+
+  try {
+    const result = await postJson('https://example.com/client-error', { event: 'test' })
+    assert.equal(result.ok, false)
+    assert.equal(result.status, 400)
+    assert.equal(calls, 1)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
