@@ -247,45 +247,62 @@ export interface WebhookResult {
   message: string
 }
 
+const WEBHOOK_MAX_ATTEMPTS = 3
+const WEBHOOK_RETRY_DELAY_MS = 100
+
+function shouldRetryWebhook(status: number) {
+  return status === 0 || status === 429 || status >= 500
+}
+
+function waitForRetry(delayMs: number) {
+  return new Promise(resolve => setTimeout(resolve, delayMs))
+}
+
 export async function postJson(url: string, body: any): Promise<WebhookResult> {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 10_000)
+  let result: WebhookResult = { ok: false, status: 0, message: 'network error' }
 
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    })
-    const responseBody = await response.text().catch(() => '')
-
-    if (!response.ok) {
-      console.error(`[chat-api] 通知返回 ${response.status}: ${response.statusText}`)
-      return { ok: false, status: response.status, message: responseBody || response.statusText }
-    }
+  for (let attempt = 1; attempt <= WEBHOOK_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 10_000)
 
     try {
-      const result = JSON.parse(responseBody) as { errcode?: number; errmsg?: string }
-      if (typeof result.errcode === 'number' && result.errcode !== 0) {
-        return { ok: false, status: response.status, message: result.errmsg || `errcode=${result.errcode}` }
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      })
+      const responseBody = await response.text().catch(() => '')
+
+      if (!response.ok) {
+        result = { ok: false, status: response.status, message: responseBody || response.statusText }
+      } else {
+        try {
+          const parsed = JSON.parse(responseBody) as { errcode?: number; errmsg?: string }
+          if (typeof parsed.errcode === 'number' && parsed.errcode !== 0) {
+            return { ok: false, status: response.status, message: parsed.errmsg || ('errcode=' + parsed.errcode) }
+          }
+        } catch {
+          // Some webhook providers return plain text for successful requests.
+        }
+        return { ok: true, status: response.status, message: 'ok' }
       }
-    } catch {
-      // n8n 等 Webhook 可能返回纯文本，HTTP 2xx 即视为成功。
+    } catch (err: any) {
+      result = { ok: false, status: 0, message: err.message || 'network error' }
+    } finally {
+      clearTimeout(timer)
     }
 
-    return { ok: true, status: response.status, message: 'ok' }
-  } catch (err: any) {
-    console.error('[chat-api] 通知发送失败:', err.message)
-    return { ok: false, status: 0, message: err.message || 'network error' }
-  } finally {
-    clearTimeout(timer)
+    if (attempt < WEBHOOK_MAX_ATTEMPTS && shouldRetryWebhook(result.status)) {
+      await waitForRetry(WEBHOOK_RETRY_DELAY_MS * 2 ** (attempt - 1))
+    } else {
+      break
+    }
   }
+
+  console.error('[chat-api] webhook failed after ' + WEBHOOK_MAX_ATTEMPTS + ' attempts: ' + result.message)
+  return result
 }
-/**
- * 转人工通知：即使用户未留资，也推送一条通知
- * webhook 地址优先从 site.settings.webhookUrl 读，兼容环境变量
- */
 async function notifyTransfer(conversationId: string): Promise<boolean> {
   const conv = await prisma.conversation.findUnique({
     where: { id: conversationId },

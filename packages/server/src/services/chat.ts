@@ -44,7 +44,7 @@ const ROUTE_RULES: Record<string, string[]> = {
   ],
 }
 
-function classifyQuestion(content: string): QuestionCategory {
+export function classifyQuestion(content: string): QuestionCategory {
   const text = content
 
   // 转人工关键词
@@ -104,7 +104,7 @@ const AI_FALLBACK_REPLIES: Record<SupportedLang, Record<'unconfigured' | 'unavai
   },
 }
 
-function getAiFallbackReply(lang: unknown, type: keyof typeof AI_FALLBACK_REPLIES['zh-CN']): string {
+export function getAiFallbackReply(lang: unknown, type: keyof typeof AI_FALLBACK_REPLIES['zh-CN']): string {
   return AI_FALLBACK_REPLIES[normalizeLang(lang)][type]
 }
 const NO_ANSWER_PATTERNS = [
@@ -690,7 +690,7 @@ const TRANSFER_REPLIES: Record<string, string> = {
     'ko': '요청을 전문 상담원에게 전달했습니다. 곧 연락드리겠습니다.',
 }
 
-function getTransferReply(lang: string): string {
+export function getTransferReply(lang: string): string {
   return TRANSFER_REPLIES[lang] || TRANSFER_REPLIES['zh-CN']
 }
 

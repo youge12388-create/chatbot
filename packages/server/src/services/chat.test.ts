@@ -2,6 +2,9 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   buildDifyRequestBody,
+  classifyQuestion,
+  getAiFallbackReply,
+  getTransferReply,
   getDifyInfoUrl,
   getFaqPool,
   normalizeLang,
@@ -162,4 +165,27 @@ test('legacy site copy is normalized to localized settings', () => {
   assert.deepEqual(settings.welcomeMessage, { 'zh-CN': 'legacy welcome' })
   assert.deepEqual(settings.guideMessage, { 'zh-CN': 'legacy guide' })
   assert.deepEqual(settings.bubbleMessages, { 'zh-CN': ['legacy bubble 1', 'legacy bubble 2'] })
+})
+
+test('question classification keeps transfer and personalization priority', () => {
+  assert.equal(classifyQuestion('人工客服').type, 'transfer')
+  assert.equal(classifyQuestion('我的 GPA').type, 'personalized')
+  assert.equal(classifyQuestion('学费是多少').type, 'faq')
+  assert.equal(classifyQuestion('请介绍一下学校').type, 'knowledge')
+})
+
+test('AI fallback replies normalize language and cover transfer-facing failures', () => {
+  assert.match(getAiFallbackReply('en-US', 'unconfigured'), /AI service is not configured/)
+  assert.match(getAiFallbackReply('en-US', 'timeout'), /AI service|AI response/)
+  assert.match(getAiFallbackReply('zh-CN', 'noAnswer'), /无法回答/)
+  assert.match(getTransferReply('en'), /forwarded to a consultant/)
+  assert.notEqual(getTransferReply('unknown'), '')
+})
+
+test('Dify SSE parser ignores malformed blocks and raises provider errors', () => {
+  assert.deepEqual(parseDifySse('data: not-json\n\ndata: [DONE]\n\n'), { answer: '', conversationId: null })
+  assert.throws(
+    () => parseDifySse('data: {"event":"error","message":"upstream failed"}\n\n'),
+    /upstream failed/,
+  )
 })
