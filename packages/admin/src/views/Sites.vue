@@ -379,9 +379,22 @@ async function save(site: Site) {
   }
 }
 
+async function saveDraftBeforeTest(site: Site): Promise<void> {
+  const draft = drafts.value[site.id]
+  if (!draft) throw new Error('site configuration is not loaded')
+
+  const payload: Record<string, unknown> = {
+    name: draft.name,
+    settings: draft.settings,
+    ...(draft.domain.trim() ? { domain: draft.domain } : {}),
+  }
+  await request<Site>('PATCH', `/api/admin/sites/${site.id}`, payload)
+}
+
 async function testDify(site: Site) {
   testing.value[site.id] = true
   try {
+    await saveDraftBeforeTest(site)
     const result = await request<{ name: string; mode: string }>(
       'POST',
       `/api/admin/sites/${site.id}/test-dify`,
@@ -405,6 +418,7 @@ async function testWecom(site: Site) {
   }
   testingWecom.value[site.id] = true
   try {
+    await saveDraftBeforeTest(site)
     await request('POST', `/api/admin/sites/${site.id}/test-wecom`, {})
     pushToast('success', '测试消息已发送到企业微信群')
   } catch (e) {
