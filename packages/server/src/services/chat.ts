@@ -183,7 +183,7 @@ const DEFAULT_SITE_SETTINGS = {
     presetFields: {
       name:          { enabled: true,  required: true },
       phone:         { enabled: true,  required: true },
-      applyingLevel: { enabled: true,  required: false },
+      applyingLevel: { enabled: false, required: false },
       email:         { enabled: false, required: false },
       wechat:        { enabled: false, required: false },
       education:     { enabled: false, required: false },
