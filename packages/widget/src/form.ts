@@ -1,7 +1,7 @@
 /**
  * 线索收集表单
  * - 根据 siteSettings.formConfig 动态渲染
- * - 预设字段（name/phone/email/wechat/education/targetMajor/budget）按启用开关渲染
+ * - 预设字段（name/phone/applyingLevel/email/wechat/education/targetMajor/budget）按启用开关渲染
  * - 自定义字段渲染到 extra 对象
  * - 必填字段前端校验
  */
@@ -14,7 +14,7 @@ const DEFAULT_FORM_CONFIG: FormConfig = {
   presetFields: {
     name:          { enabled: true,  required: true },
     phone:         { enabled: true,  required: true },
-    applyingLevel: { enabled: true,  required: false },
+    applyingLevel: { enabled: false, required: false },
     email:         { enabled: false, required: false },
     wechat:        { enabled: false, required: false },
     education:     { enabled: false, required: false },

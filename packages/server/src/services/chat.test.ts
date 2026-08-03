@@ -40,6 +40,19 @@ test('公开站点配置不会暴露 Dify Key、Webhook 或 n8n 地址', () => {
   assert.equal(settings.n8nWebhookUrl, undefined)
   assert.deepEqual(settings.welcomeMessage, { 'zh-CN': '欢迎' })
 })
+
+test('applying level field only appears when enabled for a site', () => {
+  const defaultSettings = getPublicSiteSettings({})
+  const enabledSettings = getPublicSiteSettings({
+    formConfig: {
+      presetFields: { applyingLevel: { enabled: true, required: false } },
+      customFields: [],
+    },
+  })
+
+  assert.deepEqual(defaultSettings.formConfig.presetFields.applyingLevel, { enabled: false, required: false })
+  assert.deepEqual(enabledSettings.formConfig.presetFields.applyingLevel, { enabled: true, required: false })
+})
 test('Dify 首次请求使用空 conversation_id', () => {
   const body = buildDifyRequestBody('你好', null, 'local-conversation-id')
 
