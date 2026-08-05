@@ -8,3 +8,7 @@ packages/server/public/admin/
 packages/server/public/widget.js
 data/
 .npm-cache/
+
+# 本地部署临时包与校验产物，不进入 Git
+.codex-local/
+.codex/
