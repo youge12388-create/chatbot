@@ -265,15 +265,40 @@ async function deleteSite(site: Site): Promise<void> {
   }
 }
 
+async function writeClipboard(value: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(value)
+      return
+    } catch {
+      // Continue with the legacy fallback for browsers that block Clipboard API.
+    }
+  }
+
+  const textarea = document.createElement('textarea')
+  textarea.value = value
+  textarea.setAttribute('readonly', '')
+  textarea.style.position = 'fixed'
+  textarea.style.opacity = '0'
+  document.body.appendChild(textarea)
+  textarea.select()
+
+  try {
+    if (!document.execCommand('copy')) throw new Error('clipboard unavailable')
+  } finally {
+    textarea.remove()
+  }
+}
+
 async function copySiteValue(value: string, label: string) {
   try {
-    await navigator.clipboard.writeText(value)
+    await writeClipboard(value)
     pushToast('success', `${label}已复制`)
   } catch {
     pushToast('error', '复制失败，请手动复制')
   }
 }
-const WIDGET_API_HOST = 'https://canhuo.site'
+const WIDGET_API_HOST = 'https://chatbot.medicalchinaway.com'
 
 function escapeHtmlAttribute(value: string): string {
   return value

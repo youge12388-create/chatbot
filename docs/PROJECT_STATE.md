@@ -9,9 +9,10 @@
 - [x] Widget 聊天窗口（Vanilla TS + Vite + Shadow DOM）
 - [x] 数据库 Schema（7 表，新增 AdminUser）
 - [x] n8n 集成（workflow 文件 + Docker 编排）
-- [x] Zeabur GitHub 自动部署链路
+- [x] Zeabur GitHub 自动部署链路（历史链路，当前不作为发布入口）
+- [x] 宝塔 Node / PM2 / Nginx 正式部署链路
 - [x] Widget 构建产物自动同步到 Server
-- [x] Zeabur 线上部署成功（canhuo.site）
+- [x] 正式线上部署成功（chatbot.medicalchinaway.com）
 - [x] 数据库自动初始化（bootstrap.ts 启动时建表 + seed）
 - [x] Widget 嵌入 luckyboy.me 成功，位置右侧中间
 - [x] **后台管理系统（Vite + Vue3 + TS + Pinia + Tailwind）**
@@ -111,15 +112,24 @@ chatbot/
 | DELETE | /api/admin/users/:id | 删除账号（admin） |
 
 ## 线上环境
-- **域名**: https://canhuo.site
-- **部署平台**: Zeabur（GitHub 自动部署）
-- **数据库**: Neon PostgreSQL（外部托管，Zeabur 市场 PostgreSQL 因 postgres:18 镜像不存在而不可用）
+- **正式域名**: https://chatbot.medicalchinaway.com
+- **当前部署入口**: 宝塔 Node 项目 `chatbot_main`
+- **服务器目录**: `/opt/chatbot-main`
+- **进程管理**: PM2 应用 `chatbot-server`
+- **反向代理**: Nginx 将 `chatbot.medicalchinaway.com` 转发到本机 `3001` 端口
+- **历史部署平台**: Zeabur（GitHub 自动部署），当前不使用
+- **数据库**: Neon PostgreSQL（外部托管）
 - **AI 服务**: Dify Chat API
 - **默认站点 ID**: cmrgd1bi300008hsqmynz21u9
 - **默认 apiKey**: demo-api-key-001
 - **Widget 嵌入站点**: luckyboy.me
 
-## Zeabur 环境变量
+### 当前 Admin 静态文件发布规则
+- Admin 构建后通过 `scripts/sync-admin.mjs` 同步到 `packages/server/public/admin`。
+- 同步前会清空目标目录，避免旧的入口 HTML、JS、CSS 与新构建混在一起。
+- 生产更新只上传当前构建包；`.codex-local/` 中的历史压缩包仅用于本地回滚，不应上传。
+
+## 历史 Zeabur 环境变量（仅供追溯）
 | 变量名 | 说明 |
 |--------|------|
 | DATABASE_URL | Neon PostgreSQL 连接串（含 ?sslmode=require） |
@@ -317,7 +327,7 @@ chatbot/
 ## 2026-07-16 后台侧边栏线上资源核验
 - 源码已改为固定两列 CSS Grid：展开侧栏 304px、收起侧栏 86px，右侧使用 `minmax(0, 1fr)`，并限制页面整体高度与溢出滚动。
 - 本地 `npm run build:admin` 已通过，生成新资源 `index-DTKrHFMa.css`。
-- 线上 `https://canhuo.site/admin/index.html` 仍加载旧资源 `index-DqxtYjCA.css` / `index-F-Qpitj1.js`；`packages/server/public/admin` 是构建产物且被 `.gitignore` 排除，需要 Zeabur 重新构建发布后才会生效。
+- 历史问题：线上后台曾加载旧资源 `index-DqxtYjCA.css` / `index-F-Qpitj1.js`；`packages/server/public/admin` 是构建产物且被 `.gitignore` 排除。当前正式域名为 `https://chatbot.medicalchinaway.com`，构建同步脚本必须先清理目标目录，发布后需核验入口资源和复制出的植入代码。
 
 ## 2026-07-16 会话接管与企业微信通知问题核验
 - 后台会话当前把 `active`、`taken_over`、`transferred`、`closed` 直接暴露给客服，但列表缺少“待接管”任务队列、负责人、触发原因和下一步动作，新客服无法快速判断该做什么。
