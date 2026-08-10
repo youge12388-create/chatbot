@@ -1046,9 +1046,7 @@ export function createWidget(config: WidgetConfig): WidgetController {
 
   // 当前气泡文案列表
   function getBubbleMessages(): string[] {
-    const list = resolveList(siteSettings?.bubbleMessages, lang)
-    if (list.length > 0) return list
-    return [t(lang, 'header.welcome')]
+    return resolveList(siteSettings?.bubbleMessages, lang)
   }
 
   // 显示气泡（常驻，不自动隐藏）
