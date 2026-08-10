@@ -167,6 +167,14 @@ test('legacy site copy is normalized to localized settings', () => {
   assert.deepEqual(settings.bubbleMessages, { 'zh-CN': ['legacy bubble 1', 'legacy bubble 2'] })
 })
 
+test('empty bubble copy remains empty so a site can disable the floating bubble', () => {
+  const settings = getPublicSiteSettings({
+    bubbleMessages: { 'zh-CN': [] },
+  })
+
+  assert.deepEqual(settings.bubbleMessages, { 'zh-CN': [] })
+})
+
 test('question classification keeps transfer and personalization priority', () => {
   assert.equal(classifyQuestion('人工客服').type, 'transfer')
   assert.equal(classifyQuestion('我的 GPA').type, 'personalized')
