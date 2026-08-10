@@ -384,12 +384,7 @@ function mergeSettings(raw: any): Record<string, any> {
   } else {
     merged.bubbleMessages = JSON.parse(JSON.stringify(DEFAULT_SITE_SETTINGS.bubbleMessages))
   }
-  if (Array.isArray(merged.bubbleMessages) && merged.bubbleMessages.length === 0) {
-    merged.bubbleMessages = JSON.parse(JSON.stringify(DEFAULT_SITE_SETTINGS.bubbleMessages))
-  }
-  if (isLocalizedObject(merged.bubbleMessages) && Object.keys(merged.bubbleMessages).length === 0) {
-    merged.bubbleMessages = JSON.parse(JSON.stringify(DEFAULT_SITE_SETTINGS.bubbleMessages))
-  }
+  // An explicitly empty list disables the floating bubble.
   delete merged.bubbleMessage
 
   // 兜底 formConfig，并保留站点已经配置的自定义字段。
