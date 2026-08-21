@@ -175,6 +175,7 @@ test('FAQ and user CRUD handlers return validation errors and success responses'
     { object: prisma.faq, key: 'update', value: async ({ data }: any) => ({ id: 'f1', ...data }) },
     { object: prisma.faq, key: 'delete', value: async () => ({ id: 'f1' }) },
     { object: prisma.faq, key: 'findMany', value: async () => [{ id: 'f1' }, { id: 'f2' }] },
+    { object: prisma.site, key: 'findUnique', value: async () => ({ id: 's1', settings: {} }) },
     { object: prisma.adminUser, key: 'findUnique', value: async () => null },
     { object: prisma, key: '$transaction', value: async (items: any) => Array.isArray(items) ? Promise.all(items) : items(tx) },
     { object: prisma.adminUser, key: 'findMany', value: async () => [{ id: 'admin-1' }] },
@@ -199,6 +200,27 @@ test('FAQ and user CRUD handlers return validation errors and success responses'
     assert.equal((await callRoute('delete', '/users/:id', { params: { id: 'u1' } })).body.code, 0)
   } finally { restores() }
 })
+
+test('FAQ language writes follow the site language configuration', async () => {
+  const restores = withStubs([
+    {
+      object: prisma.site,
+      key: 'findUnique',
+      value: async () => ({ settings: { languages: [{ code: 'fr', label: 'French', enabled: true }] } }),
+    },
+    { object: prisma.faq, key: 'findUnique', value: async () => ({ siteId: 's1' }) },
+    { object: prisma.faq, key: 'create', value: async ({ data }: any) => ({ id: 'f1', ...data }) },
+    { object: prisma.faq, key: 'update', value: async ({ data }: any) => ({ id: 'f1', ...data }) },
+  ])
+  try {
+    assert.equal((await callRoute('post', '/faqs', { body: { siteId: 's1', question: 'Q', answer: 'A', language: 'en' } })).statusCode, 400)
+    const created = await callRoute('post', '/faqs', { body: { siteId: 's1', question: 'Q', answer: 'A', language: 'FR' } })
+    assert.equal(created.body.data.language, 'fr')
+    const updated = await callRoute('patch', '/faqs/:id', { params: { id: 'f1' }, body: { language: 'FR' } })
+    assert.equal(updated.body.data.language, 'fr')
+  } finally { restores() }
+})
+
 test('admin CRUD validation covers conflicts, forbidden changes and missing records', async () => {
   const site = { id: 'site-1234', name: 'Site', domain: 'example.com', apiKey: 'site-key' }
   const transaction = async (callback: any) => callback({

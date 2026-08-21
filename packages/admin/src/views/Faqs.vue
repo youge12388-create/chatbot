@@ -30,6 +30,16 @@ const form = ref(blankForm())
 
 const editForm = ref(blankForm())
 const confirmDeleteId = ref<string | null>(null)
+const languageOptions = computed(() => {
+  const configured = siteStore.currentSite?.settings?.languages?.filter(language => language.enabled)
+  return configured?.length ? configured : LANGUAGE_OPTIONS
+})
+
+watch(languageOptions, options => {
+  if (activeLanguage.value !== 'all' && !options.some(language => language.code === activeLanguage.value)) {
+    activeLanguage.value = options[0]?.code || 'zh-CN'
+  }
+})
 
 const visibleList = computed(() => {
   if (activeLanguage.value === 'all') return list.value
@@ -37,7 +47,7 @@ const visibleList = computed(() => {
 })
 
 function languageLabel(language: Faq['language']): string {
-  return LANGUAGE_OPTIONS.find(option => option.value === language)?.label || language
+  return languageOptions.value.find(option => option.code === language)?.label || language
 }
 
 function positionOf(id: string): number {
@@ -236,7 +246,7 @@ onMounted(async () => {
         <p class="mt-1 text-xs text-muted">当前语言前 5 个会显示在聊天窗口，可拖拽排序或将问题置顶。</p>
       </div>
       <select v-model="activeLanguage" class="select ml-auto w-36" :disabled="reordering">
-        <option v-for="language in LANGUAGE_OPTIONS" :key="language.value" :value="language.value">{{ language.label }}</option>
+        <option v-for="language in languageOptions" :key="language.code" :value="language.code">{{ language.label }}</option>
         <option value="all">全部语言（仅查看）</option>
       </select>
     </div>
@@ -260,7 +270,7 @@ onMounted(async () => {
           v-model="form.language"
           class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none"
         >
-          <option v-for="language in LANGUAGE_OPTIONS" :key="language.value" :value="language.value">{{ language.label }}</option>
+          <option v-for="language in languageOptions" :key="language.code" :value="language.code">{{ language.label }}</option>
         </select>
       </div>
       <div class="flex justify-end gap-2 mt-3">
@@ -283,7 +293,7 @@ onMounted(async () => {
             <input v-model="editForm.question" type="text" class="mobile-faq-input" />
             <textarea v-model="editForm.answer" rows="4" class="mobile-faq-input mobile-faq-textarea"></textarea>
             <select v-model="editForm.language" class="mobile-faq-input">
-              <option v-for="language in LANGUAGE_OPTIONS" :key="language.value" :value="language.value">{{ language.label }}</option>
+              <option v-for="language in languageOptions" :key="language.code" :value="language.code">{{ language.label }}</option>
             </select>
             <span class="mobile-faq-actions">
               <button type="button" class="mobile-faq-action mobile-faq-action--primary" :disabled="saving" @click="submitEdit(f)">保存</button>
@@ -356,7 +366,7 @@ onMounted(async () => {
                     v-model="editForm.language"
                     class="px-2 py-1.5 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full"
                   >
-                    <option v-for="language in LANGUAGE_OPTIONS" :key="language.value" :value="language.value">{{ language.label }}</option>
+                    <option v-for="language in languageOptions" :key="language.code" :value="language.code">{{ language.label }}</option>
                   </select>
                 </td>
                 <td class="px-4 py-3 text-muted">{{ positionOf(f.id) }}</td>

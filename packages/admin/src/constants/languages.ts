@@ -1,10 +1,10 @@
-import type { SupportedLang } from '../types'
+import type { SiteLanguage } from '../types'
 
-/** 后台所有可维护的客服界面语言；新增语言时仅需在此处补充选项。 */
-export const LANGUAGE_OPTIONS: ReadonlyArray<{ value: SupportedLang; label: string }> = [
-  { value: 'zh-CN', label: '中文' },
-  { value: 'en', label: 'English' },
-  { value: 'ja', label: '日本語' },
-  { value: 'ko', label: '한국어' },
-  { value: 'ru', label: 'Русский' },
+/** 后台默认客服界面语言；站点级新增语言由“网站语言”配置持久化管理。 */
+export const LANGUAGE_OPTIONS: ReadonlyArray<SiteLanguage> = [
+  { code: 'zh-CN', label: '中文', enabled: true },
+  { code: 'en', label: 'English', enabled: true },
+  { code: 'ja', label: '日本語', enabled: true },
+  { code: 'ko', label: '한국어', enabled: true },
+  { code: 'ru', label: 'Русский', enabled: true },
 ]
