@@ -159,7 +159,7 @@ test('FAQ 按请求语言读取，并在缺少翻译时回退中文', async () =
 
   const faqs = await getFaqPool('custom-site', 'en', 10, client)
 
-  assert.equal(normalizeLang('pt-BR'), 'zh-CN')
+  assert.equal(normalizeLang('pt-BR'), 'pt-BR')
   assert.deepEqual(requestedLanguages, ['custom-site:en', 'custom-site:zh-CN'])
   assert.equal(faqs[0].language, 'zh-CN')
 })

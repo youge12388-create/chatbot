@@ -1,10 +1,14 @@
 import type { LocalizedList, LocalizedText, SiteSettings } from '../types'
+import { LANGUAGE_OPTIONS } from '../constants/languages'
 
 type LegacySiteSettings = SiteSettings & { bubbleMessage?: string }
 
 /** Convert the legacy single-language site copy into the current localized shape. */
 export function normalizeSiteSettings(settings: SiteSettings): SiteSettings {
   const normalized: LegacySiteSettings = { ...settings }
+  normalized.languages = Array.isArray(normalized.languages) && normalized.languages.length > 0
+    ? normalized.languages.map(language => ({ ...language }))
+    : LANGUAGE_OPTIONS.map(language => ({ ...language }))
 
   if (typeof normalized.welcomeMessage === 'string') {
     normalized.welcomeMessage = { 'zh-CN': normalized.welcomeMessage } satisfies LocalizedText

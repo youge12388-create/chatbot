@@ -4,7 +4,7 @@ import { isLang, normalizeLang, resolveList, resolveText, t } from './i18n'
 
 test('normalizes supported and browser language values', () => {
   assert.equal(isLang('en'), true)
-  assert.equal(isLang('fr'), false)
+  assert.equal(isLang('fr'), true)
   assert.equal(normalizeLang('zh-Hans'), 'zh-CN')
   assert.equal(normalizeLang('EN-us'), 'en')
   assert.equal(normalizeLang('US'), 'en')
@@ -13,6 +13,7 @@ test('normalizes supported and browser language values', () => {
   assert.equal(normalizeLang('ko-KR'), 'ko')
   assert.equal(normalizeLang('KR'), 'ko')
   assert.equal(normalizeLang('unknown', 'ru'), 'ru')
+  assert.equal(normalizeLang('fr'), 'fr')
 })
 
 test('resolves localized text and legacy string values with fallbacks', () => {

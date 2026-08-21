@@ -21,6 +21,7 @@ import { authService } from '../services/auth'
 import { requireAuth, requireAdmin } from '../middleware/auth'
 import { publish, publishAdmin, subscribeAdmin } from '../services/pubsub'
 import { normalizeSiteDomain } from '../utils/site-domain'
+import { normalizeSiteLanguages, validateSiteLanguages, resolveEnabledSiteLanguage } from '../utils/site-languages'
 
 const router = Router()
 
@@ -560,7 +561,7 @@ router.post('/sites', requireAuth, requireAdmin, wrap(async (req, res) => {
         name,
         domain,
         apiKey: generateSiteApiKey(),
-        settings: {},
+        settings: { languages: normalizeSiteLanguages(undefined) } as any,
       },
     })
     res.status(201).json({ code: 0, data: site })
@@ -574,7 +575,7 @@ router.post('/sites', requireAuth, requireAdmin, wrap(async (req, res) => {
 }))
 /** PATCH /api/admin/sites/:id - 编辑站点配置 */
 router.patch('/sites/:id', requireAuth, wrap(async (req, res) => {
-  const { id, name, domain, apiKey, settings } = req.body
+  let { id, name, domain, apiKey, settings } = req.body
   const currentId = req.params.id
   const nextId = id === undefined ? currentId : String(id).trim()
   const nextApiKey = apiKey === undefined ? undefined : String(apiKey).trim()
@@ -606,7 +607,21 @@ router.patch('/sites/:id', requireAuth, wrap(async (req, res) => {
     }
     data.domain = normalizedDomain
   }
-  if (settings !== undefined) data.settings = settings
+  if (settings !== undefined) {
+    if (!settings || typeof settings !== 'object' || Array.isArray(settings)) {
+      res.status(400).json({ code: 1, message: 'settings must be an object' })
+      return
+    }
+    if ('languages' in settings) {
+      const languageError = validateSiteLanguages(settings.languages)
+      if (languageError) {
+        res.status(400).json({ code: 1, message: languageError })
+        return
+      }
+      settings = { ...settings, languages: normalizeSiteLanguages(settings.languages) }
+    }
+    data.settings = settings
+  }
   if (apiKey !== undefined) data.apiKey = nextApiKey
 
   try {
@@ -796,8 +811,22 @@ router.post('/faqs', requireAuth, wrap(async (req, res) => {
     res.status(400).json({ code: 1, message: '缺少必填字段: siteId, question, answer' })
     return
   }
+  const site = await prisma.site.findUnique({ where: { id: siteId }, select: { settings: true } })
+  if (!site) {
+    res.status(404).json({ code: 1, message: 'site not found' })
+    return
+  }
+  const requestedLanguage = typeof language === 'string' && language.trim() ? language.trim() : 'zh-CN'
+  const faqLanguage = resolveEnabledSiteLanguage(
+    site.settings && typeof site.settings === 'object' ? (site.settings as any).languages : undefined,
+    requestedLanguage,
+  )
+  if (!faqLanguage) {
+    res.status(400).json({ code: 1, message: 'language is not enabled for this site' })
+    return
+  }
   const faq = await prisma.faq.create({
-    data: { siteId, question, answer, language: language || 'zh-CN', priority: priority || 0 },
+    data: { siteId, question, answer, language: faqLanguage, priority: priority || 0 },
   })
   res.json({ code: 0, data: faq })
 }))
@@ -809,7 +838,27 @@ router.patch('/faqs/:id', requireAuth, wrap(async (req, res) => {
   if (question !== undefined) data.question = question
   if (answer !== undefined) data.answer = answer
   if (priority !== undefined) data.priority = priority
-  if (language !== undefined) data.language = language
+  if (language !== undefined) {
+    if (typeof language !== 'string' || !language.trim()) {
+      res.status(400).json({ code: 1, message: 'language must be a non-empty string' })
+      return
+    }
+    const existing = await prisma.faq.findUnique({ where: { id: req.params.id }, select: { siteId: true } })
+    if (!existing) {
+      res.status(404).json({ code: 1, message: 'FAQ not found' })
+      return
+    }
+    const site = await prisma.site.findUnique({ where: { id: existing.siteId }, select: { settings: true } })
+    const faqLanguage = resolveEnabledSiteLanguage(
+      site?.settings && typeof site.settings === 'object' ? (site.settings as any).languages : undefined,
+      language.trim(),
+    )
+    if (!faqLanguage) {
+      res.status(400).json({ code: 1, message: 'language is not enabled for this site' })
+      return
+    }
+    data.language = faqLanguage
+  }
 
   const faq = await prisma.faq.update({
     where: { id: req.params.id },

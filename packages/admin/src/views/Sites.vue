@@ -4,7 +4,7 @@ import Layout from '../components/Layout.vue'
 import EmptyState from '../components/EmptyState.vue'
 import { request } from '../api/client'
 import { pushToast } from '../components/toast-bus'
-import type { CustomField, Site, SiteSettings, FormConfig, CustomFieldType, LocalizedList, LocalizedText, SupportedLang } from '../types'
+import type { CustomField, Site, SiteSettings, FormConfig, CustomFieldType, LocalizedList, LocalizedText, SupportedLang, SiteLanguage } from '../types'
 import { useSiteStore } from '../stores/site'
 import { useAuthStore } from '../stores/auth'
 import { hasSiteUrl, siteDisplayUrl } from '../utils/site'
@@ -26,19 +26,75 @@ const creating = ref(false)
 const newSite = ref({ name: '', domain: '' })
 const createdSite = ref<Pick<Site, 'id' | 'name' | 'domain' | 'apiKey'> | null>(null)
 const selectedLanguage = ref<Record<string, SupportedLang>>({})
+const newLanguage = ref<Record<string, { code: string; label: string }>>({})
+
+function getSiteLanguages(siteId: string): SiteLanguage[] {
+  const configured = drafts.value[siteId]?.settings.languages
+  return configured?.length ? configured : LANGUAGE_OPTIONS.map(language => ({ ...language }))
+}
+
+function getEnabledSiteLanguages(siteId: string): SiteLanguage[] {
+  return getSiteLanguages(siteId).filter(language => language.enabled)
+}
 
 function getSelectedLanguage(siteId: string): SupportedLang {
-  return selectedLanguage.value[siteId] || 'zh-CN'
+  const current = selectedLanguage.value[siteId]
+  const available = getEnabledSiteLanguages(siteId)
+  if (current && available.some(language => language.code === current)) return current
+  return available[0]?.code || 'zh-CN'
 }
 
 function setSelectedLanguage(siteId: string, event: Event) {
   const value = (event.target as HTMLSelectElement).value as SupportedLang
-  if (LANGUAGE_OPTIONS.some(language => language.value === value)) selectedLanguage.value[siteId] = value
+  if (getEnabledSiteLanguages(siteId).some(language => language.code === value)) selectedLanguage.value[siteId] = value
 }
 
 function selectedLanguageLabel(siteId: string): string {
   const value = getSelectedLanguage(siteId)
-  return LANGUAGE_OPTIONS.find(language => language.value === value)?.label || value
+  return getSiteLanguages(siteId).find(language => language.code === value)?.label || value
+}
+
+function isBuiltInLanguage(code: string): boolean {
+  return LANGUAGE_OPTIONS.some(language => language.code === code)
+}
+
+function updateSiteLanguages(siteId: string, languages: SiteLanguage[]): void {
+  const settings = drafts.value[siteId]?.settings
+  if (settings) settings.languages = languages
+}
+
+function addLanguage(siteId: string): void {
+  const draft = newLanguage.value[siteId] || { code: '', label: '' }
+  const code = draft.code.trim()
+  const label = draft.label.trim()
+  if (!/^[a-z]{2,3}(?:-[A-Za-z]{2,8})?$/.test(code)) {
+    pushToast('error', '语言代码需使用 2-3 位代码，例如 fr 或 pt-BR')
+    return
+  }
+  if (!label) {
+    pushToast('error', '请输入语言显示名称')
+    return
+  }
+  const languages = getSiteLanguages(siteId)
+  if (languages.some(language => language.code.toLowerCase() === code.toLowerCase())) {
+    pushToast('error', '该语言代码已经存在')
+    return
+  }
+  updateSiteLanguages(siteId, [...languages, { code, label, enabled: true }])
+  newLanguage.value[siteId] = { code: '', label: '' }
+  selectedLanguage.value[siteId] = code
+}
+
+function setLanguageEnabled(siteId: string, code: string, enabled: boolean): void {
+  const languages = getSiteLanguages(siteId)
+  if (!enabled && languages.filter(language => language.enabled).length <= 1) {
+    pushToast('error', '至少保留一种启用语言')
+    return
+  }
+  updateSiteLanguages(siteId, languages.map(language => language.code === code ? { ...language, enabled } : language))
+  if (!enabled && selectedLanguage.value[siteId] === code) {
+    selectedLanguage.value[siteId] = getEnabledSiteLanguages(siteId)[0]?.code || 'zh-CN'
+  }
 }
 type LocalizedTextKey = 'welcomeMessage' | 'guideMessage'
 
@@ -183,6 +239,7 @@ async function fetchList() {
     const data = await siteStore.loadSites(true)
     list.value = data
     for (const s of data) {
+      if (!newLanguage.value[s.id]) newLanguage.value[s.id] = { code: '', label: '' }
       if (expanded.value[s.id] === undefined) expanded.value[s.id] = typeof window !== 'undefined' && window.matchMedia('(max-width: 680px)').matches ? false : true
       const settings = normalizeSiteSettings(s.settings)
       drafts.value[s.id] = {
@@ -674,6 +731,55 @@ onMounted(fetchList)
           </div>
         </div>
         <div class="site-config-section site-config-section--muted">
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h4 class="text-sm font-semibold text-ink">网站语言</h4>
+                  <p class="mt-1 text-xs text-muted">管理这个网站在客服组件和 FAQ 中可用的界面语言；不涉及国家或地区配置。</p>
+                </div>
+                <span class="text-xs text-muted">保存站点后生效</span>
+              </div>
+              <div class="mt-3 flex flex-col gap-2">
+                <div
+                  v-for="language in getSiteLanguages(site.id)"
+                  :key="language.code"
+                  class="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-bg px-3 py-2"
+                >
+                  <code class="w-20 text-xs text-muted">{{ language.code }}</code>
+                  <span class="min-w-24 flex-1 text-sm text-ink">{{ language.label }}</span>
+                  <label class="flex items-center gap-1.5 text-xs text-muted">
+                    <input
+                      type="checkbox"
+                      :checked="language.enabled"
+                      @change="setLanguageEnabled(site.id, language.code, ($event.target as HTMLInputElement).checked)"
+                    />
+                    启用
+                  </label>
+                  <span v-if="isBuiltInLanguage(language.code)" class="text-[11px] text-muted">系统语言</span>
+                </div>
+              </div>
+              <div class="mt-3 flex flex-wrap items-end gap-2">
+                <label class="min-w-28 flex-1 text-xs text-muted">
+                  语言代码
+                  <input
+                    v-model="newLanguage[site.id].code"
+                    type="text"
+                    placeholder="例如 fr"
+                    class="mt-1 w-full rounded border border-border bg-bg px-3 py-2 text-sm"
+                  />
+                </label>
+                <label class="min-w-40 flex-1 text-xs text-muted">
+                  显示名称
+                  <input
+                    v-model="newLanguage[site.id].label"
+                    type="text"
+                    placeholder="例如 Français"
+                    class="mt-1 w-full rounded border border-border bg-bg px-3 py-2 text-sm"
+                  />
+                </label>
+                <button type="button" class="btn btn-ghost btn-sm" @click="addLanguage(site.id)">新增语言</button>
+              </div>
+            </div>
+            <div class="site-config-section site-config-section--muted">
               <div class="flex flex-wrap items-end justify-between gap-3">
                 <div>
                   <h4 class="text-sm font-semibold text-ink">多语言文案</h4>
@@ -684,7 +790,7 @@ onMounted(fetchList)
                   class="select w-36"
                   @change="setSelectedLanguage(site.id, $event)"
                 >
-                  <option v-for="language in LANGUAGE_OPTIONS" :key="language.value" :value="language.value">
+                  <option v-for="language in getEnabledSiteLanguages(site.id)" :key="language.code" :value="language.code">
                     {{ language.label }}
                   </option>
                 </select>
