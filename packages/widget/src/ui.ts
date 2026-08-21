@@ -4,7 +4,7 @@
 
 import { ChatApi, FaqItem, SiteSettings } from './api'
 import { renderForm } from './form'
-import { Lang, resolveList, resolveText, SUPPORTED_LANGS, t } from './i18n'
+import { Lang, LANGUAGE_OPTIONS, languageLabel, resolveList, resolveText, t } from './i18n'
 
 const CSS = `
 .chat-widget-container {
@@ -608,14 +608,6 @@ export interface WidgetController {
 }
 
 const MAX_VISIBLE_FAQS = 5
-const LANGUAGE_LABELS: Record<Lang, string> = {
-  'zh-CN': '中文',
-  en: 'English',
-  ko: '한국어',
-  ru: 'Русский',
-}
-const LANGUAGE_OPTIONS = SUPPORTED_LANGS.map(value => ({ value, label: LANGUAGE_LABELS[value] }))
-
 interface Message {
   role: 'user' | 'assistant'
   content: string
@@ -725,7 +717,7 @@ export function createWidget(config: WidgetConfig): WidgetController {
         <div style="display:flex;align-items:center;gap:6px;">
           <div class="chat-widget-language-wrap">
             <button type="button" class="chat-widget-language-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="${t(lang, 'language.label')}" aria-controls="chat-widget-language-menu">
-              <span class="chat-widget-language-value">${LANGUAGE_LABELS[lang]}</span>
+              <span class="chat-widget-language-value">${languageLabel(lang)}</span>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
             </button>
             <div id="chat-widget-language-menu" class="chat-widget-language-menu" role="listbox" aria-label="${t(lang, 'language.label')}" hidden>
@@ -884,7 +876,7 @@ export function createWidget(config: WidgetConfig): WidgetController {
   }
 
   function updateLanguageUi() {
-    languageValue.textContent = LANGUAGE_LABELS[lang]
+    languageValue.textContent = languageLabel(lang)
     languageTrigger.setAttribute('aria-label', t(lang, 'language.label'))
     languageMenu.setAttribute('aria-label', t(lang, 'language.label'))
     languageOptions.forEach(option => {

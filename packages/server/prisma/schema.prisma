@@ -34,7 +34,7 @@ model Faq {
   siteId   String
   question String
   answer   String   // 预设答案，为空则走 AI
-  language String   @default("zh-CN") // zh-CN | en | ko | ru
+  language String   @default("zh-CN") // zh-CN | en | ja | ko | ru
   priority Int      @default(0)
   site     Site     @relation(fields: [siteId], references: [id])
 

@@ -131,6 +131,7 @@
         <div class="language-list" aria-label="选择测试语言">
           <button type="button" data-language="zh-CN" aria-pressed="false">中文</button>
           <button type="button" data-language="en" aria-pressed="true">English</button>
+          <button type="button" data-language="ja" aria-pressed="false">日本語</button>
           <button type="button" data-language="ko" aria-pressed="false">한국어</button>
           <button type="button" data-language="ru" aria-pressed="false">Русский</button>
         </div>
@@ -175,17 +176,23 @@
           testTitle: "Check the support button in the bottom-right corner",
           testDescription: "Send a question in English first, then switch languages and confirm that each message reaches the correct site in the admin panel.",
         },
+        ja: {
+          title: "多言語サポートウィジェットのテストページ",
+          description: "実際のウェブサイトを想定したテストページです。言語を切り替え、右下のサポートウィンドウでメッセージを送ってください。",
+          testTitle: "右下のサポートボタンを確認してください",
+          testDescription: "5つの言語でメッセージを送り、各メッセージが管理画面の正しいサイトに届くことを確認してください。",
+        },
         ko: {
           title: "다국어 상담 위젯 테스트 페이지",
           description: "실제 웹사이트를 가정한 테스트 페이지입니다. 언어를 바꾸고 오른쪽 아래 상담창에서 메시지를 보내 보세요.",
           testTitle: "오른쪽 아래 상담 버튼을 확인하세요",
-          testDescription: "네 가지 언어로 메시지를 보내고 각 메시지가 올바른 사이트의 관리자 화면에 도착하는지 확인하세요.",
+          testDescription: "다섯 가지 언어로 메시지를 보내고 각 메시지가 올바른 사이트의 관리자 화면에 도착하는지 확인하세요.",
         },
         ru: {
           title: "Тестовая страница многоязычной поддержки",
           description: "Эта страница имитирует реальный сайт. Переключите язык и проверьте работу окна поддержки в правом нижнем углу.",
           testTitle: "Проверьте кнопку поддержки в правом нижнем углу",
-          testDescription: "Отправьте сообщения на всех четырех языках и убедитесь, что они попадают в нужный сайт в панели администратора.",
+          testDescription: "Отправьте сообщения на всех пяти языках и убедитесь, что они попадают в нужный сайт в панели администратора.",
         },
       };
 

@@ -8,6 +8,7 @@ import { pushToast } from '../components/toast-bus'
 import { useSiteStore } from '../stores/site'
 import { hasSiteUrl, siteDisplayUrl, siteHref } from '../utils/site'
 import type { Faq } from '../types'
+import { LANGUAGE_OPTIONS } from '../constants/languages'
 
 const siteStore = useSiteStore()
 const loading = ref(false)
@@ -30,20 +31,13 @@ const form = ref(blankForm())
 const editForm = ref(blankForm())
 const confirmDeleteId = ref<string | null>(null)
 
-const languageOptions = [
-  { value: 'zh-CN', label: '中文' },
-  { value: 'en', label: 'English' },
-  { value: 'ko', label: '한국어' },
-  { value: 'ru', label: 'Русский' },
-] as const
-
 const visibleList = computed(() => {
   if (activeLanguage.value === 'all') return list.value
   return list.value.filter(faq => faq.language === activeLanguage.value)
 })
 
 function languageLabel(language: Faq['language']): string {
-  return languageOptions.find(option => option.value === language)?.label || language
+  return LANGUAGE_OPTIONS.find(option => option.value === language)?.label || language
 }
 
 function positionOf(id: string): number {
@@ -242,10 +236,7 @@ onMounted(async () => {
         <p class="mt-1 text-xs text-muted">当前语言前 5 个会显示在聊天窗口，可拖拽排序或将问题置顶。</p>
       </div>
       <select v-model="activeLanguage" class="select ml-auto w-36" :disabled="reordering">
-        <option value="zh-CN">中文</option>
-        <option value="en">English</option>
-        <option value="ko">한국어</option>
-        <option value="ru">Русский</option>
+        <option v-for="language in LANGUAGE_OPTIONS" :key="language.value" :value="language.value">{{ language.label }}</option>
         <option value="all">全部语言（仅查看）</option>
       </select>
     </div>
@@ -269,10 +260,7 @@ onMounted(async () => {
           v-model="form.language"
           class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none"
         >
-          <option value="zh-CN">中文</option>
-          <option value="en">English</option>
-          <option value="ko">한국어</option>
-          <option value="ru">Русский</option>
+          <option v-for="language in LANGUAGE_OPTIONS" :key="language.value" :value="language.value">{{ language.label }}</option>
         </select>
       </div>
       <div class="flex justify-end gap-2 mt-3">
@@ -295,10 +283,7 @@ onMounted(async () => {
             <input v-model="editForm.question" type="text" class="mobile-faq-input" />
             <textarea v-model="editForm.answer" rows="4" class="mobile-faq-input mobile-faq-textarea"></textarea>
             <select v-model="editForm.language" class="mobile-faq-input">
-              <option value="zh-CN">中文</option>
-              <option value="en">English</option>
-              <option value="ko">한국어</option>
-              <option value="ru">Русский</option>
+              <option v-for="language in LANGUAGE_OPTIONS" :key="language.value" :value="language.value">{{ language.label }}</option>
             </select>
             <span class="mobile-faq-actions">
               <button type="button" class="mobile-faq-action mobile-faq-action--primary" :disabled="saving" @click="submitEdit(f)">保存</button>
@@ -371,10 +356,7 @@ onMounted(async () => {
                     v-model="editForm.language"
                     class="px-2 py-1.5 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full"
                   >
-                    <option value="zh-CN">中文</option>
-                    <option value="en">English</option>
-                    <option value="ko">한국어</option>
-                    <option value="ru">Русский</option>
+                    <option v-for="language in LANGUAGE_OPTIONS" :key="language.value" :value="language.value">{{ language.label }}</option>
                   </select>
                 </td>
                 <td class="px-4 py-3 text-muted">{{ positionOf(f.id) }}</td>
