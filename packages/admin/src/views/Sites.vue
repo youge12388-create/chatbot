@@ -9,6 +9,7 @@ import { useSiteStore } from '../stores/site'
 import { useAuthStore } from '../stores/auth'
 import { hasSiteUrl, siteDisplayUrl } from '../utils/site'
 import { normalizeSiteSettings } from '../utils/site-settings'
+import { LANGUAGE_OPTIONS } from '../constants/languages'
 
 const loading = ref(false)
 const siteStore = useSiteStore()
@@ -24,13 +25,6 @@ const showCreateForm = ref(false)
 const creating = ref(false)
 const newSite = ref({ name: '', domain: '' })
 const createdSite = ref<Pick<Site, 'id' | 'name' | 'domain' | 'apiKey'> | null>(null)
-const SUPPORTED_LANGS: Array<{ value: SupportedLang; label: string }> = [
-  { value: 'zh-CN', label: '中文' },
-  { value: 'en', label: 'English' },
-  { value: 'ko', label: '한국어' },
-  { value: 'ru', label: 'Русский' },
-]
-
 const selectedLanguage = ref<Record<string, SupportedLang>>({})
 
 function getSelectedLanguage(siteId: string): SupportedLang {
@@ -39,12 +33,12 @@ function getSelectedLanguage(siteId: string): SupportedLang {
 
 function setSelectedLanguage(siteId: string, event: Event) {
   const value = (event.target as HTMLSelectElement).value as SupportedLang
-  if (SUPPORTED_LANGS.some(language => language.value === value)) selectedLanguage.value[siteId] = value
+  if (LANGUAGE_OPTIONS.some(language => language.value === value)) selectedLanguage.value[siteId] = value
 }
 
 function selectedLanguageLabel(siteId: string): string {
   const value = getSelectedLanguage(siteId)
-  return SUPPORTED_LANGS.find(language => language.value === value)?.label || value
+  return LANGUAGE_OPTIONS.find(language => language.value === value)?.label || value
 }
 type LocalizedTextKey = 'welcomeMessage' | 'guideMessage'
 
@@ -690,7 +684,7 @@ onMounted(fetchList)
                   class="select w-36"
                   @change="setSelectedLanguage(site.id, $event)"
                 >
-                  <option v-for="language in SUPPORTED_LANGS" :key="language.value" :value="language.value">
+                  <option v-for="language in LANGUAGE_OPTIONS" :key="language.value" :value="language.value">
                     {{ language.label }}
                   </option>
                 </select>

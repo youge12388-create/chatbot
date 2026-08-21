@@ -1,13 +1,26 @@
 /**
  * Widget 国际化。
- * 支持：zh-CN（中文）、en（英文）、ko（韩文）、ru（俄语）。
+ * 支持：zh-CN（中文）、en（英文）、ja（日文）、ko（韩文）、ru（俄语）。
  */
 
-export type Lang = 'zh-CN' | 'en' | 'ko' | 'ru'
+export type Lang = 'zh-CN' | 'en' | 'ja' | 'ko' | 'ru'
 export type LocalizedText = Partial<Record<Lang, string>>
 export type LocalizedList = Partial<Record<Lang, string[]>>
 
-export const SUPPORTED_LANGS: readonly Lang[] = ['zh-CN', 'en', 'ko', 'ru']
+export const SUPPORTED_LANGS: readonly Lang[] = ['zh-CN', 'en', 'ja', 'ko', 'ru']
+
+/** 客服组件语言菜单的唯一配置来源；新增语言时在此增加语言代码、名称与翻译。 */
+export const LANGUAGE_OPTIONS: ReadonlyArray<{ value: Lang; label: string }> = [
+  { value: 'zh-CN', label: '中文' },
+  { value: 'en', label: 'English' },
+  { value: 'ja', label: '日本語' },
+  { value: 'ko', label: '한국어' },
+  { value: 'ru', label: 'Русский' },
+]
+
+export function languageLabel(lang: Lang): string {
+  return LANGUAGE_OPTIONS.find(option => option.value === lang)?.label || lang
+}
 
 const translations: Record<Lang, Record<string, string>> = {
   'zh-CN': {
@@ -21,6 +34,12 @@ const translations: Record<Lang, Record<string, string>> = {
     'contact.button': 'Contact consultant', 'contact.title': 'Contact consultant', 'contact.close': 'Close', 'contact.wechatQr': 'WeChat QR code',
     'retain.title': 'Wait!', 'retain.description': 'Leave your phone number and we will help you with a study plan.', 'retain.phonePlaceholder': 'Your phone number', 'retain.stillClose': 'Still close', 'retain.submit': 'Submit', 'retain.success': 'Got it. We will contact you soon.',
     'form.title': 'Please leave your contact information', 'form.name': 'Name', 'form.namePlaceholder': 'Your name', 'form.phone': 'Phone', 'form.phonePlaceholder': 'Your phone number', 'form.wechat': 'WeChat (optional)', 'form.wechatPlaceholder': 'WeChat ID', 'form.education': 'Education', 'form.educationPlaceholder': 'e.g. Bachelor, Diploma, High School', 'form.major': 'Intended major (optional)', 'form.majorPlaceholder': 'Your intended major', 'form.submit': 'Submit', 'form.cancel': 'Later', 'form.selectPlaceholder': 'Please select', 'form.required': 'This field is required', 'form.invalidPhone': 'Invalid phone format', 'form.invalidEmail': 'Invalid email format', 'form.success': "We've received your information. We'll contact you soon.", 'transfer.reply': 'Your request has been forwarded to a consultant. We will contact you shortly.',
+  },
+  ja: {
+    'header.title': 'オンライン相談', 'header.welcome': 'こんにちは！どのようにお手伝いできますか？', 'language.label': '言語', 'input.placeholder': '質問を入力してください...', 'loading': '回答を準備しています...', 'networkError': 'ネットワークエラーが発生しました。しばらくしてからもう一度お試しください。',
+    'contact.button': '相談員に連絡', 'contact.title': '相談員に連絡', 'contact.close': '閉じる', 'contact.wechatQr': 'WeChat QRコード',
+    'retain.title': '少々お待ちください！', 'retain.description': '電話番号を残していただければ、最適なプランをご案内します。', 'retain.phonePlaceholder': '電話番号', 'retain.stillClose': '閉じる', 'retain.submit': '送信', 'retain.success': '承りました。まもなくご連絡します。',
+    'form.title': '連絡先情報をご入力ください', 'form.name': 'お名前', 'form.namePlaceholder': 'お名前を入力してください', 'form.phone': '電話番号', 'form.phonePlaceholder': '電話番号を入力してください', 'form.wechat': 'WeChat（任意）', 'form.wechatPlaceholder': 'WeChat ID', 'form.education': '学歴', 'form.educationPlaceholder': '例：学士、専門学校、高校', 'form.major': '希望専攻（任意）', 'form.majorPlaceholder': '希望する専攻', 'form.submit': '送信', 'form.cancel': '後で', 'form.selectPlaceholder': '選択してください', 'form.required': '必須項目です', 'form.invalidPhone': '電話番号の形式が正しくありません', 'form.invalidEmail': 'メールアドレスの形式が正しくありません', 'form.success': '情報を受け取りました。まもなくご連絡します。', 'transfer.reply': 'ご要望を担当の相談員におつなぎしました。まもなくご連絡します。',
   },
   ko: {
     'header.title': '온라인 상담', 'header.welcome': '안녕하세요! 무엇을 도와드릴까요?', 'language.label': '언어', 'input.placeholder': '질문을 입력하세요...', 'loading': '답변을 준비하고 있습니다...', 'networkError': '네트워크 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.',
@@ -48,6 +67,8 @@ export function normalizeLang(value: unknown, fallback: Lang = 'zh-CN'): Lang {
     if (normalized.startsWith('zh')) return 'zh-CN'
     if (normalized.startsWith('en')) return 'en'
     if (normalized === 'us' || normalized === 'uk' || normalized === 'gb') return 'en'
+    if (normalized.startsWith('ja')) return 'ja'
+    if (normalized === 'jp') return 'ja'
     if (normalized.startsWith('ko')) return 'ko'
     if (normalized === 'kr') return 'ko'
     if (normalized.startsWith('ru')) return 'ru'
