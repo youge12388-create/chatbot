@@ -8,6 +8,8 @@ test('normalizes supported and browser language values', () => {
   assert.equal(normalizeLang('zh-Hans'), 'zh-CN')
   assert.equal(normalizeLang('EN-us'), 'en')
   assert.equal(normalizeLang('US'), 'en')
+  assert.equal(normalizeLang('ja-JP'), 'ja')
+  assert.equal(normalizeLang('JP'), 'ja')
   assert.equal(normalizeLang('ko-KR'), 'ko')
   assert.equal(normalizeLang('KR'), 'ko')
   assert.equal(normalizeLang('unknown', 'ru'), 'ru')
@@ -30,6 +32,7 @@ test('resolves localized lists and removes empty entries', () => {
 
 test('falls back to Chinese text and then the translation key', () => {
   assert.equal(t('en', 'form.submit'), 'Submit')
+  assert.equal(t('ja', 'form.submit'), '送信')
   assert.notEqual(t('ru', 'form.submit'), 'form.submit')
   assert.equal(t('en', 'missing.key'), 'missing.key')
 })

@@ -13,6 +13,7 @@ import {
   parseDifySse,
   shouldResetDifyConversation,
   isNoAnswerReply,
+  type SupportedLang,
 } from './chat'
 
 test('Dify streaming 请求会拼接 Agent 消息并保存会话 ID', () => {
@@ -195,6 +196,20 @@ test('question classification keeps transfer and personalization priority', () =
   assert.equal(classifyQuestion('请介绍一下学校').type, 'knowledge')
 })
 
+test('all supported languages recognize human-transfer requests', () => {
+  const transferRequests: Array<[SupportedLang, string]> = [
+    ['zh-CN', '请联系人工客服'],
+    ['en', 'Please Contact a consultant'],
+    ['ja', '担当者に連絡したい'],
+    ['ko', '상담원에게 연락하고 싶어요'],
+    ['ru', 'Хочу Связаться с консультантом'],
+  ]
+
+  for (const [, request] of transferRequests) {
+    assert.equal(classifyQuestion(request).type, 'transfer')
+  }
+})
+
 test('AI fallback replies normalize language and cover transfer-facing failures', () => {
   assert.match(getAiFallbackReply('en-US', 'unconfigured'), /AI service is not configured/)
   assert.match(getAiFallbackReply('en-US', 'timeout'), /AI service|AI response/)
@@ -203,10 +218,39 @@ test('AI fallback replies normalize language and cover transfer-facing failures'
   assert.notEqual(getTransferReply('unknown'), '')
 })
 
+test('all supported languages keep fallback and transfer replies localized', () => {
+  const transferReplies: Array<[SupportedLang, RegExp]> = [
+    ['zh-CN', /专业顾问/],
+    ['en', /consultant/],
+    ['ja', /相談員/],
+    ['ko', /상담원/],
+    ['ru', /консультанту/],
+  ]
+  const fallbackTypes = ['unconfigured', 'unavailable', 'noAnswer', 'timeout'] as const
+
+  for (const [language, expectedReply] of transferReplies) {
+    assert.match(getTransferReply(language), expectedReply)
+    for (const type of fallbackTypes) {
+      assert.equal(isNoAnswerReply(getAiFallbackReply(language, type)), true)
+    }
+  }
+})
+
 test('Dify SSE parser ignores malformed blocks and raises provider errors', () => {
   assert.deepEqual(parseDifySse('data: not-json\n\ndata: [DONE]\n\n'), { answer: '', conversationId: null })
   assert.throws(
     () => parseDifySse('data: {"event":"error","message":"upstream failed"}\n\n'),
     /upstream failed/,
   )
+})
+
+test('日语语言代码和 FAQ 兜底可用', async () => {
+  assert.equal(normalizeLang('ja-JP'), 'ja')
+  assert.equal(normalizeLang('JP'), 'ja')
+  const faqs = await getFaqPool('empty-site', 'ja', 3, {
+    faq: { findMany: async () => [] },
+    site: { findUnique: async () => null },
+  } as unknown as Parameters<typeof getFaqPool>[2])
+  assert.equal(faqs[0]?.language, 'ja')
+  assert.match(getAiFallbackReply('ja', 'unavailable'), /AIサービス/)
 })
