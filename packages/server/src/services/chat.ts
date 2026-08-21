@@ -33,7 +33,7 @@ const ROUTE_RULES: Record<string, string[]> = {
   ],
   personalized: [
     '我的', '我的情况', '我的背景',
-    'GPA', '成绩', '绩点',
+    'gpa', '成绩', '绩点',
     '本科', '大专', '硕士', '高中',
     '预算', '能申请', '适合',
   ],
@@ -41,11 +41,15 @@ const ROUTE_RULES: Record<string, string[]> = {
     '人工', '客服', '老师', '联系',
     '电话', '回电', '加微信', '面谈',
     '报名', '签约',
+    'human', 'agent', 'consultant', 'contact', 'call me',
+    '担当者', '相談員', 'オペレーター', '連絡', '電話', '折り返し', '面談', '申し込み',
+    '상담원', '상담사', '오퍼레이터', '연락', '전화', '회신', '면담', '신청',
+    'оператор', 'консультант', 'человек', 'связаться', 'звонок', 'перезвонить', 'встреча', 'заявка',
   ],
 }
 
 export function classifyQuestion(content: string): QuestionCategory {
-  const text = content
+  const text = content.toLocaleLowerCase()
 
   // 转人工关键词
   for (const kw of ROUTE_RULES.transfer) {
@@ -90,6 +94,12 @@ const AI_FALLBACK_REPLIES: Record<SupportedLang, Record<'unconfigured' | 'unavai
     noAnswer: 'Sorry, I cannot answer this question right now. Please try again later.',
     timeout: 'Sorry, the AI response timed out. Please try again later.',
   },
+  ja: {
+    unconfigured: '申し訳ありません。AIサービスはまだ設定されていません。管理者にお問い合わせください。',
+    unavailable: '申し訳ありません。AIサービスは一時的に利用できません。しばらくしてからもう一度お試しください。',
+    noAnswer: '申し訳ありません。現在この質問には回答できません。しばらくしてからもう一度お試しください。',
+    timeout: '申し訳ありません。AIの応答がタイムアウトしました。しばらくしてからもう一度お試しください。',
+  },
   ko: {
     unconfigured: '죄송합니다. AI 서비스가 아직 설정되지 않았습니다. 관리자에게 문의해 주세요.',
     unavailable: '죄송합니다. AI 서비스를 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.',
@@ -115,6 +125,7 @@ const NO_ANSWER_PATTERNS = [
   '响应超时',
   '抱歉，我不清楚',
   '抱歉，无法',
+  ...Object.values(AI_FALLBACK_REPLIES).flatMap(replies => Object.values(replies)),
 ]
 
 export function isNoAnswerReply(reply: string): boolean {
@@ -142,9 +153,9 @@ async function updateNoAnswerCount(conversationId: string, unanswered: boolean):
   })
   return count
 }
-export type SupportedLang = 'zh-CN' | 'en' | 'ko' | 'ru'
+export type SupportedLang = 'zh-CN' | 'en' | 'ja' | 'ko' | 'ru'
 
-const SUPPORTED_LANGS: SupportedLang[] = ['zh-CN', 'en', 'ko', 'ru']
+const SUPPORTED_LANGS: SupportedLang[] = ['zh-CN', 'en', 'ja', 'ko', 'ru']
 
 export function normalizeLang(value: unknown, fallback: SupportedLang = 'zh-CN'): SupportedLang {
   if (typeof value !== 'string') return fallback
@@ -152,6 +163,7 @@ export function normalizeLang(value: unknown, fallback: SupportedLang = 'zh-CN')
   const normalized = value.toLowerCase()
   if (normalized.startsWith('zh')) return 'zh-CN'
   if (normalized.startsWith('en')) return 'en'
+  if (normalized.startsWith('ja') || normalized === 'jp') return 'ja'
   if (normalized.startsWith('ko')) return 'ko'
   if (normalized.startsWith('ru')) return 'ru'
   return fallback
@@ -161,18 +173,21 @@ const DEFAULT_SITE_SETTINGS = {
   welcomeMessage: {
     'zh-CN': '您好！我是留学顾问助手，可以帮您解答院校申请、专业选择、学费奖学金等问题。有什么可以帮您的？',
     en: 'Hello! I can help with school applications, majors, tuition and scholarships. How can I help?',
+    ja: 'こんにちは！学校への出願、専攻選び、学費や奨学金についてお手伝いします。どのようにお手伝いできますか？',
     ko: '안녕하세요! 학교 지원, 전공 선택, 학비와 장학금에 대해 도와드리겠습니다. 무엇을 도와드릴까요?',
     ru: 'Здравствуйте! Я помогу с поступлением, выбором специальности, оплатой обучения и стипендиями. Чем могу помочь?',
   },
   guideMessage: {
     'zh-CN': '您可以直接输入问题，或点击下方常见问题快速咨询。',
     en: 'Type your question or choose a common question below.',
+    ja: '質問を入力するか、下のよくある質問を選んでください。',
     ko: '질문을 입력하거나 아래의 자주 묻는 질문을 선택해 주세요.',
     ru: 'Введите вопрос или выберите один из частых вопросов ниже.',
   },
   bubbleMessages: {
     'zh-CN': ['有问题？点击这里随时咨询 👋', '免费咨询院校申请、专业选择', '点击聊聊，专属顾问为您服务'],
     en: ['Have a question? Ask us anytime 👋', 'Free advice on applications and majors', 'Chat with a dedicated consultant'],
+    ja: ['ご質問はありますか？いつでもご相談ください 👋', '出願や専攻選びを無料でご相談いただけます', '専任の相談員にご相談ください'],
     ko: ['궁금한 점이 있나요? 언제든 문의해 주세요 👋', '학교 지원과 전공 선택을 무료로 상담해 드립니다', '전문 상담원과 상담해 보세요'],
     ru: ['Есть вопросы? Напишите нам 👋', 'Бесплатная консультация по поступлению и специальностям', 'Получите консультацию специалиста'],
   },
@@ -213,6 +228,11 @@ const DEFAULT_FAQ_TRANSLATIONS: Record<SupportedLang, Array<{ id: string; langua
     { id: 'default-1', language: 'en', question: 'How much is the tuition?', answer: 'Please ask about the specific programme, as fees vary by course.', priority: 1 },
     { id: 'default-2', language: 'en', question: 'What are the admission requirements?', answer: 'Academic documents and language scores are usually required. Requirements vary by programme.', priority: 2 },
     { id: 'default-3', language: 'en', question: 'Are scholarships available?', answer: 'Some programmes offer scholarships. Leave your contact details for more information.', priority: 3 },
+  ],
+  ja: [
+    { id: 'default-1', language: 'ja', question: '学費はいくらですか？', answer: 'コースによって費用が異なります。ご希望のコースをお知らせください。', priority: 1 },
+    { id: 'default-2', language: 'ja', question: '出願条件は何ですか？', answer: '通常、学歴証明書と語学スコアが必要です。コースによって条件は異なります。', priority: 2 },
+    { id: 'default-3', language: 'ja', question: '奨学金はありますか？', answer: '一部のコースでは奨学金をご利用いただけます。詳しくは連絡先をお残しください。', priority: 3 },
   ],
   ko: [
     { id: 'default-1', language: 'ko', question: '학비는 얼마인가요?', answer: '과정에 따라 학비가 다르므로 희망 과정을 알려 주세요.', priority: 1 },
@@ -679,14 +699,16 @@ async function askDify(conversationId: string, query: string, questionType?: str
 
 // ---- 转人工 ----
 
-const TRANSFER_REPLIES: Record<string, string> = {
+const TRANSFER_REPLIES: Record<SupportedLang, string> = {
   'zh-CN': '已将您的需求转给专业顾问，稍后会联系您。',
   'en': 'Your request has been forwarded to a consultant. We will contact you shortly.',
-    'ko': '요청을 전문 상담원에게 전달했습니다. 곧 연락드리겠습니다.',
+  ja: 'ご要望を担当の相談員におつなぎしました。まもなくご連絡します。',
+  ko: '요청을 전문 상담원에게 전달했습니다. 곧 연락드리겠습니다.',
+  ru: 'Ваш запрос передан консультанту. Мы свяжемся с вами в ближайшее время.',
 }
 
-export function getTransferReply(lang: string): string {
-  return TRANSFER_REPLIES[lang] || TRANSFER_REPLIES['zh-CN']
+export function getTransferReply(lang: unknown): string {
+  return TRANSFER_REPLIES[normalizeLang(lang)]
 }
 
 async function transferToHuman(conversationId: string) {

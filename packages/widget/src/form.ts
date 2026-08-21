@@ -28,6 +28,7 @@ const DEFAULT_FORM_CONFIG: FormConfig = {
 const APPLYING_LEVEL_OPTIONS: LocalizedList = {
   'zh-CN': ['本科', '硕士', '博士', '预科', '语言班'],
   en: ['Bachelor', 'Master', 'PhD', 'Foundation', 'Language course'],
+  ja: ['学士', '修士', '博士', '予備課程', '語学コース'],
   ko: ['학사', '석사', '박사', '파운데이션', '어학 과정'],
   ru: ['Бакалавриат', 'Магистратура', 'Докторантура', 'Подготовительный курс', 'Языковой курс'],
 }
@@ -40,14 +41,14 @@ const PRESET_FIELDS: Array<{
   type?: 'text' | 'tel' | 'email' | 'select'
   options?: string[] | LocalizedList
 }> = [
-  { key: 'name', labels: { 'zh-CN': '姓名', en: 'Name', ko: '이름', ru: 'Имя' }, placeholder: { 'zh-CN': '您的称呼', en: 'Your name', ko: '이름을 입력하세요', ru: 'Ваше имя' } },
-  { key: 'phone', labels: { 'zh-CN': '手机号', en: 'Phone', ko: '전화번호', ru: 'Телефон' }, placeholder: { 'zh-CN': '您的手机号码', en: 'Your phone number', ko: '전화번호를 입력하세요', ru: 'Ваш номер телефона' }, type: 'tel' },
-  { key: 'applyingLevel', labels: { 'zh-CN': '申请学历', en: 'Applying level', ko: '지원 학력', ru: 'Уровень обучения' }, placeholder: { 'zh-CN': '请选择', en: 'Please select', ko: '선택해 주세요', ru: 'Выберите' }, type: 'select', options: APPLYING_LEVEL_OPTIONS },
-  { key: 'email', labels: { 'zh-CN': '邮箱', en: 'Email', ko: '이메일', ru: 'Email' }, placeholder: { 'zh-CN': '您的邮箱', en: 'Your email', ko: '이메일을 입력하세요', ru: 'Ваш email' }, type: 'email' },
-  { key: 'wechat', labels: { 'zh-CN': '微信号', en: 'WeChat', ko: 'WeChat', ru: 'WeChat' }, placeholder: { 'zh-CN': '微信号', en: 'WeChat ID', ko: 'WeChat ID', ru: 'WeChat ID' } },
-  { key: 'education', labels: { 'zh-CN': '学历', en: 'Education', ko: '학력', ru: 'Образование' }, placeholder: { 'zh-CN': '如：本科、大专、高中', en: 'e.g. Bachelor', ko: '예: 학사, 석사, 고등학교', ru: 'напр. Бакалавр' } },
-  { key: 'targetMajor', labels: { 'zh-CN': '意向专业', en: 'Intended major', ko: '희망 전공', ru: 'Специальность' }, placeholder: { 'zh-CN': '您想申请的专业', en: 'Your intended major', ko: '희망 전공을 입력하세요', ru: 'Ваша специальность' } },
-  { key: 'budget', labels: { 'zh-CN': '预算', en: 'Budget', ko: '예산', ru: 'Бюджет' }, placeholder: { 'zh-CN': '如：30万/年', en: 'e.g. 300k/year', ko: '예: 연간 300,000', ru: 'напр. 300k/год' } },
+  { key: 'name', labels: { 'zh-CN': '姓名', en: 'Name', ja: 'お名前', ko: '이름', ru: 'Имя' }, placeholder: { 'zh-CN': '您的称呼', en: 'Your name', ja: 'お名前を入力してください', ko: '이름을 입력하세요', ru: 'Ваше имя' } },
+  { key: 'phone', labels: { 'zh-CN': '手机号', en: 'Phone', ja: '電話番号', ko: '전화번호', ru: 'Телефон' }, placeholder: { 'zh-CN': '您的手机号码', en: 'Your phone number', ja: '電話番号を入力してください', ko: '전화번호를 입력하세요', ru: 'Ваш номер телефона' }, type: 'tel' },
+  { key: 'applyingLevel', labels: { 'zh-CN': '申请学历', en: 'Applying level', ja: '希望する学歴', ko: '지원 학력', ru: 'Уровень обучения' }, placeholder: { 'zh-CN': '请选择', en: 'Please select', ja: '選択してください', ko: '선택해 주세요', ru: 'Выберите' }, type: 'select', options: APPLYING_LEVEL_OPTIONS },
+  { key: 'email', labels: { 'zh-CN': '邮箱', en: 'Email', ja: 'メールアドレス', ko: '이메일', ru: 'Email' }, placeholder: { 'zh-CN': '您的邮箱', en: 'Your email', ja: 'メールアドレスを入力してください', ko: '이메일을 입력하세요', ru: 'Ваш email' }, type: 'email' },
+  { key: 'wechat', labels: { 'zh-CN': '微信号', en: 'WeChat', ja: 'WeChat', ko: 'WeChat', ru: 'WeChat' }, placeholder: { 'zh-CN': '微信号', en: 'WeChat ID', ja: 'WeChat ID', ko: 'WeChat ID', ru: 'WeChat ID' } },
+  { key: 'education', labels: { 'zh-CN': '学历', en: 'Education', ja: '学歴', ko: '학력', ru: 'Образование' }, placeholder: { 'zh-CN': '如：本科、大专、高中', en: 'e.g. Bachelor', ja: '例：学士、専門学校、高校', ko: '예: 학사, 석사, 고등학교', ru: 'напр. Бакалавр' } },
+  { key: 'targetMajor', labels: { 'zh-CN': '意向专业', en: 'Intended major', ja: '希望専攻', ko: '희망 전공', ru: 'Специальность' }, placeholder: { 'zh-CN': '您想申请的专业', en: 'Your intended major', ja: '希望する専攻を入力してください', ko: '희망 전공을 입력하세요', ru: 'Ваша специальность' } },
+  { key: 'budget', labels: { 'zh-CN': '预算', en: 'Budget', ja: '予算', ko: '예산', ru: 'Бюджет' }, placeholder: { 'zh-CN': '如：30万/年', en: 'e.g. 300k/year', ja: '例：年間300万円', ko: '예: 연간 300,000', ru: 'напр. 300k/год' } },
 ]
 /** 校验手机号（中国11位或国际格式） */
 function isValidPhone(phone: string): boolean {
