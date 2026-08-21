@@ -19,16 +19,16 @@
 
 ```bash
 cd /opt/chatbot-main
-git remote -v
-git branch --show-current
-pm2 status chatbot-server
+git -c safe.directory=/opt/chatbot-main remote -v
+git -c safe.directory=/opt/chatbot-main branch --show-current
+su -s /bin/bash www -c 'pm2 status chatbot-server'
 curl -f http://127.0.0.1:3001/api/health
 ```
 
 `git branch --show-current` 显示的分支就是脚本将拉取的 GitHub 分支。若需覆盖默认设置，可在命令前传入环境变量：
 
 ```bash
-PM2_APP=chatbot-server HEALTHCHECK_URL=http://127.0.0.1:3001/api/health bash scripts/deploy/production-update.sh
+PM2_APP=chatbot-server PM2_USER=www HEALTHCHECK_URL=http://127.0.0.1:3001/api/health bash scripts/deploy/production-update.sh
 ```
 
 ## 安全边界
@@ -38,5 +38,6 @@ PM2_APP=chatbot-server HEALTHCHECK_URL=http://127.0.0.1:3001/api/health bash scr
 - 依赖清单变化时才执行 `npm ci --include=dev`。
 - 测试或构建失败时，不会执行 PM2 重启；请修复问题后重新运行。
 - 健康检查失败时，脚本会停止并显示部署前提交号，供人工排查 PM2 日志和回退。
+- 服务器上的未纳管文件会被保留并提示；已跟踪文件存在改动时，脚本仍会拒绝部署。
 
 如需回退，请先确认故障原因与目标提交，再由具备服务器权限的人员执行；脚本不会自动执行破坏性的 Git 回退。
