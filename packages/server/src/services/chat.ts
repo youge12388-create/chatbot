@@ -10,6 +10,7 @@
 
 import { prisma } from '../db/client'
 import { normalizeSiteOrigin } from '../utils/site-domain'
+import { normalizeSiteLanguages } from '../utils/site-languages'
 
 // ---- 类型 ----
 
@@ -115,7 +116,8 @@ const AI_FALLBACK_REPLIES: Record<SupportedLang, Record<'unconfigured' | 'unavai
 }
 
 export function getAiFallbackReply(lang: unknown, type: keyof typeof AI_FALLBACK_REPLIES['zh-CN']): string {
-  return AI_FALLBACK_REPLIES[normalizeLang(lang)][type]
+  const replies = AI_FALLBACK_REPLIES[normalizeLang(lang)] || AI_FALLBACK_REPLIES['zh-CN']
+  return replies[type]
 }
 const NO_ANSWER_PATTERNS = [
   'AI 服务尚未配置',
@@ -153,7 +155,7 @@ async function updateNoAnswerCount(conversationId: string, unanswered: boolean):
   })
   return count
 }
-export type SupportedLang = 'zh-CN' | 'en' | 'ja' | 'ko' | 'ru'
+export type SupportedLang = string
 
 const SUPPORTED_LANGS: SupportedLang[] = ['zh-CN', 'en', 'ja', 'ko', 'ru']
 
@@ -166,6 +168,7 @@ export function normalizeLang(value: unknown, fallback: SupportedLang = 'zh-CN')
   if (normalized.startsWith('ja') || normalized === 'jp') return 'ja'
   if (normalized.startsWith('ko')) return 'ko'
   if (normalized.startsWith('ru')) return 'ru'
+  if (/^[a-z]{2,3}(?:-[A-Za-z]{2,8})?$/.test(value.trim())) return value.trim()
   return fallback
 }
 
@@ -303,7 +306,8 @@ export async function getFaqPool(
     if (defaultSiteFaqs.length > 0) return defaultSiteFaqs
   }
 
-  return take === undefined ? DEFAULT_FAQ_TRANSLATIONS[lang] : DEFAULT_FAQ_TRANSLATIONS[lang].slice(0, take)
+  const defaultFaqs = DEFAULT_FAQ_TRANSLATIONS[lang] || DEFAULT_FAQ_TRANSLATIONS['zh-CN']
+  return take === undefined ? defaultFaqs : defaultFaqs.slice(0, take)
 }
 async function createSession(
   siteId: string,
@@ -346,9 +350,9 @@ function isLocalizedObject(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
 }
 
-function cleanLocalizedLists(value: Record<string, unknown>): Record<string, string[]> {
+function cleanLocalizedLists(value: Record<string, unknown>, languages: readonly string[] = SUPPORTED_LANGS): Record<string, string[]> {
   const result: Record<string, string[]> = {}
-  for (const lang of SUPPORTED_LANGS) {
+  for (const lang of languages) {
     const list = value[lang]
     if (Array.isArray(list)) {
       result[lang] = list.filter(item => typeof item === 'string' && item.trim()).map(item => item.trim())
@@ -357,22 +361,22 @@ function cleanLocalizedLists(value: Record<string, unknown>): Record<string, str
   return result
 }
 
-function cleanLocalizedText(value: unknown): Record<string, string> {
+function cleanLocalizedText(value: unknown, languages: readonly string[] = SUPPORTED_LANGS): Record<string, string> {
   const result: Record<string, string> = {}
   if (typeof value === 'string' && value.trim()) {
     result['zh-CN'] = value.trim()
     return result
   }
   if (!isLocalizedObject(value)) return result
-  for (const lang of SUPPORTED_LANGS) {
+  for (const lang of languages) {
     const text = value[lang]
     if (typeof text === 'string' && text.trim()) result[lang] = text.trim()
   }
   return result
 }
 
-function normalizeLocalizedText(value: unknown, fallback: Record<string, string>): Record<string, string> {
-  const result = cleanLocalizedText(value)
+function normalizeLocalizedText(value: unknown, fallback: Record<string, string>, languages: readonly string[] = SUPPORTED_LANGS): Record<string, string> {
+  const result = cleanLocalizedText(value, languages)
   return Object.keys(result).length > 0
     ? result
     : JSON.parse(JSON.stringify(fallback))
@@ -381,9 +385,11 @@ function normalizeLocalizedText(value: unknown, fallback: Record<string, string>
 function mergeSettings(raw: any): Record<string, any> {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return JSON.parse(JSON.stringify(DEFAULT_SITE_SETTINGS))
   const merged = { ...DEFAULT_SITE_SETTINGS, ...raw }
+  merged.languages = normalizeSiteLanguages(merged.languages)
+  const languageCodes = merged.languages.map((language: { code: string }) => language.code)
 
-  merged.welcomeMessage = normalizeLocalizedText(merged.welcomeMessage, DEFAULT_SITE_SETTINGS.welcomeMessage)
-  merged.guideMessage = normalizeLocalizedText(merged.guideMessage, DEFAULT_SITE_SETTINGS.guideMessage)
+  merged.welcomeMessage = normalizeLocalizedText(merged.welcomeMessage, DEFAULT_SITE_SETTINGS.welcomeMessage, languageCodes)
+  merged.guideMessage = normalizeLocalizedText(merged.guideMessage, DEFAULT_SITE_SETTINGS.guideMessage, languageCodes)
 
   // 兼容旧版单个 bubbleMessage 字符串：转成旧数组格式。
   if (
@@ -400,7 +406,7 @@ function mergeSettings(raw: any): Record<string, any> {
         .map((item: string) => item.trim()),
     }
   } else if (isLocalizedObject(merged.bubbleMessages)) {
-    merged.bubbleMessages = cleanLocalizedLists(merged.bubbleMessages)
+    merged.bubbleMessages = cleanLocalizedLists(merged.bubbleMessages, languageCodes)
   } else {
     merged.bubbleMessages = JSON.parse(JSON.stringify(DEFAULT_SITE_SETTINGS.bubbleMessages))
   }
@@ -428,6 +434,7 @@ function mergeSettings(raw: any): Record<string, any> {
 export function getPublicSiteSettings(raw: any): Record<string, any> {
   const settings = mergeSettings(raw)
   return {
+    languages: normalizeSiteLanguages(settings.languages),
     welcomeMessage: settings.welcomeMessage,
     guideMessage: settings.guideMessage,
     bubbleMessages: settings.bubbleMessages,
@@ -708,7 +715,7 @@ const TRANSFER_REPLIES: Record<SupportedLang, string> = {
 }
 
 export function getTransferReply(lang: unknown): string {
-  return TRANSFER_REPLIES[normalizeLang(lang)]
+  return TRANSFER_REPLIES[normalizeLang(lang)] || TRANSFER_REPLIES['zh-CN']
 }
 
 async function transferToHuman(conversationId: string) {

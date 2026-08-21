@@ -2,7 +2,7 @@
  * API 调用封装
  */
 
-import { Lang, LocalizedList, LocalizedText } from './i18n'
+import { Lang, LanguageOption, LocalizedList, LocalizedText } from './i18n'
 
 export interface ChatResponse {
   reply: string
@@ -34,6 +34,7 @@ export interface FormConfig {
 }
 
 export interface SiteSettings {
+  languages?: LanguageOption[]
   welcomeMessage: string | LocalizedText
   guideMessage: string | LocalizedText
   bubbleMessages: string[] | LocalizedList

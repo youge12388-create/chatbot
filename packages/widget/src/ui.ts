@@ -4,7 +4,18 @@
 
 import { ChatApi, FaqItem, SiteSettings } from './api'
 import { renderForm } from './form'
-import { Lang, LANGUAGE_OPTIONS, languageLabel, resolveList, resolveText, t } from './i18n'
+import { isLang, Lang, LANGUAGE_OPTIONS, LanguageOption, languageLabel, resolveList, resolveText, t } from './i18n'
+
+function escapeHtml(value: string): string {
+  const entities: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  }
+  return value.replace(/[&<>"']/g, character => entities[character] || character)
+}
 
 const CSS = `
 .chat-widget-container {
@@ -690,6 +701,7 @@ export function createWidget(config: WidgetConfig): WidgetController {
   const api = new ChatApi(config.apiHost, config.siteId, config.lang)
   if (config.siteKey) api.setSiteKey(config.siteKey)
   let lang = config.lang
+  let availableLanguages: LanguageOption[] = [...LANGUAGE_OPTIONS]
 
   // Shadow DOM 隔离样式
   const container = document.createElement('div')
@@ -717,13 +729,13 @@ export function createWidget(config: WidgetConfig): WidgetController {
         <div style="display:flex;align-items:center;gap:6px;">
           <div class="chat-widget-language-wrap">
             <button type="button" class="chat-widget-language-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="${t(lang, 'language.label')}" aria-controls="chat-widget-language-menu">
-              <span class="chat-widget-language-value">${languageLabel(lang)}</span>
+              <span class="chat-widget-language-value">${escapeHtml(languageLabel(lang, availableLanguages))}</span>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
             </button>
             <div id="chat-widget-language-menu" class="chat-widget-language-menu" role="listbox" aria-label="${t(lang, 'language.label')}" hidden>
-              ${LANGUAGE_OPTIONS.map(option => `
-                <button type="button" class="chat-widget-language-option" role="option" data-lang="${option.value}" aria-selected="${option.value === lang}">
-                  <span>${option.label}</span>
+              ${availableLanguages.map(option => `
+                <button type="button" class="chat-widget-language-option" role="option" data-lang="${escapeHtml(option.code)}" aria-selected="${option.code === lang}">
+                  <span>${escapeHtml(option.label)}</span>
                   <svg class="chat-widget-language-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
                 </button>
               `).join('')}
@@ -783,7 +795,7 @@ export function createWidget(config: WidgetConfig): WidgetController {
   const languageTrigger = shadow.querySelector<HTMLButtonElement>('.chat-widget-language-trigger')!
   const languageValue = shadow.querySelector<HTMLElement>('.chat-widget-language-value')!
   const languageMenu = shadow.querySelector<HTMLElement>('.chat-widget-language-menu')!
-  const languageOptions = Array.from(shadow.querySelectorAll<HTMLButtonElement>('.chat-widget-language-option'))
+  let languageOptions = Array.from(shadow.querySelectorAll<HTMLButtonElement>('.chat-widget-language-option'))
   const headerTitle = shadow.querySelector<HTMLElement>('.chat-widget-header h3')!
   const contactLabel = shadow.querySelector<HTMLElement>('.chat-widget-contact-btn span')!
   const contactTitle = shadow.querySelector<HTMLElement>('.chat-widget-contact-card h4')!
@@ -830,6 +842,7 @@ export function createWidget(config: WidgetConfig): WidgetController {
     api.getSiteSettings().then(settings => {
       if (settings) {
         siteSettings = settings
+        setAvailableLanguages(settings.languages)
         applyThemeColor(settings.primaryColor)
         updateContactButton()
         // 气泡已显示时，更新文案列表并按需启动轮播
@@ -875,8 +888,53 @@ export function createWidget(config: WidgetConfig): WidgetController {
     }
   }
 
+  function bindLanguageOptions() {
+    languageOptions = Array.from(shadow.querySelectorAll<HTMLButtonElement>('.chat-widget-language-option'))
+    languageOptions.forEach((option, index) => {
+      option.addEventListener('click', event => {
+        event.stopPropagation()
+        setLanguageMenuOpen(false)
+        void switchLanguage(option.dataset.lang || lang)
+      })
+      option.addEventListener('keydown', event => {
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+          event.preventDefault()
+          const offset = event.key === 'ArrowDown' ? 1 : -1
+          languageOptions[(index + offset + languageOptions.length) % languageOptions.length]?.focus()
+        } else if (event.key === 'Escape') {
+          event.preventDefault()
+          setLanguageMenuOpen(false)
+          languageTrigger.focus()
+        } else if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          setLanguageMenuOpen(false)
+          void switchLanguage(option.dataset.lang || lang)
+        }
+      })
+    })
+  }
+
+  function setAvailableLanguages(configured: LanguageOption[] | undefined) {
+    const valid = Array.isArray(configured)
+      ? configured.filter(option => option && isLang(option.code) && typeof option.label === 'string' && option.label.trim() && option.enabled !== false)
+      : []
+    availableLanguages = valid.length > 0 ? valid : [...LANGUAGE_OPTIONS]
+    if (!availableLanguages.some(option => option.code === lang)) {
+      lang = availableLanguages[0]?.code || 'zh-CN'
+      api.setLanguage(lang)
+    }
+    languageMenu.innerHTML = availableLanguages.map(option => `
+      <button type="button" class="chat-widget-language-option" role="option" data-lang="${escapeHtml(option.code)}" aria-selected="${option.code === lang}">
+        <span>${escapeHtml(option.label)}</span>
+        <svg class="chat-widget-language-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
+      </button>
+    `).join('')
+    bindLanguageOptions()
+    updateLanguageUi()
+  }
+
   function updateLanguageUi() {
-    languageValue.textContent = languageLabel(lang)
+    languageValue.textContent = languageLabel(lang, availableLanguages)
     languageTrigger.setAttribute('aria-label', t(lang, 'language.label'))
     languageMenu.setAttribute('aria-label', t(lang, 'language.label'))
     languageOptions.forEach(option => {
@@ -933,28 +991,7 @@ export function createWidget(config: WidgetConfig): WidgetController {
     }
   })
 
-  languageOptions.forEach((option, index) => {
-    option.addEventListener('click', event => {
-      event.stopPropagation()
-      setLanguageMenuOpen(false)
-      void switchLanguage(option.dataset.lang as Lang)
-    })
-    option.addEventListener('keydown', event => {
-      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-        event.preventDefault()
-        const offset = event.key === 'ArrowDown' ? 1 : -1
-        languageOptions[(index + offset + languageOptions.length) % languageOptions.length]?.focus()
-      } else if (event.key === 'Escape') {
-        event.preventDefault()
-        setLanguageMenuOpen(false)
-        languageTrigger.focus()
-      } else if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault()
-        setLanguageMenuOpen(false)
-        void switchLanguage(option.dataset.lang as Lang)
-      }
-    })
-  })
+  bindLanguageOptions()
 
   document.addEventListener('click', () => {
     setLanguageMenuOpen(false)

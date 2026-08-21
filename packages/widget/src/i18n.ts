@@ -3,26 +3,32 @@
  * 支持：zh-CN（中文）、en（英文）、ja（日文）、ko（韩文）、ru（俄语）。
  */
 
-export type Lang = 'zh-CN' | 'en' | 'ja' | 'ko' | 'ru'
+export type Lang = string
 export type LocalizedText = Partial<Record<Lang, string>>
 export type LocalizedList = Partial<Record<Lang, string[]>>
 
-export const SUPPORTED_LANGS: readonly Lang[] = ['zh-CN', 'en', 'ja', 'ko', 'ru']
-
-/** 客服组件语言菜单的唯一配置来源；新增语言时在此增加语言代码、名称与翻译。 */
-export const LANGUAGE_OPTIONS: ReadonlyArray<{ value: Lang; label: string }> = [
-  { value: 'zh-CN', label: '中文' },
-  { value: 'en', label: 'English' },
-  { value: 'ja', label: '日本語' },
-  { value: 'ko', label: '한국어' },
-  { value: 'ru', label: 'Русский' },
-]
-
-export function languageLabel(lang: Lang): string {
-  return LANGUAGE_OPTIONS.find(option => option.value === lang)?.label || lang
+export interface LanguageOption {
+  code: Lang
+  label: string
+  enabled?: boolean
 }
 
-const translations: Record<Lang, Record<string, string>> = {
+export const SUPPORTED_LANGS: readonly Lang[] = ['zh-CN', 'en', 'ja', 'ko', 'ru']
+
+/** 客服组件内置语言兜底；站点配置返回的 languages 会覆盖菜单。 */
+export const LANGUAGE_OPTIONS: ReadonlyArray<LanguageOption> = [
+  { code: 'zh-CN', label: '中文', enabled: true },
+  { code: 'en', label: 'English', enabled: true },
+  { code: 'ja', label: '日本語', enabled: true },
+  { code: 'ko', label: '한국어', enabled: true },
+  { code: 'ru', label: 'Русский', enabled: true },
+]
+
+export function languageLabel(lang: Lang, options: readonly LanguageOption[] = LANGUAGE_OPTIONS): string {
+  return options.find(option => option.code === lang)?.label || lang
+}
+
+const translations: Record<string, Record<string, string>> = {
   'zh-CN': {
     'header.title': '在线咨询', 'header.welcome': '您好！有什么可以帮您的？', 'language.label': '语言', 'input.placeholder': '输入问题...', 'loading': '正在思考...', 'networkError': '网络异常，请稍后重试。',
     'contact.button': '联系顾问', 'contact.title': '联系顾问', 'contact.close': '关闭', 'contact.wechatQr': '企微二维码',
@@ -56,12 +62,11 @@ const translations: Record<Lang, Record<string, string>> = {
 }
 
 export function isLang(value: unknown): value is Lang {
-  return typeof value === 'string' && SUPPORTED_LANGS.includes(value as Lang)
+  return typeof value === 'string' && /^[a-z]{2,3}(?:-[A-Za-z]{2,8})?$/.test(value.trim())
 }
 
 /** 将外部语言代码规范化为 Widget 内部支持的语言。 */
 export function normalizeLang(value: unknown, fallback: Lang = 'zh-CN'): Lang {
-  if (isLang(value)) return value
   if (typeof value === 'string') {
     const normalized = value.toLowerCase()
     if (normalized.startsWith('zh')) return 'zh-CN'
@@ -72,6 +77,7 @@ export function normalizeLang(value: unknown, fallback: Lang = 'zh-CN'): Lang {
     if (normalized.startsWith('ko')) return 'ko'
     if (normalized === 'kr') return 'ko'
     if (normalized.startsWith('ru')) return 'ru'
+    if (isLang(value)) return value.trim()
   }
   return fallback
 }

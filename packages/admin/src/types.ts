@@ -8,9 +8,15 @@ export type InterestLevel = 'unknown' | 'low' | 'normal' | 'medium' | 'high' | '
 export type MessageRole = 'user' | 'assistant' | 'system'
 export type MessageSource = 'ai' | 'preset' | 'human' | 'user'
 export type AdminRole = 'admin' | 'staff'
-export type SupportedLang = 'zh-CN' | 'en' | 'ja' | 'ko' | 'ru'
+export type SupportedLang = string
 export type LocalizedText = Partial<Record<SupportedLang, string>>
 export type LocalizedList = Partial<Record<SupportedLang, string[]>>
+
+export interface SiteLanguage {
+  code: SupportedLang
+  label: string
+  enabled: boolean
+}
 
 export interface AdminUser {
   id: string
@@ -37,6 +43,7 @@ export interface FormConfig {
 }
 
 export interface SiteSettings {
+  languages?: SiteLanguage[]
   welcomeMessage?: string | LocalizedText
   guideMessage?: string | LocalizedText
   bubbleMessages?: string[] | LocalizedList
