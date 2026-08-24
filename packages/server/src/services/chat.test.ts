@@ -26,6 +26,24 @@ test('Dify streaming 请求会拼接 Agent 消息并保存会话 ID', () => {
   assert.equal(result.conversationId, 'dify-1')
 })
 
+test('Dify Workflow 完成事件使用最终输出并覆盖已接收的消息分片', () => {
+  const result = parseDifySse(
+    'data: {"event":"message","conversation_id":"dify-workflow-1","answer":"分片答案"}\n\n' +
+    'data: {"event":"workflow_finished","conversation_id":"dify-workflow-1","data":{"outputs":{"answer":"最终 Workflow 答案"}}}\n\n',
+  )
+
+  assert.deepEqual(result, { answer: '最终 Workflow 答案', conversationId: 'dify-workflow-1' })
+})
+
+test('Dify Workflow 失败会抛出上游错误而不误判为无答案', () => {
+  assert.throws(
+    () => parseDifySse(
+      'data: {"event":"workflow_finished","data":{"status":"failed","error":"knowledge base rate limit"}}\n\n',
+    ),
+    /knowledge base rate limit/,
+  )
+})
+
 test('公开站点配置不会暴露 Dify Key、Webhook 或 n8n 地址', () => {
   const settings = getPublicSiteSettings({
     welcomeMessage: '欢迎',

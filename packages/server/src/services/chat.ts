@@ -553,7 +553,7 @@ export interface DifyStreamResult {
   conversationId: string | null
 }
 
-/** 解析 Dify streaming 响应，兼容 message、agent_message 和错误事件。 */
+/** 解析 Dify streaming 响应，兼容 Chatflow 消息与 Workflow 完成事件。 */
 export function parseDifySse(text: string): DifyStreamResult {
   let answer = ''
   let conversationId: string | null = null
@@ -579,6 +579,16 @@ export function parseDifySse(text: string): DifyStreamResult {
     }
     if (payload.event === 'message' || payload.event === 'agent_message') {
       if (typeof payload.answer === 'string') answer += payload.answer
+    }
+    if (payload.event === 'workflow_finished') {
+      if (payload.data?.status === 'failed') {
+        throw new Error(
+          typeof payload.data?.error === 'string' ? payload.data.error : 'Dify workflow failed',
+        )
+      }
+      const workflowAnswer = payload.data?.outputs?.answer
+      // Workflow 可能同时发送 message 分片；以结束事件的完整答案为准，避免重复拼接。
+      if (typeof workflowAnswer === 'string') answer = workflowAnswer
     }
   }
 
