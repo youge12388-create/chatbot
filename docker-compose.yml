@@ -18,6 +18,17 @@ services:
       timeout: 5s
       retries: 5
 
+  # Redis（多实例实时推送；单实例可省略）
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   # Chat API 后端
   server:
     build:
@@ -31,8 +42,12 @@ services:
       DIFY_API_KEY: "${DIFY_API_KEY}"
       WECOM_WEBHOOK_URL: "${WECOM_WEBHOOK_URL}"
       N8N_WEBHOOK_URL: "http://n8n:5678/webhook/lead-notify"
+      REDIS_URL: "redis://redis:6379"
+      MAX_SSE_CONNECTIONS: "500"
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   # n8n 自动化平台

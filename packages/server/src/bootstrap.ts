@@ -1,47 +1,77 @@
 /**
- * 启动引导：自动初始化数据库 + 启动服务
+ * Startup bootstrap: prepares the database and then starts the HTTP server.
  *
- * 流程：
- * 1. prisma db push（建表）
- * 2. 执行 seed（初始化默认站点和 FAQ）
- * 3. 启动 Express 服务
+ * Flow:
+ * 1. prisma db push (create tables)
+ * 2. seed defaults
+ * 3. start Express
  *
- * 任何一步失败都不阻塞后续步骤（除了最终的服务启动）
+ * With REDIS_URL configured, schema/seed run under a short-lived Redis lock so
+ * multiple instances can start at the same time without racing each other.
+ * A failing optional step is logged and does not block the server.
  */
 
 import { execSync } from 'child_process'
 import { existsSync } from 'fs'
 import { resolve } from 'path'
+import { createClient } from 'redis'
 
-const prismaSchema = resolve(__dirname, '../prisma/schema.prisma')
 const seedFile = resolve(__dirname, '../prisma/seed.js')
 
-// 1. 建表
-try {
-  console.log('[bootstrap] 正在同步数据库表结构...')
-  execSync('npx prisma db push', {
-    stdio: 'inherit',
-    env: process.env,
-    cwd: resolve(__dirname, '..'),
-  })
-  console.log('[bootstrap] 数据库表结构同步完成')
-} catch (e) {
-  console.error('[bootstrap] prisma db push 失败，服务仍会继续启动:', (e as Error).message)
-}
-
-// 2. 初始化种子数据
-if (existsSync(seedFile)) {
+async function acquireInitLock(): Promise<boolean> {
+  const url = process.env.REDIS_URL
+  if (!url) return true
+  const client = createClient({ url })
   try {
-    console.log('[bootstrap] 正在初始化种子数据...')
-    execSync(`node "${seedFile}"`, {
-      stdio: 'inherit',
-      env: process.env,
+    await client.connect()
+    const result = await client.set('chatbot:init:lock', String(Date.now()), {
+      NX: true,
+      EX: 120,
     })
-    console.log('[bootstrap] 种子数据初始化完成')
-  } catch (e) {
-    console.error('[bootstrap] seed 失败，服务仍会继续启动:', (e as Error).message)
+    return result === 'OK'
+  } catch (err) {
+    console.warn('[bootstrap] redis lock unavailable, initializing anyway:', (err as Error).message)
+    return true
+  } finally {
+    await client.destroy()
   }
 }
 
-// 3. 启动服务（require 确保 bootstrap 进程退出后由 index 接管）
-require('./index')
+async function main(): Promise<void> {
+  const locked = await acquireInitLock()
+  if (!locked) {
+    console.log('[bootstrap] another instance holds the init lock, skipping schema/seed')
+    return
+  }
+
+  try {
+    console.log('[bootstrap] syncing database schema...')
+    execSync('npx prisma db push', {
+      stdio: 'inherit',
+      env: process.env,
+      cwd: resolve(__dirname, '..'),
+    })
+    console.log('[bootstrap] database schema sync complete')
+  } catch (err) {
+    console.error('[bootstrap] prisma db push failed, continuing:', (err as Error).message)
+  }
+
+  if (existsSync(seedFile)) {
+    try {
+      console.log('[bootstrap] seeding default data...')
+      execSync(`node "${seedFile}"`, { stdio: 'inherit', env: process.env })
+      console.log('[bootstrap] seed complete')
+    } catch (err) {
+      console.error('[bootstrap] seed failed, continuing:', (err as Error).message)
+    }
+  }
+}
+
+main()
+  .then(() => {
+    require('./index')
+  })
+  .catch((err) => {
+    console.error('[bootstrap] startup failed:', err)
+    process.exit(1)
+  })

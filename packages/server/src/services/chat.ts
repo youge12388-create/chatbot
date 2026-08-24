@@ -11,6 +11,12 @@
 import { prisma } from '../db/client'
 import { normalizeSiteOrigin } from '../utils/site-domain'
 import { normalizeSiteLanguages } from '../utils/site-languages'
+import { createTtlCache } from '../utils/memory-cache'
+import { createLimiter } from '../utils/concurrency'
+
+const siteSettingsCache = createTtlCache<any>(10_000)
+const faqCache = createTtlCache<any>(10_000)
+const difyLimiter = createLimiter(Number(process.env.DIFY_MAX_CONCURRENT || 20), 200)
 
 // ---- 类型 ----
 
@@ -445,12 +451,17 @@ export function getPublicSiteSettings(raw: any): Record<string, any> {
   }
 }
 async function getSiteSettings(siteId: string) {
+  const cacheKey = `site:${siteId}`
+  const cached = siteSettingsCache.get(cacheKey)
+  if (cached) return cached
   const site = await prisma.site.findUnique({
     where: { id: siteId },
     select: { settings: true, name: true },
   })
   if (!site) return null
-  return { id: siteId, name: site.name, settings: getPublicSiteSettings(site.settings) }
+  const value = { id: siteId, name: site.name, settings: getPublicSiteSettings(site.settings) }
+  siteSettingsCache.set(cacheKey, value)
+  return value
 }
 
 async function saveMessage(
@@ -593,7 +604,7 @@ async function getRecentHistory(conversationId: string, limit = 6): Promise<stri
     .join('\n')
 }
 
-async function askDify(conversationId: string, query: string, questionType?: string, lang: SupportedLang = 'zh-CN'): Promise<string> {
+async function askDifyInner(conversationId: string, query: string, questionType?: string, lang: SupportedLang = 'zh-CN'): Promise<string> {
   const conversation = await prisma.conversation.findUnique({
     where: { id: conversationId },
     select: { metadata: true, siteId: true },
@@ -704,6 +715,15 @@ async function askDify(conversationId: string, query: string, questionType?: str
   }
 }
 
+async function askDify(conversationId: string, query: string, questionType?: string, lang: SupportedLang = 'zh-CN'): Promise<string> {
+  try {
+    return await difyLimiter.run(() => askDifyInner(conversationId, query, questionType, lang))
+  } catch (err) {
+    const reason = (err as Error).message === 'queue full' ? 'timeout' : 'unavailable'
+    return getAiFallbackReply(lang, reason)
+  }
+}
+
 // ---- 转人工 ----
 
 const TRANSFER_REPLIES: Record<SupportedLang, string> = {
@@ -728,7 +748,12 @@ async function transferToHuman(conversationId: string) {
 // ---- 预设问题 ----
 
 async function getFaqs(siteId: string, lang: SupportedLang = 'zh-CN') {
-  return getFaqPool(siteId, lang, 10)
+  const cacheKey = `faqs:${siteId}:${lang}`
+  const cached = faqCache.get(cacheKey)
+  if (cached) return cached
+  const faqs = await getFaqPool(siteId, lang, 10)
+  faqCache.set(cacheKey, faqs)
+  return faqs
 }
 
 /**

@@ -8,8 +8,15 @@ import { Router, Request, Response, NextFunction } from 'express'
 import { chatService, normalizeLang } from '../services/chat'
 import { leadService } from '../services/lead'
 import { publish, publishAdmin } from '../services/pubsub'
+import { createConnectionLimiter } from '../utils/connection-limiter'
+import { createRateLimiter } from '../utils/rate-limit'
 
 const router = Router()
+const sseLimiter = createConnectionLimiter(Number(process.env.MAX_SSE_CONNECTIONS || 500))
+const makeRate = (max: number) => createRateLimiter({ windowMs: 60_000, max })
+const messageRateMax = Number(process.env.CHAT_RATE_LIMIT_MESSAGE || 60)
+const mutationRateMax = Number(process.env.CHAT_RATE_LIMIT_MUTATION || 60)
+const readRateMax = Number(process.env.CHAT_RATE_LIMIT_READ || 120)
 
 // ---- 工具函数 ----
 
@@ -38,7 +45,7 @@ function requireFields(body: Record<string, any>, fields: string[]): string | nu
 // ========================
 
 /** POST /api/chat/session - 创建会话 */
-router.post('/session', wrap(async (req, res) => {
+router.post('/session', makeRate(mutationRateMax), wrap(async (req, res) => {
   const err = requireFields(req.body, ['siteId', 'visitorId'])
   if (err) {
     res.status(400).json({ code: 1, message: err })
@@ -59,7 +66,7 @@ router.post('/session', wrap(async (req, res) => {
 // ========================
 
 /** POST /api/chat/message - 发送消息，返回 AI 回复 */
-router.post('/message', wrap(async (req, res) => {
+router.post('/message', makeRate(messageRateMax), wrap(async (req, res) => {
   const err = requireFields(req.body, ['conversationId', 'content'])
   if (err) {
     res.status(400).json({ code: 1, message: err })
@@ -187,7 +194,7 @@ router.post('/message', wrap(async (req, res) => {
 // ========================
 
 /** POST /api/chat/lead - 提交/更新线索 */
-router.post('/lead', wrap(async (req, res) => {
+router.post('/lead', makeRate(mutationRateMax), wrap(async (req, res) => {
   const err = requireFields(req.body, ['conversationId'])
   if (err) {
     res.status(400).json({ code: 1, message: err })
@@ -203,7 +210,7 @@ router.post('/lead', wrap(async (req, res) => {
 // ========================
 
 /** GET /api/chat/site?siteKey=xxx - 根据 apiKey 获取站点配置 */
-router.get('/site', wrap(async (req, res) => {
+router.get('/site', makeRate(readRateMax), wrap(async (req, res) => {
   const { siteKey } = req.query
   if (!siteKey) {
     res.status(400).json({ code: 1, message: '缺少必填参数: siteKey' })
@@ -219,7 +226,7 @@ router.get('/site', wrap(async (req, res) => {
 }))
 
 /** GET /api/chat/faqs?siteId=xxx - 获取站点预设问题 */
-router.get('/faqs', wrap(async (req, res) => {
+router.get('/faqs', makeRate(readRateMax), wrap(async (req, res) => {
   const { siteId, lang } = req.query
   if (!siteId) {
     res.status(400).json({ code: 1, message: '缺少必填参数: siteId' })
@@ -230,7 +237,7 @@ router.get('/faqs', wrap(async (req, res) => {
 }))
 
 /** GET /api/chat/leads - 查看所有线索 */
-router.get('/leads', wrap(async (_req, res) => {
+router.get('/leads', makeRate(readRateMax), wrap(async (_req, res) => {
   const { prisma } = require('../db/client')
   const leads = await prisma.lead.findMany({
     include: {
@@ -245,7 +252,7 @@ router.get('/leads', wrap(async (_req, res) => {
 }))
 
 /** GET /api/chat/leads/html - 网页查看线索（方便手机直接看） */
-router.get('/leads/html', wrap(async (_req, res) => {
+router.get('/leads/html', makeRate(readRateMax), wrap(async (_req, res) => {
   const { prisma } = require('../db/client')
   const leads = await prisma.lead.findMany({
     include: {
@@ -293,7 +300,7 @@ router.get('/leads/html', wrap(async (_req, res) => {
 }))
 
 /** GET /api/chat/leads/test-notify - 测试企微通知（方便排查） */
-router.get('/leads/test-notify', wrap(async (_req, res) => {
+router.get('/leads/test-notify', makeRate(readRateMax), wrap(async (_req, res) => {
   const url = process.env.WECOM_WEBHOOK_URL
   const n8nUrl = process.env.N8N_WEBHOOK_URL
 
@@ -345,6 +352,11 @@ router.get('/stream', (req, res) => {
     return
   }
 
+  if (!sseLimiter.tryAcquire()) {
+    res.status(503).json({ code: 1, message: 'server busy, please retry later' })
+    return
+  }
+
   // widget SSE 无需认证（访客建立连接），后台通过 pubsub 推送
 
   // SSE 头
@@ -369,13 +381,14 @@ router.get('/stream', (req, res) => {
 
   // 客户端断开时清理
   req.on('close', () => {
+    sseLimiter.release()
     clearInterval(heartbeat)
     unsubscribe()
   })
 })
 
 /** GET /api/chat/messages?conversationId=xxx&after=ISO时间 - 拉取历史消息（widget 重连时拉未读） */
-router.get('/messages', wrap(async (req, res) => {
+router.get('/messages', makeRate(readRateMax), wrap(async (req, res) => {
   const { conversationId, after } = req.query
   if (!conversationId) {
     res.status(400).json({ code: 1, message: '缺少必填参数: conversationId' })

@@ -3,6 +3,7 @@ import cors from 'cors'
 import path from 'path'
 import chatRoutes from './routes/chat'
 import adminRoutes from './routes/admin'
+import { initPubSub } from './services/pubsub'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -41,6 +42,11 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   })
 })
 
-app.listen(Number(PORT), '0.0.0.0', () => {
-  console.log(`[chat-api] running on http://0.0.0.0:${PORT}`)
-})
+async function start() {
+  await initPubSub()
+  app.listen(Number(PORT), '0.0.0.0', () => {
+    console.log(`[chat-api] running on http://0.0.0.0:${PORT}`)
+  })
+}
+
+void start()
