@@ -3,7 +3,7 @@ import test from 'node:test'
 import { normalizeSiteDomain, normalizeSiteOrigin } from './site-domain'
 
 test('normalizes a website domain', () => {
-  assert.equal(normalizeSiteDomain(' HTTPS://LuckyBoy.ME/ '), 'luckyboy.me')
+  assert.equal(normalizeSiteDomain(' HTTPS://Example.COM/ '), 'example.com')
 })
 
 test('allows localhost with a port for local development', () => {
@@ -12,12 +12,12 @@ test('allows localhost with a port for local development', () => {
 
 test('rejects generated site identifiers and URL paths', () => {
   assert.equal(normalizeSiteDomain('cmrgdlbi300008hsqmynz2lu9'), null)
-  assert.equal(normalizeSiteDomain('https://luckyboy.me/admin'), null)
+  assert.equal(normalizeSiteDomain('https://example.com/admin'), null)
 })
 
 test('normalizes a browser origin to the configured site host', () => {
-  assert.equal(normalizeSiteOrigin('https://Check.MedicalChinaWay.com'), 'check.medicalchinaway.com')
-  assert.equal(normalizeSiteOrigin('https://114.132.180.195'), '114.132.180.195')
+  assert.equal(normalizeSiteOrigin('https://Check.Example.COM'), 'check.example.com')
+  assert.equal(normalizeSiteOrigin('https://192.0.2.10'), '192.0.2.10')
 })
 
 test('rejects origins with a path or unsupported protocol', () => {

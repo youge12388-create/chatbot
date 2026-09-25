@@ -551,7 +551,7 @@ router.post('/sites', requireAuth, requireAdmin, wrap(async (req, res) => {
     return
   }
   if (!domain) {
-    res.status(400).json({ code: 1, message: '请输入正确的网站域名，例如 luckyboy.me' })
+    res.status(400).json({ code: 1, message: '请输入正确的网站域名，例如 example.com' })
     return
   }
 
@@ -602,7 +602,7 @@ router.patch('/sites/:id', requireAuth, wrap(async (req, res) => {
   if (domain !== undefined) {
     const normalizedDomain = normalizeSiteDomain(domain)
     if (!normalizedDomain) {
-      res.status(400).json({ code: 1, message: '请输入正确的网站域名，例如 luckyboy.me' })
+      res.status(400).json({ code: 1, message: '请输入正确的网站域名，例如 example.com' })
       return
     }
     data.domain = normalizedDomain

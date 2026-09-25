@@ -349,7 +349,7 @@ async function copySiteValue(value: string, label: string) {
     pushToast('error', '复制失败，请手动复制')
   }
 }
-const WIDGET_API_HOST = 'https://chatbot.medicalchinaway.com'
+const WIDGET_API_HOST = window.location.origin
 
 function escapeHtmlAttribute(value: string): string {
   return value
@@ -688,7 +688,7 @@ onMounted(fetchList)
                 type="text"
                 inputmode="url"
                 spellcheck="false"
-                placeholder="例如 luckyboy.me"
+                placeholder="例如 example.com"
                 class="px-3 py-2 rounded border border-border bg-bg focus:border-primary focus:outline-none w-full"
               />
               <p class="mt-1.5 text-xs text-muted">只填写域名，不需要输入 https:// 或页面路径。</p>

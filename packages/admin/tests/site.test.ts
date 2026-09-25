@@ -15,10 +15,10 @@ test('a bare generated identifier is not treated as a website', () => {
 })
 
 test('a real domain gets a safe HTTPS link', () => {
-  assert.deepEqual(siteUrlInfo('luckyboy.me'), {
+  assert.deepEqual(siteUrlInfo('example.com'), {
     configured: true,
-    display: 'luckyboy.me',
-    href: 'https://luckyboy.me/',
+    display: 'example.com',
+    href: 'https://example.com/',
   })
 })
 

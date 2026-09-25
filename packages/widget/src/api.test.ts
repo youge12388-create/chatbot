@@ -64,11 +64,11 @@ test('encodes FAQ requests and sends custom lead fields as extra data', async ()
   }
 
   assert.deepEqual(await api.getFaqs(), [{ id: 'faq-1' }])
-  await api.submitLead({ name: '游sir' }, { company: 'Example' })
+  await api.submitLead({ name: '测试用户' }, { company: 'Example' })
   assert.equal(requests[0].url, 'https://api.example.com/api/chat/faqs?siteId=site%20id&lang=zh-CN')
   assert.deepEqual(JSON.parse(String(requests[1].init?.body)), {
     conversationId: null,
-    name: '游sir',
+    name: '测试用户',
     extra: { company: 'Example' },
   })
 })
