@@ -11,8 +11,21 @@ import { prisma } from '../db/client'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me'
 const JWT_EXPIRES_IN = '7d'
+
+/**
+ * 获取 JWT 签名密钥。
+ * 生产环境必须显式配置 JWT_SECRET，缺失时直接拒绝启动（fail-fast）；
+ * 开发环境允许回退到默认值，避免本地启动门槛。
+ */
+function jwtSecret(): string {
+  const secret = process.env.JWT_SECRET
+  if (secret) return secret
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('[auth] JWT_SECRET 未配置：生产环境必须显式设置 JWT_SECRET')
+  }
+  return 'dev-secret-change-me'
+}
 
 export interface AdminUserPublic {
   id: string
@@ -31,7 +44,7 @@ async function login(username: string, password: string): Promise<{ token: strin
 
   const token = jwt.sign(
     { sub: user.id, username: user.username, role: user.role },
-    JWT_SECRET,
+    jwtSecret(),
     { expiresIn: JWT_EXPIRES_IN },
   )
 
@@ -44,7 +57,7 @@ async function login(username: string, password: string): Promise<{ token: strin
 /** 解析 token，返回用户公开信息（不含密码） */
 async function verifyToken(token: string): Promise<AdminUserPublic | null> {
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as { sub: string }
+    const payload = jwt.verify(token, jwtSecret()) as { sub: string }
     const user = await prisma.adminUser.findUnique({
       where: { id: payload.sub },
       select: { id: true, username: true, role: true, name: true },

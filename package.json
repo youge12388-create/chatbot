@@ -1,6 +1,9 @@
 {
   "name": "chatbot",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "workspaces": [
     "packages/*"
   ],

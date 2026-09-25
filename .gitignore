@@ -12,3 +12,15 @@ data/
 # 本地部署临时包与校验产物，不进入 Git
 .codex-local/
 .codex/
+
+# 内部文档与工作交接，不进入开源仓库
+.agent/
+.agents/
+.workbuddy/
+docs/PROJECT_STATE.md
+docs/production-update.md
+docs/widget-multilingual-test.html
+docs/*.docx
+docs/~$*
+docs/员工使用手册.md
+docs/images/
